@@ -12,3 +12,7 @@ app.get("/", (req, res) => {
 app.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
 });
+
+const productRoutes = require("./routes/products");
+//use product routes for any requests to /api/products
+app.use("/api/products", productRoutes);

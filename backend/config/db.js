@@ -1,16 +1,23 @@
-require('dotenv').config();
-let mysql = require('mysql2');
+require("dotenv").config();
+const mysql = require("mysql2/promise");
 
-let con = mysql.createConnection({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME
+// create a pool of connections we can use with async/await
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
 });
 
-con.connect(err => {
-    if (err) throw err;
-    console.log("Connected!");
-});
+// optional: quick test on startup
+db.getConnection()
+  .then(conn => {
+    console.log("Connected to MySQL!");
+    conn.release();
+  })
+  .catch(err => {
+    console.error("DB connection error:", err);
+  });
 
+module.exports = db;
