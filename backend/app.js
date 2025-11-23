@@ -16,3 +16,7 @@ app.listen(3000, () => {
 const productRoutes = require("./routes/products");
 //use product routes for any requests to /api/products
 app.use("/api/products", productRoutes);
+
+const cartRoutes = require("./routes/cart");
+app.use("/api/cart", cartRoutes);
+//use cart routes for any requests to /api/cart
