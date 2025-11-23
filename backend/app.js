@@ -24,3 +24,7 @@ app.use("/api/cart", cartRoutes);
 const orderRoutes = require("./routes/orders");
 app.use("/api/orders", orderRoutes);
 //use order routes for any requests to /api/orders
+
+const feedbackRoutes = require("./routes/feedback");
+app.use("/api/feedback", feedbackRoutes);
+//use feedback routes for any requests to /api/feedback
