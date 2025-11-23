@@ -20,3 +20,7 @@ app.use("/api/products", productRoutes);
 const cartRoutes = require("./routes/cart");
 app.use("/api/cart", cartRoutes);
 //use cart routes for any requests to /api/cart
+
+const orderRoutes = require("./routes/orders");
+app.use("/api/orders", orderRoutes);
+//use order routes for any requests to /api/orders

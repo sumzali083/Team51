@@ -4,7 +4,7 @@ const db = require("../config/db");
  // your mysql2/promise pool
 const router = express.Router();
 
-// Change this if your table is called something else (e.g. "cart")
+// Table name for cart items
 const TABLE_NAME = "basket_items";
 
 /**
@@ -14,15 +14,20 @@ const TABLE_NAME = "basket_items";
  * - else → insert new row
  */
 router.post("/", async (req, res) => {
+    //add item to cart or update quantity if already exists
   try {
     const { userId, productId, quantity } = req.body;
+    //get userId, productId and quantity from request body
 
     if (!userId || !productId || !quantity) {
+        //validate required fields
       return res.status(400).json({ message: "userId, productId and quantity are required" });
+      //return 400 bad request if any field is missing 
     }
 
     // 1. check if this product is already in the user's cart
     const [existingRows] = await db.query(
+        //use sql query to check for existing cart item
       `SELECT * FROM ${TABLE_NAME} WHERE user_id = ? AND product_id = ?`,
       [userId, productId]
     );
@@ -30,16 +35,20 @@ router.post("/", async (req, res) => {
     if (existingRows.length > 0) {
       // update quantity (add to existing)
       const current = existingRows[0];
+      //get current cart item
       const newQty = current.quantity + Number(quantity);
 
       await db.query(
+        //with sql query update the quantity of the existing cart item
         `UPDATE ${TABLE_NAME} SET quantity = ? WHERE id = ?`,
         [newQty, current.id]
       );
 
       return res.json({
+        //return success response
         message: "Cart item updated",
         itemId: current.id,
+        // return the id of the updated item
         quantity: newQty,
       });
     } else {
@@ -51,6 +60,7 @@ router.post("/", async (req, res) => {
       );
 
       return res.status(201).json({
+        //return success response for new item
         message: "Item added to cart",
         itemId: result.insertId,
       });
@@ -67,14 +77,17 @@ router.post("/", async (req, res) => {
  */
 router.get("/", async (req, res) => {
   try {
+    //get all cart items for a user
     const { userId } = req.query;
 
     if (!userId) {
+        //validate userId query parameter
       return res.status(400).json({ message: "userId query parameter is required" });
     }
 
     const [rows] = await db.query(
       `SELECT b.*, p.name, p.price
+      //get cart items joined with product info
        FROM ${TABLE_NAME} b
        JOIN products p ON b.product_id = p.id
        WHERE b.user_id = ?`,
