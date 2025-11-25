@@ -9,8 +9,8 @@ app.get("/", (req, res) => {
   res.send("Backend is working - Summer");
 });
 
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+app.listen(21051, () => {
+  console.log("Server running on http://localhost:${PORT}");
 });
 
 const productRoutes = require("./routes/products");
