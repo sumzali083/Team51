@@ -34,6 +34,7 @@ export default function App() {
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<Registration />} />
+            <Route path="/feedback" element={React.createElement(require('./pages/FeedbackPage.jsx').default)} />
           </Route>
         </Routes>
       </BrowserRouter>
