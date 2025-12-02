@@ -153,13 +153,6 @@ export default function Contact({ onNavigate }) {
         </form>
       </div>
 
-      <footer className="bg-dark text-light mt-4 p-4 rounded text-center">
-        <h5 className="mb-1">Osai</h5>
-        <p className="small mb-0">134a Aston Road, Birmingham, United Kingdom</p>
-        <p className="small mb-0">
-          Email: <a className="text-warning" href="mailto:support@osai.example">support@osai.example</a>
-        </p>
-      </footer>
     </main>
   );
 }

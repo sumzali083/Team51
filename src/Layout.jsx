@@ -113,7 +113,7 @@ export function Layout() {
         <p>
           Email:{" "}
           <a className="text-warning" href="mailto:240365581@aston.ac.uk">
-            240365581@aston.ac.uk
+            OSAI@aston.ac.uk
           </a>
         </p>
 
