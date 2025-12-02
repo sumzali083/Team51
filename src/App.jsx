@@ -8,6 +8,8 @@ import { WomensPage } from "./pages/WomensPage";
 import { KidsPage } from "./pages/KidsPage";
 import { ProductPage } from "./ProductPage";
 import { SearchPage } from "./pages/SearchPage";
+import { Contact }from "./pages/Contact";
+
 
 export default function App() {
   return (
