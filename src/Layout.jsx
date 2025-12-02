@@ -70,6 +70,11 @@ export function Layout() {
                     About Us
                   </NavLink>
                 </li>
+                <li className="nav-item">
+                  <NavLink className="nav-link" to="/feedback">
+                    Send Us Feedback
+                  </NavLink>
+                </li>
               </ul>
 
               {/* NAV SEARCH */}
