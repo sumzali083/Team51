@@ -14,9 +14,7 @@ import FeedbackPage from "./pages/FeedbackPage";
 
 import { CartProvider } from "./context/CartContext";
 import Cart from "./pages/cart";
-import CheckoutPage from "./pages/CheckoutPage.jsx";
-
-
+import CheckoutPage from "./pages/CheckoutPage";
 export default function App() {
   console.log('DEBUG: App.jsx is rendering');
   return (
