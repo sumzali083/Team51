@@ -1,11 +1,13 @@
-import React from "react";
+
+import React, { useContext } from "react";
 import { useParams, Link } from "react-router-dom";
 import { PRODUCTS } from "./data";
+import { CartContext } from "./context/CartContext";
 
 export function ProductPage() {
   const { id } = useParams();
   const product = PRODUCTS.find((p) => p.id === id);
-
+  const cartContext = useContext(CartContext);
   const [activeImg, setActiveImg] = React.useState(0);
   const [size, setSize] = React.useState(product?.sizes?.[0] ?? "");
   const [color, setColor] = React.useState(product?.colors?.[0] ?? "");
@@ -32,9 +34,14 @@ export function ProductPage() {
   const catLabel = catToLabel[product.cat] || "Shop";
 
   const handleAdd = () => {
-    setMsg(
-      `Added “${product.name}” (${color}, ${size}) to bag (demo).`
-    );
+    // Add product to cart with selected size and color
+    cartContext.addToCart({
+      ...product,
+      size,
+      color,
+      image: product.images[activeImg],
+    });
+    setMsg(`Added “${product.name}” (${color}, ${size}) to cart!`);
   };
 
   return (
@@ -58,16 +65,11 @@ export function ProductPage() {
             {product.images.map((src, i) => (
               <button
                 key={i}
-                className={
-                  "thumb-btn" + (i === activeImg ? " active" : "")
-                }
+                className={"thumb-btn" + (i === activeImg ? " active" : "")}
                 onClick={() => setActiveImg(i)}
                 aria-label={`Image ${i + 1}`}
               >
-                <img
-                  alt={`${product.name} thumbnail ${i + 1}`}
-                  src={src}
-                />
+                <img alt={`${product.name} thumbnail ${i + 1}`} src={src} />
               </button>
             ))}
           </div>

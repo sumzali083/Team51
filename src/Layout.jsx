@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { CartContext } from "./context/CartContext";
 
 export function Layout() {
   const [search, setSearch] = React.useState("");
@@ -14,6 +15,10 @@ export function Layout() {
     // Always navigate to the global search page with query param
     navigate(`/search?q=${encodeURIComponent(term)}`);
   };
+
+  // cart context — show total items in navbar
+  const cartCtx = useContext(CartContext);
+  const totalItems = cartCtx?.cart?.reduce((s, i) => s + (i.quantity || 0), 0) || 0;
 
   return (
     <>
@@ -85,12 +90,12 @@ export function Layout() {
                 <button className="btn btn-outline-light profile-btn">
                   <i className="bi bi-person-circle" /> Profile
                 </button>
-                <button className="btn btn-outline-light cart-btn position-relative">
+                <NavLink to="/cart" className="btn btn-outline-light cart-btn position-relative">
                   <i className="bi bi-cart3" />
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    0
+                    {totalItems}
                   </span>
-                </button>
+                </NavLink>
               </div>
             </div>
           </div>

@@ -1,11 +1,10 @@
-import { useContext } from "react";
-import { CartContext } from "../context/CartContext";
 
 export default function Cart() {
   var cartContext = useContext(CartContext);
   var cart = cartContext.cart;
   var removeFromCart = cartContext.removeFromCart;
   var changeQuantity = cartContext.changeQuantity;
+  var navigate = useNavigate();
 
   // Calculate total using normal function
   var total = cart.reduce(function(sum, item) {
@@ -59,10 +58,13 @@ export default function Cart() {
 
       <h4>Total: £{total.toFixed(2)}</h4>
       {cart.length > 0 && (
-        <button className="btn btn-success mt-3">
+        <button className="btn btn-success mt-3" onClick={() => navigate('/checkout')}>
           Proceed to Checkout
         </button>
       )}
     </div>
   );
 }
+import React, { useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { CartContext } from "../context/CartContext";
