@@ -1,5 +1,15 @@
 const express = require("express");
-const db = require("../config/db"); // same as feedback.js
+const mysql = require("mysql2/promise");
+
+const db = mysql.createPool({
+  host: "localhost",
+  user: "cs2team51",
+  password: "vnCDK1Gy61wnAv3WlFzQvY9gH",
+  database: "cs2team51_db",
+});
+
+module.exports = db;
+
 const router = express.Router();
 
 /**
@@ -74,3 +84,4 @@ router.get("/", async (req, res) => {
 
 module.exports = router;
 // export the router
+
