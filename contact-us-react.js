@@ -1,18 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import axios from "axios";
+
 export default function Contact({ onNavigate }) {
-  // form state
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null); // { type: 'success' | 'danger', text: '' }
+  const clearTimer = useRef(null);
 
-  // handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
   };
 
-  // basic validation (client-side)
   const validate = () => {
     if (!form.name || form.name.trim() === "") return "Name is required";
     if (!form.email || !form.email.includes("@")) return "Valid email is required";
@@ -20,32 +19,44 @@ export default function Contact({ onNavigate }) {
     return null;
   };
 
-  // form submit handler
+  const showAlert = (a) => {
+    setAlert(a);
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    if (a && a.type === "success") {
+      clearTimer.current = setTimeout(() => setAlert(null), 4000);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const v = validate();
     if (v) {
-      setAlert({ type: "danger", text: v });
+      showAlert({ type: "danger", text: v });
       return;
     }
 
     setLoading(true);
-    setAlert(null);
+    showAlert(null);
 
     try {
-      // POST to backend (assumes backend mounted at /api/contact)
-      const res = await axios.post("/api/contact", {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        message: form.message.trim(),
-      });
+      // axios default baseURL or proxy should be configured in dev (package.json "proxy")
+      const res = await axios.post(
+        "/api/contact",
+        {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          message: form.message.trim(),
+        },
+        { timeout: 8000 } // small timeout so UI doesn't hang forever
+      );
 
-      setAlert({ type: "success", text: res.data?.message || "Message sent" });
+      showAlert({ type: "success", text: res.data?.message || "Message sent" });
       setForm({ name: "", email: "", message: "" });
     } catch (err) {
-      const msg = err?.response?.data?.message || "Server error";
-      setAlert({ type: "danger", text: msg });
+      const msg =
+        err?.response?.data?.message ||
+        (err.code === "ECONNABORTED" ? "Request timed out" : "Server error");
+      showAlert({ type: "danger", text: msg });
     } finally {
       setLoading(false);
     }
@@ -56,11 +67,13 @@ export default function Contact({ onNavigate }) {
       <div className="p-4 bg-white rounded shadow-sm">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h2 className="mb-0">Contact Us</h2>
-          {/* optional back link using your onNavigate pattern */}
           {typeof onNavigate === "function" && (
             <button
               className="btn btn-link text-decoration-none"
-              onClick={(e) => onNavigate(e, "home")}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate(e, "home");
+              }}
             >
               ← Back to Home
             </button>
@@ -68,18 +81,25 @@ export default function Contact({ onNavigate }) {
         </div>
 
         <p className="text-muted">
-          Have a question about sizing, orders, or returns? Drop us a message and we'll get back to you by email.
+          Have a question about sizing, orders, or returns? Drop us a message and we'll get back to you by
+          email.
         </p>
 
         {alert && (
-          <div className={`alert alert-${alert.type} mt-2`} role="alert">
+          <div
+            className={`alert alert-${alert.type} mt-2`}
+            role="alert"
+            aria-live="polite"
+          >
             {alert.text}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-3">
+        <form onSubmit={handleSubmit} className="mt-3" noValidate>
           <div className="mb-3">
-            <label htmlFor="contact-name" className="form-label">Name</label>
+            <label htmlFor="contact-name" className="form-label">
+              Name
+            </label>
             <input
               id="contact-name"
               name="name"
@@ -92,7 +112,9 @@ export default function Contact({ onNavigate }) {
           </div>
 
           <div className="mb-3">
-            <label htmlFor="contact-email" className="form-label">Email</label>
+            <label htmlFor="contact-email" className="form-label">
+              Email
+            </label>
             <input
               id="contact-email"
               name="email"
@@ -106,7 +128,9 @@ export default function Contact({ onNavigate }) {
           </div>
 
           <div className="mb-3">
-            <label htmlFor="contact-message" className="form-label">Message</label>
+            <label htmlFor="contact-message" className="form-label">
+              Message
+            </label>
             <textarea
               id="contact-message"
               name="message"
@@ -130,6 +154,7 @@ export default function Contact({ onNavigate }) {
               onClick={() => {
                 setForm({ name: "", email: "", message: "" });
                 setAlert(null);
+                if (clearTimer.current) clearTimeout(clearTimer.current);
               }}
               disabled={loading}
             >
@@ -139,15 +164,16 @@ export default function Contact({ onNavigate }) {
         </form>
       </div>
 
-      {/* footer block matches the style in your HomePage */}
       <footer className="bg-dark text-light mt-4 p-4 rounded text-center">
         <h5 className="mb-1">Osai</h5>
         <p className="small mb-0">134a Aston Road, Birmingham, United Kingdom</p>
         <p className="small mb-0">
-          Email: <a className="text-warning" href="mailto:support@osai.example">support@osai.example</a>
+          Email:{" "}
+          <a className="text-warning" href="mailto:support@osai.example">
+            support@osai.example
+          </a>
         </p>
       </footer>
     </main>
   );
 }
-
