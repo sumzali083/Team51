@@ -1,18 +1,5 @@
 import React, { useState } from "react";
 import axios from "axios";
-
-/**
- * Contact.react.js
- * Frontend Contact page component for OSAI
- * - Uses Bootstrap classes so it matches HomePage and styles.css
- * - Posts JSON { name, email, message } to /api/contact
- * - Basic client-side validation + user feedback
- *
- * Usage:
- *  - If your app uses onNavigate(page) pattern, call <Contact onNavigate={onNavigate} />
- *  - If using react-router, add a route to render this component
- */
-
 export default function Contact({ onNavigate }) {
   // form state
   const [form, setForm] = useState({ name: "", email: "", message: "" });
@@ -163,3 +150,4 @@ export default function Contact({ onNavigate }) {
     </main>
   );
 }
+
