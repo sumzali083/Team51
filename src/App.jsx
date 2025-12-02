@@ -10,6 +10,7 @@ import { ProductPage } from "./ProductPage";
 import { SearchPage } from "./pages/SearchPage";
 import Contact from "./pages/Contact";
 import { Registration } from "./components/Registration";
+import FeedbackPage from "./pages/FeedbackPage";
 
 import { CartProvider } from "./context/CartContext";
 import Cart from "./pages/cart";
@@ -17,6 +18,7 @@ import CheckoutPage from "./pages/CheckoutPage.jsx";
 
 
 export default function App() {
+  console.log('DEBUG: App.jsx is rendering');
   return (
     <CartProvider>
       <BrowserRouter>
@@ -34,7 +36,7 @@ export default function App() {
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<Registration />} />
-            <Route path="/feedback" element={React.createElement(require('./pages/FeedbackPage.jsx').default)} />
+            <Route path="/feedback" element={<FeedbackPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

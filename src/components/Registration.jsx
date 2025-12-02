@@ -8,7 +8,6 @@ export const Registration = () => {
     return (
         <div style={{ minHeight: '100vh', background: 'linear-gradient(120deg, #181818 0%, #222 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ maxWidth: 400, width: '100%', background: '#111', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.18)', padding: '44px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#fff' }}>
-                <img src="/images/logo.png" alt="OSAI Logo" style={{ width: 70, marginBottom: 24, borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,.12)' }} />
                 <h2 style={{ fontWeight: 900, fontSize: 28, marginBottom: 8, letterSpacing: '.5px', color: '#ff5a00' }}>Sign In to OSAI</h2>
                 <p style={{ color: '#e5e7eb', fontSize: 15, marginBottom: 28, textAlign: 'center' }}>Access your account and discover exclusive fashion deals.</p>
                 <div style={{ width: '100%', marginBottom: 24 }}>
