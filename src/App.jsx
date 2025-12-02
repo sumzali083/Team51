@@ -9,6 +9,7 @@ import { KidsPage } from "./pages/KidsPage";
 import { ProductPage } from "./ProductPage";
 import { SearchPage } from "./pages/SearchPage";
 import Contact from "./pages/Contact";
+import { Registration } from "./components/Registration";
 
 import { CartProvider } from "./context/CartContext";
 import Cart from "./pages/cart";
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/login" element={<Registration />} />
           </Route>
         </Routes>
       </BrowserRouter>

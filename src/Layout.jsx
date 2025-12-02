@@ -87,9 +87,9 @@ export function Layout() {
               </form>
 
               <div className="d-flex align-items-center gap-3">
-                <button className="btn btn-outline-light profile-btn">
-                  <i className="bi bi-person-circle" /> Profile
-                </button>
+                <NavLink to="/login" className="btn btn-outline-light profile-btn">
+                  <i className="bi bi-person-circle" /> Login / Profile
+                </NavLink>
                 <NavLink to="/cart" className="btn btn-outline-light cart-btn position-relative">
                   <i className="bi bi-cart3" />
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
