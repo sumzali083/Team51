@@ -1,49 +1,137 @@
 // src/ProductPage.jsx
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
-import { products } from "./data/products";
-
-const getImageSrc = (url) => {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return url.startsWith("/") ? url : `/${url}`;
-};
+import { PRODUCTS } from "./data";
 
 export function ProductPage() {
-  const cartContext = useContext(CartContext);
-  const addToCart = cartContext.addToCart;
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { addToCart } = useContext(CartContext);
+
+  const product = PRODUCTS.find((p) => p.id === id);
+  const [activeImg, setActiveImg] = useState(0);
+  const [size, setSize] = useState(product?.sizes?.[0] || "");
+  const [color, setColor] = useState(product?.colors?.[0] || "");
+  const [msg, setMsg] = useState("");
+
+  if (!product) {
+    return (
+      <div className="container mt-5">
+        <div className="alert alert-warning">Product not found.</div>
+        <button className="btn btn-primary" onClick={() => navigate(-1)}>
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const handleAddToCart = () => {
+    addToCart({
+      ...product,
+      size,
+      color,
+      image: product.images?.[0] || product.image,
+    });
+    setMsg(`Added "${product.name}" to basket!`);
+    setTimeout(() => setMsg(""), 3000);
+  };
+
+  const images = product.images || [product.image];
 
   return (
-    <div className="container mt-4">
-      <h2 className="mb-4">Our Products</h2>
-      <div className="row g-4">
-        {products.map((product) => (
-          <div key={product.id} className="col-md-4">
-            <div className="card h-100 shadow-sm">
+    <div className="container mt-5">
+      <nav aria-label="breadcrumb">
+        <ol className="breadcrumb">
+          <li className="breadcrumb-item"><Link to="/">Home</Link></li>
+          <li className="breadcrumb-item"><Link to={`/${product.cat}s`}>{product.cat}</Link></li>
+          <li className="breadcrumb-item active">{product.name}</li>
+        </ol>
+      </nav>
+
+      <div className="row">
+        <div className="col-md-6">
+          <img
+            src={images[activeImg]}
+            alt={product.name}
+            className="img-fluid rounded mb-3"
+          />
+          <div className="d-flex gap-2">
+            {images.map((img, i) => (
               <img
-                src={getImageSrc(product.image)}
-                className="card-img-top"
-                alt={product.name}
+                key={i}
+                src={img}
+                alt={`${product.name} ${i + 1}`}
+                className={`img-thumbnail ${i === activeImg ? 'border-primary' : ''}`}
+                style={{ width: '80px', cursor: 'pointer' }}
+                onClick={() => setActiveImg(i)}
               />
-              <div className="card-body d-flex flex-column">
-                <h5 className="card-title">{product.name}</h5>
-                <p className="card-text fw-bold">
-                  £{product.price.toFixed(2)}
-                </p>
-                <button
-                  className="btn btn-primary mt-auto"
-                  onClick={() => addToCart(product)}
-                >
-                  Add to Basket
-                </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="col-md-6">
+          <h1>{product.name}</h1>
+          <h3 className="text-primary">£{product.price.toFixed(2)}</h3>
+          <p className="mt-3">{product.desc || product.description}</p>
+
+          {product.sizes && product.sizes.length > 0 && (
+            <div className="mb-3">
+              <label className="form-label fw-bold">Size:</label>
+              <div className="btn-group d-flex flex-wrap gap-2">
+                {product.sizes.map((s) => (
+                  <button
+                    key={s}
+                    className={`btn ${size === s ? 'btn-dark' : 'btn-outline-dark'}`}
+                    onClick={() => setSize(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-        ))}
+          )}
+
+          {product.colors && product.colors.length > 0 && (
+            <div className="mb-3">
+              <label className="form-label fw-bold">Color:</label>
+              <div className="btn-group d-flex flex-wrap gap-2">
+                {product.colors.map((c) => (
+                  <button
+                    key={c}
+                    className={`btn ${color === c ? 'btn-dark' : 'btn-outline-dark'}`}
+                    onClick={() => setColor(c)}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            className="btn btn-dark btn-lg w-100 mt-3"
+            onClick={handleAddToCart}
+          >
+            Add to Basket
+          </button>
+
+          {msg && (
+            <div className="alert alert-success mt-3" role="alert">
+              {msg}
+            </div>
+          )}
+
+          <button
+            className="btn btn-outline-secondary w-100 mt-2"
+            onClick={() => navigate(-1)}
+          >
+            Back to Products
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// optional default
 export default ProductPage;

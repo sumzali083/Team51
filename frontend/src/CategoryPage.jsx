@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useContext } from "react";
+import { Link } from "react-router-dom";
 import { CartContext } from "./context/CartContext"; // ⬅ note the "./"
 import api from "./api";                              // ⬅ and "./api"
+import { PRODUCTS } from "./data";                    // ⬅ fallback to local data
 
 export function CategoryPage({ cat, pageTitle }) {
   const { addToCart } = useContext(CartContext);
@@ -16,7 +18,7 @@ export function CategoryPage({ cat, pageTitle }) {
       setError(null);
 
       try {
-        // We use pageTitle (Mens / Womens / Kids) to match the DB category name
+        // Try to fetch from backend API first
         const res = await api.get("/api/products", {
           params: { category: pageTitle },
         });
@@ -25,9 +27,13 @@ export function CategoryPage({ cat, pageTitle }) {
           setProducts(res.data || []);
         }
       } catch (err) {
-        console.error("Error loading category products:", err);
+        console.error("Error loading category products from API:", err);
+        // Fallback to local data if API fails
         if (!cancelled) {
-          setError("Failed to load products");
+          const catMap = { Mens: "men", Womens: "women", Kids: "kids" };
+          const catKey = catMap[pageTitle] || pageTitle.toLowerCase();
+          const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
+          setProducts(localProducts);
         }
       } finally {
         if (!cancelled) {
@@ -60,22 +66,28 @@ export function CategoryPage({ cat, pageTitle }) {
 
       <div className="row g-4">
         {products.map((product) => {
-          const img = product.image || product.image_url;
+          // Handle both API format (image/image_url) and local format (images array)
+          const img = product.image || product.image_url || (product.images && product.images[0]);
           const price = Number(product.price || 0);
 
           return (
             <div key={product.id} className="col-md-4">
               <div className="card h-100 shadow-sm">
-                {img && (
-                  <img
-                    src={img}
-                    className="card-img-top"
-                    alt={product.name}
-                  />
-                )}
+                <Link to={`/product/${product.id}`} className="text-decoration-none">
+                  {img && (
+                    <img
+                      src={img}
+                      className="card-img-top"
+                      alt={product.name}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  )}
+                </Link>
 
                 <div className="card-body d-flex flex-column">
-                  <h5 className="card-title">{product.name}</h5>
+                  <Link to={`/product/${product.id}`} className="text-decoration-none text-dark">
+                    <h5 className="card-title">{product.name}</h5>
+                  </Link>
                   <p className="card-text fw-bold">
                     £{price.toFixed(2)}
                   </p>

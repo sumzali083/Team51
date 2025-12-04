@@ -13,11 +13,13 @@ const db = mysql.createPool({
 // optional: quick test on startup
 db.getConnection()
   .then(conn => {
-    console.log("Connected to MySQL!");
+    console.log("✅ Connected to MySQL!");
     conn.release();
   })
   .catch(err => {
-    console.error("DB connection error:", err);
+    console.error("⚠️  DB connection error:", err.code || err.message);
+    console.log("⚠️  Server will run but database features won't work.");
+    console.log("⚠️  To fix: Set up MySQL and configure .env file");
   });
 
 module.exports = db;

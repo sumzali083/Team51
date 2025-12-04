@@ -105,21 +105,26 @@ const CheckoutPage = () => {
                 <p>Your cart is empty.</p>
               </div>
             ) : (
-              cart.map((item) => (
-                <div className="product-box" key={item.id}>
-                  <p className="arrival-text">ARRIVES BY THU, JUN 24</p>
-                  <div className="product-row">
-                    <img src={item.image} alt={item.name} className="product-img" />
-                    <div className="product-info">
-                      <p className="product-name">{item.name}</p>
-                      <p className="product-meta">Style: {item.style || "N/A"}</p>
-                      <p className="product-meta">Size: {item.size || "N/A"}</p>
-                      <p className="product-meta">Color: {item.color || "N/A"}</p>
-                      <p className="product-meta">Qty: {item.quantity}</p>
+              cart.map((item) => {
+                const img = item.image || (item.images && item.images[0]) || "/images/placeholder.jpg";
+                const itemTotal = (item.price * item.quantity).toFixed(2);
+                return (
+                  <div className="product-box" key={item.id}>
+                    <p className="arrival-text">ARRIVES BY THU, JUN 24</p>
+                    <div className="product-row">
+                      <img src={img} alt={item.name} className="product-img" />
+                      <div className="product-info">
+                        <p className="product-name">{item.name}</p>
+                        <p className="product-meta">Price: £{item.price.toFixed(2)}</p>
+                        {item.size && <p className="product-meta">Size: {item.size}</p>}
+                        {item.color && <p className="product-meta">Color: {item.color}</p>}
+                        <p className="product-meta">Qty: {item.quantity}</p>
+                        <p className="product-meta fw-bold">Item Total: £{itemTotal}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
