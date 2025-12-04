@@ -4,6 +4,8 @@ import api from "../api";
 
 export default function FeedbackPage({ onNavigate }) {
   const [form, setForm] = useState({
+    name: "",
+    email: "",
     rating: "",
     comment: "",
   });
@@ -18,6 +20,9 @@ export default function FeedbackPage({ onNavigate }) {
   };
 
   const validate = () => {
+    if (!form.name.trim()) return "Name is required";
+    if (!form.email.trim()) return "Email is required";
+
     const ratingNum = Number(form.rating);
     if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
       return "Rating must be between 1 and 5";
@@ -50,22 +55,20 @@ export default function FeedbackPage({ onNavigate }) {
 
     try {
       const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
         rating: Number(form.rating),
-        comment: form.comment.trim(),
-        userId: null,      // you can wire real user/product later
-        productId: null,
+        comment: form.comment.trim(), // backend maps this to `comments` column
       };
 
       const res = await api.post("/api/feedback", payload);
 
       showAlert({
         type: "success",
-        text:
-          res.data?.message ||
-          "Feedback submitted (DB may not be available locally but will work on the uni server).",
+        text: res.data?.message || "Feedback submitted.",
       });
 
-      setForm({ rating: "", comment: "" });
+      setForm({ name: "", email: "", rating: "", comment: "" });
     } catch (err) {
       console.error("FEEDBACK ERROR:", err);
       const msg =
@@ -109,6 +112,35 @@ export default function FeedbackPage({ onNavigate }) {
         )}
 
         <form onSubmit={handleSubmit} className="mt-3" noValidate>
+          <div className="mb-3">
+            <label htmlFor="feedback-name" className="form-label">
+              Name
+            </label>
+            <input
+              id="feedback-name"
+              name="name"
+              className="form-control"
+              value={form.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="mb-3">
+            <label htmlFor="feedback-email" className="form-label">
+              Email
+            </label>
+            <input
+              id="feedback-email"
+              name="email"
+              type="email"
+              className="form-control"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
           <div className="mb-3">
             <label htmlFor="feedback-rating" className="form-label">
               Rating (1–5)
@@ -155,7 +187,7 @@ export default function FeedbackPage({ onNavigate }) {
               type="button"
               className="btn btn-outline-secondary"
               onClick={() => {
-                setForm({ rating: "", comment: "" });
+                setForm({ name: "", email: "", rating: "", comment: "" });
                 if (clearTimer.current) clearTimeout(clearTimer.current);
                 setAlert(null);
               }}

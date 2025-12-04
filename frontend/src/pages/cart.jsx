@@ -1,3 +1,5 @@
+
+// frontend/src/pages/Cart.jsx
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
@@ -7,8 +9,9 @@ export default function Cart() {
   const { cart, removeFromCart, changeQuantity } = cartContext;
   const navigate = useNavigate();
 
+  // Ensure we always use numbers for price/quantity
   const total = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
   );
 
@@ -32,7 +35,11 @@ export default function Cart() {
             </thead>
             <tbody>
               {cart.map((item) => {
-                const img = item.image || (item.images && item.images[0]) || "/images/placeholder.jpg";
+                const img = item.image_url || "/images/placeholder.jpg";
+                const priceNum = Number(item.price || 0);
+                const qtyNum = Number(item.quantity || 0);
+                const lineTotal = priceNum * qtyNum;
+
                 return (
                   <tr key={item.id}>
                     <td>
@@ -44,17 +51,27 @@ export default function Cart() {
                       />
                       <div className="d-inline-block">
                         <div>{item.name}</div>
-                        {item.size && <small className="text-muted">Size: {item.size}</small>}
-                        {item.color && <small className="text-muted ms-2">Color: {item.color}</small>}
+                        {item.size && (
+                          <small className="text-muted">
+                            Size: {item.size}
+                          </small>
+                        )}
+                        {item.color && (
+                          <small className="text-muted ms-2">
+                            Color: {item.color}
+                          </small>
+                        )}
                       </div>
                     </td>
-                    <td>£{item.price.toFixed(2)}</td>
+
+                    <td>£{priceNum.toFixed(2)}</td>
+
                     <td>
                       <input
                         type="number"
                         className="form-control"
                         style={{ width: "80px" }}
-                        value={item.quantity}
+                        value={qtyNum}
                         min="1"
                         onChange={(e) =>
                           changeQuantity(
@@ -64,7 +81,9 @@ export default function Cart() {
                         }
                       />
                     </td>
-                    <td>£{(item.price * item.quantity).toFixed(2)}</td>
+
+                    <td>£{lineTotal.toFixed(2)}</td>
+
                     <td>
                       <button
                         className="btn btn-danger btn-sm"

@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./Layout";
@@ -9,14 +10,17 @@ import { KidsPage } from "./pages/KidsPage";
 import { ProductPage } from "./ProductPage";
 import { SearchPage } from "./pages/SearchPage";
 import Contact from "./pages/Contact";
-import { Registration } from "./components/Registration";
+//import { Login } from "./components/Login";   // <- we use this
+import LoginPage from "./pages/LoginPage";
+
 import FeedbackPage from "./pages/FeedbackPage";
 
 import { CartProvider } from "./context/CartContext";
 import Cart from "./pages/cart";
 import CheckoutPage from "./pages/CheckoutPage";
+
 export default function App() {
-  console.log('DEBUG: App.jsx is rendering');
+  console.log("DEBUG: App.jsx is rendering");
   return (
     <CartProvider>
       <BrowserRouter>
@@ -33,7 +37,8 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/login" element={<Registration />} />
+            <Route path="/login" element={<LoginPage />} />
+
             <Route path="/feedback" element={<FeedbackPage />} />
           </Route>
         </Routes>
