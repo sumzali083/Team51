@@ -47,7 +47,7 @@ export default function Cart() {
           <p>Your basket is empty.</p>
           <button 
             className="btn btn-primary mt-2"
-            onClick={() => navigate("/products")}
+            onClick={() => navigate("/HomePage")}
           >
             Continue Shopping
           </button>
