@@ -88,9 +88,8 @@ export function HomePage() {
               something for everyone with us.
             </p>
 
-            <a href="/about" className="btn btn-primary">
-              More →
-            </a>
+            
+            
           </div>
         </div>
       </section>
