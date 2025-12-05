@@ -1,40 +1,34 @@
-// frontend/src/pages/Cart.jsx
+// frontend/src/pages/cart.jsx
 import React, { useContext } from "react";
-import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 
 export default function Cart() {
   const cartContext = useContext(CartContext);
-  const navigate = useNavigate();
 
-  // Handle case where context might be undefined
   if (!cartContext) {
     return <div className="container mt-4">Loading cart...</div>;
   }
 
   const { cart, removeFromCart, changeQuantity } = cartContext;
 
-  // Ensure we always use numbers for price/quantity
   const total = cart.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
   );
 
-  // Helper function to handle image URL
   const getImageUrl = (item) => {
     if (item.image) return item.image;
     if (item.image_url) return item.image_url;
     if (item.images && item.images.length > 0) return item.images[0];
-    return "/placeholder.jpg"; // Fallback image
+    return "/placeholder.jpg";
   };
 
-  // Helper to safely parse quantity
   const handleQuantityChange = (id, value) => {
     const parsedValue = parseInt(value, 10);
     if (!isNaN(parsedValue) && parsedValue >= 1) {
       changeQuantity(id, parsedValue);
     } else {
-      changeQuantity(id, 1); // Reset to minimum
+      changeQuantity(id, 1);
     }
   };
 
@@ -43,14 +37,11 @@ export default function Cart() {
       <h2>Your Basket</h2>
 
       {cart.length === 0 ? (
-        <div className="text-center py-5">
-          <p>Your basket is empty.</p>
-          <button 
-            className="btn btn-primary mt-2"
-            onClick={() => navigate("/HomePage")}
-          >
-            Continue Shopping
-          </button>
+        <div
+          className="d-flex justify-content-center align-items-center"
+          style={{ minHeight: "250px" }}
+        >
+          <h4>Your basket is empty.</h4>
         </div>
       ) : (
         <>
@@ -125,7 +116,6 @@ export default function Cart() {
                         <button
                           className="btn btn-danger btn-sm"
                           onClick={() => removeFromCart(item.id)}
-                          aria-label={`Remove ${item.name} from cart`}
                         >
                           Remove
                         </button>
@@ -139,20 +129,12 @@ export default function Cart() {
 
           <div className="d-flex justify-content-between align-items-center mt-4">
             <h4 className="mb-0">Total: £{total.toFixed(2)}</h4>
-            <div>
-              <button
-                className="btn btn-outline-secondary me-2"
-                onClick={() => navigate("/products")}
-              >
-                Continue Shopping
-              </button>
-              <button
-                className="btn btn-success"
-                onClick={() => navigate("/checkout")}
-              >
-                Proceed to Checkout
-              </button>
-            </div>
+            <button
+              className="btn btn-success"
+              onClick={() => navigate("/checkout")}
+            >
+              Proceed to Checkout
+            </button>
           </div>
         </>
       )}
