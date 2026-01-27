@@ -1,9 +1,11 @@
 // frontend/src/pages/cart.jsx
 import React, { useContext } from "react";
 import { CartContext } from "../context/CartContext";
+import { useNavigate } from "react-router-dom"; // <-- Added
 
 export default function Cart() {
   const cartContext = useContext(CartContext);
+  const navigate = useNavigate(); // <-- Added
 
   if (!cartContext) {
     return <div className="container mt-4">Loading cart...</div>;
