@@ -1,38 +1,248 @@
-import React, { useState } from 'react';
-import { Login } from './Login';
-import { Signup } from './Signup';
-import { FaGoogle, FaFacebookF } from "react-icons/fa";
+// frontend/src/components/Registration.jsx
+import React, { useState } from "react";
+import { CiUser } from "react-icons/ci";
+import { RiLockPasswordLine } from "react-icons/ri";
+import api from "../api";
 
-export const Registration = () => {
-    const [isLogin, setIsLogin] = useState(false);
-    return (
-        <div style={{ minHeight: '100vh', background: 'linear-gradient(120deg, #181818 0%, #222 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ maxWidth: 400, width: '100%', background: '#111', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.18)', padding: '44px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#fff' }}>
-                <h2 style={{ fontWeight: 900, fontSize: 28, marginBottom: 8, letterSpacing: '.5px', color: '#ff5a00' }}>Sign In to OSAI</h2>
-                <p style={{ color: '#e5e7eb', fontSize: 15, marginBottom: 28, textAlign: 'center' }}>Access your account and discover exclusive fashion deals.</p>
-                <div style={{ width: '100%', marginBottom: 24 }}>
-                    {isLogin ? <Login /> : <Signup />}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 18, fontSize: 15 }}>
-                    <span style={{ color: '#bbb' }}>{isLogin ? "Don't have an account?" : "Already have an account?"}</span>
-                    <button style={{ background: '#ff5a00', color: '#fff', borderRadius: 8, padding: '7px 20px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,.10)', transition: 'background .2s' }} onClick={() => setIsLogin(!isLogin)}>
-                        {isLogin ? 'Sign up' : 'Login'}
-                    </button>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', margin: '22px 0' }}>
-                    <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #333' }} />
-                    <span style={{ color: '#bbb', fontSize: 13, fontWeight: 500 }}>Or continue with</span>
-                    <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #333' }} />
-                </div>
-                <div style={{ display: 'flex', gap: 16, width: '100%', justifyContent: 'center', marginBottom: 8 }}>
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 8, padding: '10px 18px', background: '#fff', color: '#111', fontWeight: 700, cursor: 'pointer', fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,.10)', transition: 'background .2s' }}>
-                        <FaGoogle style={{ fontSize: 20 }} /> Google
-                    </button>
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 8, padding: '10px 18px', background: '#fff', color: '#1877f3', fontWeight: 700, cursor: 'pointer', fontSize: 15, boxShadow: '0 2px 8px rgba(0,0,0,.10)', transition: 'background .2s' }}>
-                        <FaFacebookF style={{ fontSize: 20 }} /> Facebook
-                    </button>
-                </div>
-            </div>
+export function Registration({ onSuccess }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (!name || !email || !password || !confirm) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.post("/api/users/register", {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      });
+
+      setMessage(res.data?.message || "Account created successfully!");
+
+      if (onSuccess) {
+        onSuccess(email.trim()); // let parent auto-fill login email
+      }
+
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirm("");
+    } catch (err) {
+      console.error("REGISTER ERROR:", err);
+      const msg =
+        err?.response?.data?.message || "Could not create account right now.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <h1
+          style={{
+            fontWeight: 800,
+            fontSize: 26,
+            marginBottom: 6,
+            color: "#ff5a00",
+          }}
+        >
+          Sign Up
+        </h1>
+        <p style={{ color: "#bbb", fontSize: 15 }}>
+          Create an account to start shopping!
+        </p>
+      </div>
+
+      {error && (
+        <div
+          style={{
+            background: "#5c1a1a",
+            color: "#ffe5e5",
+            padding: "10px 14px",
+            borderRadius: 8,
+            marginBottom: 12,
+            fontSize: 14,
+          }}
+        >
+          {error}
         </div>
-    );
+      )}
+
+      {message && (
+        <div
+          style={{
+            background: "#1d3b21",
+            color: "#e1ffe5",
+            padding: "10px 14px",
+            borderRadius: 8,
+            marginBottom: 12,
+            fontSize: 14,
+          }}
+        >
+          {message}
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: 18 }}
+      >
+        {/* Name */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "#222",
+            borderRadius: 8,
+            padding: "12px 16px",
+            border: "1px solid #333",
+          }}
+        >
+          <CiUser style={{ fontSize: 22, color: "#ff5a00", marginRight: 8 }} />
+          <input
+            style={{
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              fontSize: 16,
+              flex: 1,
+            }}
+            type="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        {/* Email */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "#222",
+            borderRadius: 8,
+            padding: "12px 16px",
+            border: "1px solid #333",
+          }}
+        >
+          <CiUser style={{ fontSize: 22, color: "#ff5a00", marginRight: 8 }} />
+          <input
+            style={{
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              fontSize: 16,
+              flex: 1,
+            }}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+
+        {/* Password */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "#222",
+            borderRadius: 8,
+            padding: "12px 16px",
+            border: "1px solid #333",
+          }}
+        >
+          <RiLockPasswordLine
+            style={{ fontSize: 22, color: "#ff5a00", marginRight: 8 }}
+          />
+          <input
+            style={{
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              fontSize: 16,
+              flex: 1,
+            }}
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+
+        {/* Confirm Password */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "#222",
+            borderRadius: 8,
+            padding: "12px 16px",
+            border: "1px solid #333",
+          }}
+        >
+          <RiLockPasswordLine
+            style={{ fontSize: 22, color: "#ff5a00", marginRight: 8 }}
+          />
+          <input
+            style={{
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              fontSize: 16,
+              flex: 1,
+            }}
+            type="password"
+            placeholder="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            background: loading ? "#aa4400" : "#ff5a00",
+            color: "#fff",
+            borderRadius: 8,
+            padding: "13px 0",
+            fontWeight: 700,
+            fontSize: 17,
+            border: "none",
+            cursor: loading ? "default" : "pointer",
+            marginTop: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,.10)",
+          }}
+        >
+          {loading ? "Creating account..." : "Sign Up"}
+        </button>
+      </form>
+    </div>
+  );
 }
