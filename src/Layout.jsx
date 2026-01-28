@@ -61,6 +61,16 @@ export function Layout() {
                   </NavLink>
                 </li>
                 <li className="nav-item">
+                  <NavLink id="nav-new-arrivals" className="nav-link" to="/new-arrivals">
+                    New Arrivals
+                  </NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink id="nav-sale" className="nav-link" to="/sale">
+                    Sale
+                  </NavLink>
+                </li>
+                <li className="nav-item">
                   <NavLink className="nav-link" to="/contact">
                     Contact
                   </NavLink>
@@ -68,11 +78,6 @@ export function Layout() {
                 <li className="nav-item">
                   <NavLink className="nav-link" to="/about">
                     About Us
-                  </NavLink>
-                </li>
-                <li className="nav-item">
-                  <NavLink className="nav-link" to="/feedback">
-                    Send Us Feedback
                   </NavLink>
                 </li>
               </ul>

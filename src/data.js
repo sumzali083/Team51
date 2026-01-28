@@ -2,6 +2,52 @@
 export const Fallback = "https://placehold.co/1000x1200/jpg?text=Image";
 
 export const PRODUCTS = [
+  // NEW ARRIVALS
+  {
+    id: "na-001",
+    cat: "new-arrivals",
+    name: "EcoLite Puffer Jacket",
+    price: 79.99,
+    images: ["/assets/women/puffer-eco-1.jpg", "/assets/women/puffer-eco-2.jpg"],
+    desc: "Ultra-light, sustainable insulation for all seasons.",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["Olive", "Black"],
+    tag: "New!"
+  },
+  {
+    id: "na-002",
+    cat: "new-arrivals",
+    name: "UrbanFlex Joggers",
+    price: 44.5,
+    images: ["/assets/men/joggers-urbanflex-1.jpg", "/assets/men/joggers-urbanflex-2.jpg"],
+    desc: "Modern fit joggers with stretch fabric.",
+    sizes: ["S", "M", "L", "XL"],
+    colors: ["Grey", "Navy"],
+    tag: "New!"
+  },
+  // SALE
+  {
+    id: "sale-001",
+    cat: "sale",
+    name: "Classic Crew Tee (Sale)",
+    price: 12.99,
+    images: ["/assets/men/tee-classic-1.jpg", "/assets/men/tee-classic-2.jpg"],
+    desc: "Soft cotton tee, now at a special price!",
+    sizes: ["S", "M", "L", "XL"],
+    colors: ["White", "Blue"],
+    tag: "Sale"
+  },
+  {
+    id: "sale-002",
+    cat: "sale",
+    name: "Womens Yoga Leggings (Sale)",
+    price: 19.99,
+    images: ["/assets/women/leggings-yoga-1.jpg", "/assets/women/leggings-yoga-2.jpg"],
+    desc: "High-waisted, moisture-wicking leggings.",
+    sizes: ["XS", "S", "M", "L"],
+    colors: ["Black", "Purple"],
+    tag: "Sale"
+  },
   // MEN
   {
     id: "m-001",
