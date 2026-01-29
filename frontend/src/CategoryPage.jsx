@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Link } from "react-router-dom";
 import { CartContext } from "./context/CartContext"; // ⬅ note the "./"
+import { WishlistContext } from "./context/WishlistContext";
 import api from "./api";                              // ⬅ and "./api"
 import { PRODUCTS } from "./data";                    // ⬅ fallback to local data
 
 export function CategoryPage({ cat, pageTitle }) {
   const { addToCart } = useContext(CartContext);
+  const { addToWishlist } = useContext(WishlistContext);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -229,12 +231,20 @@ export function CategoryPage({ cat, pageTitle }) {
                   <p className="card-text fw-bold">
                     £{price.toFixed(2)}
                   </p>
-                  <button
-                    className="btn btn-dark mt-auto"
-                    onClick={() => addToCart(product)}
-                  >
-                    Add to Basket
-                  </button>
+                  <div className="d-grid gap-2">
+                    <button
+                      className="btn btn-dark"
+                      onClick={() => addToCart(product)}
+                    >
+                      Add to Basket
+                    </button>
+                    <button
+                      className="btn btn-outline-danger"
+                      onClick={() => addToWishlist(product)}
+                    >
+                      ♡ Favourite
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

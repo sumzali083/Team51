@@ -150,6 +150,10 @@ main{padding:26px 0 60px}
 .card:hover .thumb img.secondary{ opacity:1 }
 
 
+/* Wishlist / Favourite styles */
+.btn-outline-danger { border-color: #dc3545; color: #dc3545; }
+.btn-outline-danger:hover { background: #dc3545; color: #fff; }
+
 /* Footer */
 footer{
   border-top:1px solid var(--line); padding:24px; color:#555; font-size:13px; text-align:center;
