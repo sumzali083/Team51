@@ -160,6 +160,11 @@ main{padding:26px 0 60px}
 .btn-outline-danger { border-color: #dc3545; color: #dc3545; }
 .btn-outline-danger:hover { background: #dc3545; color: #fff; }
 
+/* Wishlist button (header) */
+.wishlist-btn{ background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.95); padding:8px 12px; border-radius:8px; display:inline-flex; align-items:center; gap:8px }
+.wishlist-btn:hover{ background:#fff; color:#111 }
+.wishlist-badge{ transform:translate(25%, -35%); border:2px solid #111 !important }
+
 /* Footer */
 footer{
   border-top:1px solid var(--line); padding:24px; color:#555; font-size:13px; text-align:center;
