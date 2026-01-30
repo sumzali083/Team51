@@ -20,6 +20,12 @@ header{
   background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.85));
   border-bottom:1px solid var(--line);
 }
+
+/* Header in dark mode */
+body.dark-mode header{
+  background: linear-gradient(180deg, rgba(11,15,21,.95), rgba(11,15,21,.85));
+  border-bottom:1px solid var(--line);
+} 
 .container{max-width:1200px; margin:0 auto; padding:0 20px}
 .topbar{display:flex; align-items:center; gap:16px; height:64px}
 .brand{display:flex; align-items:center; gap:12px; font-weight:800; letter-spacing:.2px; text-transform:uppercase}
@@ -28,24 +34,24 @@ header{
 /* Nav links */
 .navlinks{display:flex; gap:12px; margin-left:auto}
 .navlinks a{
-  padding:10px 14px; border-radius:999px; border:1px solid var(--line); background:#fff; color:#111;
+  padding:10px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--text);
 }
 .navlinks a[aria-current="page"]{background:#111; color:#fff; border-color:#111}
 
 /* Search */
 .searchbar{
   margin-left:8px; flex:1; max-width:420px; display:flex; gap:8px; align-items:center;
-  background:#fff; border:1px solid var(--line); border-radius:999px; padding:8px 12px;
+  background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 12px;
 }
-.searchbar input{flex:1; background:transparent; border:0; color:#111; outline:none}
+.searchbar input{flex:1; background:transparent; border:0; color:var(--text); outline:none}
 
 /* Chips / buttons */
 .chip{
   display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--line);
-  border-radius:999px; color:#333; background:#fff
+  border-radius:999px; color:var(--text); background:var(--card)
 }
 select, .btn{
-  background:#fff; color:#111; border:1px solid var(--line);
+  background:var(--card); color:var(--text); border:1px solid var(--line);
   border-radius:12px; padding:10px 12px; outline:none;
 }
 select:focus, .btn:focus { box-shadow:var(--focus) }
@@ -59,8 +65,8 @@ select:focus, .btn:focus { box-shadow:var(--focus) }
 }
 .profile-btn i, .cart-btn i{ color:#fff; font-size:1.05rem }
 .profile-btn{ transition: background .15s ease, color .15s ease, border-color .15s ease }
-.profile-btn:hover{ background:#fff; color:#111; border-color:#111 }
-.profile-btn:hover i{ color:#111 }
+.profile-btn:hover{ background:var(--card); color:var(--text); border-color:var(--line) }
+.profile-btn:hover i{ color:var(--text) }
 .cart-btn:hover{ background:rgba(255,255,255,0.04) }
 
 /* Cart badge tweak to match design */
@@ -83,7 +89,7 @@ select:focus, .btn:focus { box-shadow:var(--focus) }
 }
 .nav-search .form-control::placeholder{ color: rgba(255,255,255,0.75) }
 .nav-search .profile-btn{ padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.95); background:transparent; color:#fff }
-.nav-search .profile-btn:hover{ background:#fff; color:#111 }
+.nav-search .profile-btn:hover{ background:var(--card); color:var(--text) }
 .nav-search .profile-btn i{ color:inherit }
 
 main{padding:26px 0 60px}
@@ -102,7 +108,7 @@ main{padding:26px 0 60px}
   display:flex; flex-direction:column; min-height:100%;
 }
 .card:hover{ transform:translateY(-2px); border-color:#d1d5db; box-shadow:0 12px 30px rgba(0,0,0,.1)}
-.thumb{ aspect-ratio: 1 / 1.15; background:#f6f7f9; overflow:hidden; display:grid; place-items:center}
+.thumb{ aspect-ratio: 1 / 1.15; background:var(--muted); overflow:hidden; display:grid; place-items:center} 
 .thumb img{width:100%; height:100%; object-fit:cover; display:block}
 .body{padding:12px}
 .title{font-weight:650; margin:2px 0 6px; font-size:15px}
@@ -115,7 +121,7 @@ main{padding:26px 0 60px}
 /* Product page */
 .product{
   display:grid; grid-template-columns:1.1fr 1fr; gap:26px; align-items:start;
-  background:#fff;
+  background:var(--card);
   border:1px solid var(--line); border-radius:var(--radius); padding:18px;
 }
 @media (max-width:920px){ .product{grid-template-columns:1fr} }
@@ -128,19 +134,19 @@ main{padding:26px 0 60px}
 .p-price{font-size:24px; font-weight:850; margin:10px 0 14px}
 
 .opt-row{display:flex; gap:10px; flex-wrap:wrap; margin:12px 0}
-.opt{padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:#111}
+.opt{padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--text)}
 .opt.active{outline:2px solid #111; outline-offset:2px}
 
 /* CTAs: solid black primary, subtle ghost */
 .cta{display:flex; gap:10px; margin-top:8px}
 .cta .btn.primary{background:#111; color:#fff; border-color:#111}
 .cta .btn.primary:hover{filter:brightness(1.05)}
-.cta .btn.ghost{background:#fff}
+.cta .btn.ghost{background:var(--card)}
 
 /* Thumbnails on product page */
 .thumbs{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
 .thumbs .thumb-btn{
-  padding:0; border:1px solid var(--line); background:#fff; border-radius:10px; cursor:pointer;
+  padding:0; border:1px solid var(--line); background:var(--card); border-radius:10px; cursor:pointer;
 }
 .thumbs .thumb-btn img{width:68px; height:68px; object-fit:cover; display:block; border-radius:10px}
 .thumbs .thumb-btn.active{outline:2px solid #111; outline-offset:2px}
@@ -169,16 +175,95 @@ main{padding:26px 0 60px}
 .theme-toggle-btn{ padding:8px 10px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center }
 .theme-toggle-btn i{ font-size:1.1rem }
 
-/* Dark mode adjustments */
-body.dark-mode{ background:#0b0f15; color:#f4f6f8 }
-body.dark-mode header{ background:#0b0f15 }
-body.dark-mode footer{ background:#0b0f12; color:#ddd }
+/* Dark mode adjustments (use CSS variables so components follow theme) */
+body.dark-mode{
+  /* Override theme variables for dark mode */
+  --bg: #0b0f15; /* page background */
+  --muted: #0f1724; /* muted surfaces */
+  --card: #0b0f15; /* card / surface background */
+  --text: #f4f6f8; /* main text */
+  --sub: #9aa3ad; /* secondary text */
+  --line: #1f2937; /* borders / lines */
+  background:var(--bg) !important;
+  color:var(--text) !important;
+}
+
+
+/* Keep header/footer styles unchanged so navbar color stays the same */
 
 /* Footer */
 footer{
-  border-top:1px solid var(--line); padding:24px; color:#555; font-size:13px; text-align:center;
-  background:#fff;
+  border-top:1px solid var(--line); padding:24px; color:var(--sub); font-size:13px; text-align:center;
+  background:var(--bg);
 }
 
 /* Accessibility utilities */
 .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+
+/* Dark mode overrides for Bootstrap/util and page-specific white backgrounds */
+body.dark-mode .bg-white,
+body.dark-mode .p-4.bg-white {
+  background-color: var(--card) !important;
+  color: var(--text) !important;
+}
+
+body.dark-mode .alert,
+body.dark-mode .alert-info {
+  background-color: var(--muted) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
+body.dark-mode .breadcrumb,
+body.dark-mode .breadcrumb a,
+body.dark-mode .breadcrumb-item {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select,
+body.dark-mode .form-control {
+  background: var(--muted) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+}
+
+body.dark-mode .checkout-left,
+body.dark-mode .checkout-right,
+body.dark-mode .checkout-container {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6) !important;
+}
+
+body.dark-mode .tab,
+body.dark-mode .tab-row {
+  background: var(--muted) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+body.dark-mode .tab.active {
+  background: var(--card) !important;
+  border-bottom-color: var(--text) !important;
+  color: var(--text) !important;
+}
+
+body.dark-mode .product-img { background: var(--muted) !important; }
+body.dark-mode .card-img-top { background: var(--muted) !important; }
+
+/* Ensure utility bg classes are theme-aware */
+body.dark-mode .bg-light { background-color: var(--muted) !important; }
+body.dark-mode .bg-white { background-color: var(--card) !important; }
+
+/* Final catch-all to make most white surfaces dark in dark mode */
+body.dark-mode *[style*="background:#fff"],
+body.dark-mode *[style*='background: #fff'],
+body.dark-mode *[style*="background: white"],
+body.dark-mode *[style*='background: white'] {
+  background-color: var(--card) !important;
+  color: var(--text) !important;
+}

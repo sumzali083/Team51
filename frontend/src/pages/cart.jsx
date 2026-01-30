@@ -35,7 +35,8 @@ export default function Cart() {
             </thead>
             <tbody>
               {cart.map((item) => {
-                const img = item.image_url || "/images/placeholder.jpg";
+                // Prefer explicit image fields, then arrays, then API-style image_url, finally a placeholder
+                const img = item.image || item.images?.[0] || item.image_url || "/images/placeholder.jpg";
                 const priceNum = Number(item.price || 0);
                 const qtyNum = Number(item.quantity || 0);
                 const lineTotal = priceNum * qtyNum;
