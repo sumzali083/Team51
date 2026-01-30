@@ -68,10 +68,16 @@ export default function Navbar() {
               </Link>
             </li>
             <li className="nav-item me-2">
-              <Link className="btn btn-outline-light position-relative me-2" to="/wishlist">
-                ❤️
+              <Link
+                className="btn btn-outline-light position-relative me-2 wishlist-btn"
+                to="/wishlist"
+                title="View your wishlist"
+                aria-label="View your wishlist"
+              >
+                <span className="d-none d-sm-inline me-1">Wishlist</span>
+                <span aria-hidden>❤️</span>
                 {totalFav > 0 && (
-                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger wishlist-badge">
                     {totalFav}
                   </span>
                 )}
