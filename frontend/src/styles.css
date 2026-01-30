@@ -165,6 +165,15 @@ main{padding:26px 0 60px}
 .wishlist-btn:hover{ background:#fff; color:#111 }
 .wishlist-badge{ transform:translate(25%, -35%); border:2px solid #111 !important }
 
+/* Theme toggle */
+.theme-toggle-btn{ padding:8px 10px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center }
+.theme-toggle-btn i{ font-size:1.1rem }
+
+/* Dark mode adjustments */
+body.dark-mode{ background:#0b0f15; color:#f4f6f8 }
+body.dark-mode header{ background:#0b0f15 }
+body.dark-mode footer{ background:#0b0f12; color:#ddd }
+
 /* Footer */
 footer{
   border-top:1px solid var(--line); padding:24px; color:#555; font-size:13px; text-align:center;

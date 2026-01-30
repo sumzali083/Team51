@@ -8,6 +8,15 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Theme (dark / light) stored in localStorage
+  const [theme, setTheme] = React.useState(() => localStorage.getItem("theme") || "dark");
+  React.useEffect(() => {
+    document.body.classList.toggle("dark-mode", theme === "dark");
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const term = search.trim();
@@ -28,7 +37,7 @@ export function Layout() {
   return (
     <>
       <header id="main-header">
-        <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
+        <nav className={`navbar navbar-expand-lg ${theme === 'dark' ? 'navbar-dark bg-dark' : 'navbar-light bg-light'}`}>
           <div className="container-fluid">
             <NavLink className="navbar-brand" to="/">
               <img width="100" src="/images/logo.png" alt="OSAI Logo" />
@@ -102,11 +111,15 @@ export function Layout() {
               </form>
 
               <div className="d-flex align-items-center gap-3">
-                <NavLink to="/login" className="btn btn-outline-light profile-btn">
-                  <i className="bi bi-person-circle" /> Login / Profile
+                <button className={`btn ${theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark'} theme-toggle-btn`} onClick={toggleTheme} title="Toggle theme" aria-label="Toggle theme">
+                  {theme === 'dark' ? <i className="bi bi-sun-fill" /> : <i className="bi bi-moon-fill" />}
+                </button>
+
+                <NavLink to="/login" className={`btn ${theme === 'dark' ? 'btn-outline-light profile-btn' : 'btn-outline-dark profile-btn'}`}>
+                  <i className="bi bi-person-circle" />
                 </NavLink>
 
-                <NavLink to="/wishlist" className="btn btn-outline-light position-relative wishlist-btn me-2" title="View your wishlist" aria-label="View your wishlist">
+                <NavLink to="/wishlist" className={`btn ${theme === 'dark' ? 'btn-outline-light' : 'btn-outline-dark'} position-relative wishlist-btn me-2`} title="View your wishlist" aria-label="View your wishlist">
                   <span className="sr-only">Wishlist</span>
                   <span aria-hidden>❤️</span>
                   {totalFav > 0 && (
@@ -116,7 +129,7 @@ export function Layout() {
                   )}
                 </NavLink>
 
-                <NavLink to="/cart" className="btn btn-outline-light cart-btn position-relative">
+                <NavLink to="/cart" className={`btn ${theme === 'dark' ? 'btn-outline-light cart-btn position-relative' : 'btn-outline-dark cart-btn position-relative'}`}>
                   <i className="bi bi-cart3" />
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {totalItems}
