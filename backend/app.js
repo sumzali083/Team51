@@ -22,6 +22,7 @@ const orderRoutes = require("./routes/orders");
 const feedbackRoutes = require("./routes/feedback");
 const contactRoutes = require("./routes/contact");
 const userRoutes = require("./routes/users");
+const chatbotRoutes = require("./routes/chatbot");
 
 // === BASIC ROUTES ===
 app.get("/", (req, res) => {
@@ -52,6 +53,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 
 // === 404 HANDLER ===
