@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
+import Chatbot from "./components/Chatbot";
 
 export function Layout() {
   const [search, setSearch] = React.useState("");
@@ -132,6 +133,9 @@ export function Layout() {
           &copy; {new Date().getFullYear()} OSAI Fashion. All Rights Reserved.
         </p>
       </footer>
+
+      {/* Chatbot Widget - Floating box in corner */}
+      <Chatbot />
     </>
   );
 }
