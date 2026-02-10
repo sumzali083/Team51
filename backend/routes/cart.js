@@ -1,4 +1,3 @@
-// backend/routes/cart.js
 const express = require("express");
 const db = require("../config/db"); // mysql2/promise pool
 
@@ -23,8 +22,9 @@ const getUserId = (req, res, next) => {
  * POST /api/cart
  * Body: { productId, quantity }
  * Uses userId from session
- * - if item exists for that user+product → increase quantity
- * - else → insert new row
+ * - Finds the real numeric ID if a SKU string is sent
+ * - if item exists for that user+product -> increase quantity
+ * - else -> insert new row
  */
 router.post("/", getUserId, async (req, res) => {
   try {
@@ -37,10 +37,29 @@ router.post("/", getUserId, async (req, res) => {
         .json({ message: "productId and quantity are required" });
     }
 
-    // 1. check if this product is already in the user's cart
+    // === STEP 1: RESOLVE SKU TO ID ===
+    // The frontend might send "w-001" (string), but database needs 8 (integer)
+    let realProductId = productId;
+
+    // Check if productId is NOT a number (meaning it is a SKU string)
+    if (isNaN(productId)) {
+       const [productRows] = await db.query(
+         "SELECT id FROM products WHERE sku = ?", 
+         [productId]
+       );
+       
+       if (productRows.length === 0) {
+         return res.status(404).json({ message: "Product not found" });
+       }
+       // Found it! Use the real number (e.g., 8) instead of the text (w-001)
+       realProductId = productRows[0].id;
+    }
+
+    // === STEP 2: CHECK IF ALREADY IN CART ===
+    // Use realProductId here
     const [existingRows] = await db.query(
       `SELECT * FROM ${TABLE_NAME} WHERE user_id = ? AND product_id = ?`,
-      [userId, productId]
+      [userId, realProductId]
     );
 
     if (existingRows.length > 0) {
@@ -57,18 +76,20 @@ router.post("/", getUserId, async (req, res) => {
         message: "Cart item updated",
         itemId: current.id,
         quantity: newQty,
+        productId: realProductId 
       });
     } else {
-      // insert new row
+      // insert new row using realProductId
       const [result] = await db.query(
         `INSERT INTO ${TABLE_NAME} (user_id, product_id, quantity)
          VALUES (?, ?, ?)`,
-        [userId, productId, quantity]
+        [userId, realProductId, quantity]
       );
 
       return res.status(201).json({
         message: "Item added to cart",
         itemId: result.insertId,
+        productId: realProductId
       });
     }
   } catch (err) {
@@ -88,9 +109,12 @@ router.get("/", getUserId, async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT 
-        b.*, 
+        b.id,
+        b.quantity,
+        b.product_id,
         p.name, 
         p.price, 
+        p.sku,
         COALESCE(
           (SELECT pi.url 
            FROM product_images pi 
@@ -123,7 +147,7 @@ router.put("/:itemId", getUserId, async (req, res) => {
     const { quantity } = req.body;
     const userId = req.userId;
 
-    if (!quantity || quantity < 0) {
+    if (quantity === undefined || quantity < 0) {
       return res.status(400).json({ message: "Valid quantity is required" });
     }
 
@@ -137,7 +161,7 @@ router.put("/:itemId", getUserId, async (req, res) => {
       return res.status(404).json({ message: "Cart item not found" });
     }
 
-    if (quantity === 0) {
+    if (Number(quantity) === 0) {
       // Delete if quantity is 0
       await db.query(`DELETE FROM ${TABLE_NAME} WHERE id = ?`, [itemId]);
       return res.json({ message: "Cart item removed" });
@@ -165,7 +189,7 @@ router.delete("/:itemId", getUserId, async (req, res) => {
     const { itemId } = req.params;
     const userId = req.userId;
 
-    // Verify the item belongs to the user
+    // Verify the item belongs to the user and delete
     const [result] = await db.query(
       `DELETE FROM ${TABLE_NAME} WHERE id = ? AND user_id = ?`,
       [itemId, userId]
