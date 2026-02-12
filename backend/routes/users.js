@@ -131,11 +131,18 @@ router.post("/login", async (req, res) => {
       });
     }
 
-   return res.status(200).json({
-  message:
-    "Simulated on local machine (DB not connected here, but it will work on the uni server).",
-});
-
+    // Generic local fallback: still establish a session so other routes work
+    req.session.userId = 1;
+    req.session.user = {
+      id: 1,
+      name: "Test User",
+      email,
+    };
+    return res.status(200).json({
+      message:
+        "Simulated on local machine (DB not connected here, but it will work on the uni server).",
+      user: req.session.user,
+    });
   }
 });
 
