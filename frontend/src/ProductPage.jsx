@@ -2,6 +2,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
+import { WishlistContext } from "./context/WishlistContext";
 import { PRODUCTS, Fallback } from "./data";
 
 // Fix: Ensure all JSX is properly closed
@@ -10,12 +11,14 @@ export function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useContext(CartContext);
+  const { wishlist, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
 
   const product = PRODUCTS.find((p) => p.id === id);
   const [activeImg, setActiveImg] = useState(0);
   const [size, setSize] = useState(product?.sizes?.[0] || "");
   const [color, setColor] = useState(product?.colors?.[0] || "");
   const [msg, setMsg] = useState("");
+  const isInWishlist = product && wishlist && wishlist.some((item) => item.id === product.id);
   const [reviews, setReviews] = useState([]);
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
@@ -44,15 +47,42 @@ export function ProductPage() {
     );
   }
 
+  const images = product.images || [product.image];
+
+  const handleColorSelect = (selectedColor) => {
+    setColor(selectedColor);
+    if (product?.colors?.length && images.length) {
+      const colorIndex = product.colors.indexOf(selectedColor);
+      if (colorIndex >= 0) {
+        const safeIndex = Math.min(colorIndex, images.length - 1);
+        setActiveImg(safeIndex);
+      }
+    }
+  };
+
   const handleAddToCart = () => {
     addToCart({
       ...product,
       size,
       color,
-      image: product.images?.[0] || product.image,
+      image: images[activeImg] || product.image,
     });
     setMsg(`Added "${product.name}" to basket!`);
     setTimeout(() => setMsg(""), 3000);
+  };
+
+  const handleToggleWishlist = () => {
+    if (!product) return;
+
+    if (isInWishlist) {
+      removeFromWishlist(product.id);
+      setMsg(`Removed "${product.name}" from wishlist`);
+    } else {
+      addToWishlist({ ...product, size, color, image: product.images?.[0] || product.image });
+      setMsg(`Added "${product.name}" to wishlist`);
+    }
+
+    setTimeout(() => setMsg(""), 2000);
   };
 
   const handleSubmitReview = (e) => {
@@ -84,8 +114,6 @@ export function ProductPage() {
   const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : 0;
-
-  const images = product.images || [product.image];
 
   return (
     <div className="container mt-5">
@@ -150,7 +178,7 @@ export function ProductPage() {
                   <button
                     key={c}
                     className={`btn ${color === c ? 'btn-dark' : 'btn-outline-dark'}`}
-                    onClick={() => setColor(c)}
+                    onClick={() => handleColorSelect(c)}
                   >
                     {c}
                   </button>
@@ -164,6 +192,13 @@ export function ProductPage() {
             onClick={handleAddToCart}
           >
             Add to Basket
+          </button>
+
+          <button
+            className={`${isInWishlist ? "btn btn-danger" : "btn btn-outline-danger"} w-100 mt-2`}
+            onClick={handleToggleWishlist}
+          >
+            {isInWishlist ? "Remove from Wishlist ❤️" : "Add to Wishlist ♡"}
           </button>
 
           {msg && (
