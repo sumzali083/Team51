@@ -23,6 +23,7 @@ const orderRoutes = require("./routes/orders");
 const feedbackRoutes = require("./routes/feedback");
 const contactRoutes = require("./routes/contact");
 const userRoutes = require("./routes/users");
+const reviewRoutes = require("./routes/reviews");
 
 // === BASIC ROUTES ===
 app.get("/", (req, res) => {
@@ -30,7 +31,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api", (req, res) => {
-  res.json({ 
+  res.json({
     message: "API Backend is working - Summer",
     endpoints: [
       "GET /api/products",
@@ -40,7 +41,10 @@ app.get("/api", (req, res) => {
       "POST /api/feedback",
       "POST /api/contact",
       "POST /api/users/register",
-      "POST /api/users/login"
+      "POST /api/users/login",
+      "GET /api/reviews/:productId",
+      "POST /api/reviews/:productId",
+      "DELETE /api/reviews/:reviewId"
     ]
   });
 });
@@ -52,6 +56,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes); // ✅ Added admin routes
 
 // === 404 HANDLER ===

@@ -36,7 +36,14 @@ export function Login({ initialEmail = "" }) {
       if (user) {
         // store user so you can show “Hello, Summer” etc later
         localStorage.setItem("osaiUser", JSON.stringify(user));
+        // Also store in sessionStorage for review purposes
+        sessionStorage.setItem("user", JSON.stringify(user));
         console.log("Logged in user:", user);
+
+        // Redirect to home or previous page after login
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1500);
       }
     } catch (err) {
       console.error("LOGIN ERROR:", err);

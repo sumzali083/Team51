@@ -5,8 +5,6 @@ import { CartContext } from "./context/CartContext";
 import { WishlistContext } from "./context/WishlistContext";
 import { PRODUCTS, Fallback } from "./data";
 
-// Fix: Ensure all JSX is properly closed
-
 export function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -19,22 +17,67 @@ export function ProductPage() {
   const [color, setColor] = useState(product?.colors?.[0] || "");
   const [msg, setMsg] = useState("");
   const isInWishlist = product && wishlist && wishlist.some((item) => item.id === product.id);
+
+  // Reviews state
   const [reviews, setReviews] = useState([]);
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [reviewerName, setReviewerName] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
 
-  // Load reviews from localStorage
+  // User authentication state
+  const [user, setUser] = useState(null);
+
+  // Load user from sessionStorage (set during login)
   useEffect(() => {
-    if (product) {
-      const stored = localStorage.getItem(`reviews-${product.id}`);
-      if (stored) {
-        setReviews(JSON.parse(stored));
+    const storedUser = sessionStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (err) {
+        console.error("Error parsing user data:", err);
       }
     }
+  }, []);
+
+  // Load reviews from backend API
+  useEffect(() => {
+    if (product) {
+      loadReviews();
+    }
   }, [product]);
+
+  const loadReviews = async () => {
+    setIsLoadingReviews(true);
+    try {
+      const response = await fetch(
+        `http://localhost:21051/api/reviews/${product.id}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setReviews(data || []);
+      } else {
+        console.error("Failed to load reviews:", response.statusText);
+        // Fallback to empty reviews
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error("Error loading reviews:", err);
+      // Fallback to empty reviews if API is not available
+      setReviews([]);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
 
   if (!product) {
     return (
@@ -85,30 +128,69 @@ export function ProductPage() {
     setTimeout(() => setMsg(""), 2000);
   };
 
-  const handleSubmitReview = (e) => {
+  const handleSubmitReview = async (e) => {
     e.preventDefault();
-    if (!comment.trim() || !reviewerName.trim()) {
-      alert("Please fill in all fields");
+
+    // Check if user is logged in
+    if (!user || !user.id) {
+      setErrorMsg("You must be logged in to post a review. Please log in and try again.");
+      setTimeout(() => setErrorMsg(""), 4000);
       return;
     }
 
-    const newReview = {
-      id: Date.now(),
-      name: reviewerName,
-      rating: rating,
-      comment: comment,
-      date: new Date().toLocaleDateString(),
-    };
+    if (!comment.trim() || !reviewerName.trim()) {
+      setErrorMsg("Please fill in all fields");
+      setTimeout(() => setErrorMsg(""), 3000);
+      return;
+    }
 
-    const updatedReviews = [newReview, ...reviews];
-    setReviews(updatedReviews);
-    localStorage.setItem(`reviews-${product.id}`, JSON.stringify(updatedReviews));
+    setIsSubmittingReview(true);
+    setErrorMsg("");
 
-    setComment("");
-    setReviewerName("");
-    setRating(5);
-    setSuccessMsg("Review posted successfully!");
-    setTimeout(() => setSuccessMsg(""), 3000);
+    try {
+      const response = await fetch(
+        `http://localhost:21051/api/reviews/${product.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": user.id, // Send user ID for authentication
+          },
+          body: JSON.stringify({
+            rating: rating,
+            comment: comment.trim(),
+            reviewer_name: reviewerName.trim(),
+            user_id: user.id,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const newReview = await response.json();
+
+        // Add new review to the list
+        setReviews([newReview.review || { ...newReview, id: Date.now() }, ...reviews]);
+
+        // Clear form
+        setComment("");
+        setReviewerName("");
+        setRating(5);
+
+        // Show success message
+        setSuccessMsg("Review posted successfully!");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      } else {
+        const errorData = await response.json();
+        setErrorMsg(errorData.message || "Failed to post review");
+        setTimeout(() => setErrorMsg(""), 4000);
+      }
+    } catch (err) {
+      console.error("Error submitting review:", err);
+      setErrorMsg("Error posting review. Please try again.");
+      setTimeout(() => setErrorMsg(""), 4000);
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   const averageRating = reviews.length > 0
@@ -222,7 +304,7 @@ export function ProductPage() {
 
         <div className="row">
           {/* Reviews List */}
-          <div className="col-lg-8 mb-5">
+          <div className={user && user.id ? "col-lg-8 mb-5" : "col-12 mb-5"}>
             {/* Average Rating */}
             {reviews.length > 0 && (
               <div className="mb-4 p-4 bg-light rounded-3">
@@ -239,7 +321,11 @@ export function ProductPage() {
             )}
 
             {/* Review List */}
-            {reviews.length > 0 ? (
+            {isLoadingReviews ? (
+              <div className="alert alert-info border-0 rounded-3">
+                <p className="mb-0">Loading reviews...</p>
+              </div>
+            ) : reviews.length > 0 ? (
               <div>
                 <h4 className="mb-4 fw-bold">All Reviews</h4>
                 {reviews.map((review) => (
@@ -247,12 +333,16 @@ export function ProductPage() {
                     <div className="card-body p-4">
                       <div className="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                          <h5 className="card-title mb-2 fw-bold">{review.name}</h5>
+                          <h5 className="card-title mb-2 fw-bold">{review.reviewer_name || review.name}</h5>
                           <div className="text-warning mb-2 fs-6">
                             {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
                           </div>
                         </div>
-                        <small className="text-muted">{review.date}</small>
+                        <small className="text-muted">
+                          {review.created_at
+                            ? new Date(review.created_at).toLocaleDateString()
+                            : review.date || ""}
+                        </small>
                       </div>
                       <p className="card-text text-secondary">{review.comment}</p>
                     </div>
@@ -261,74 +351,92 @@ export function ProductPage() {
               </div>
             ) : (
               <div className="alert alert-info border-0 rounded-3 mb-4">
-                <p className="mb-0">No reviews yet. Be the first to share your experience!</p>
+                <p className="mb-0">No reviews yet. {user && user.id ? "Be the first to share your experience!" : "Login to be the first to share your experience!"}</p>
               </div>
             )}
           </div>
 
-          {/* Review Form */}
-          <div className="col-lg-4">
-            <div className="card border-0 shadow-sm rounded-3 p-4 position-sticky" style={{ top: '120px' }}>
-              <h5 className="mb-4 fw-bold">Leave a Review</h5>
-              {successMsg && (
-                <div className="alert alert-success mb-3 border-0 rounded-2" role="alert">
-                  {successMsg}
-                </div>
-              )}
-              <form onSubmit={handleSubmitReview}>
-                <div className="mb-3">
-                  <label className="form-label fw-bold text-dark">Your Name</label>
-                  <input
-                    type="text"
-                    className="form-control rounded-2 border-0"
-                    style={{ backgroundColor: '#f8f9fa' }}
-                    value={reviewerName}
-                    onChange={(e) => setReviewerName(e.target.value)}
-                    placeholder="Enter your name"
-                  />
+          {/* Review Form - Only show if user is logged in */}
+          {user && user.id && (
+            <div className="col-lg-4">
+              <div className="card border-0 shadow-sm rounded-3 p-4 position-sticky" style={{ top: '120px' }}>
+                <h5 className="mb-4 fw-bold">Leave a Review</h5>
+
+                <div className="alert alert-info mb-3 border-0 rounded-2" role="alert">
+                  <small>Logged in as: <strong>{user.name}</strong></small>
                 </div>
 
-                <div className="mb-3">
-                  <label className="form-label fw-bold text-dark mb-2">Rating</label>
-                  <div className="fs-5" style={{ letterSpacing: '8px', marginBottom: '10px' }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span
-                        key={star}
-                        onClick={() => setRating(star)}
-                        onMouseEnter={() => setHoverRating(star)}
-                        onMouseLeave={() => setHoverRating(0)}
-                        style={{
-                          cursor: 'pointer',
-                          color: star <= (hoverRating || rating) ? '#ffc107' : '#dee2e6',
-                          fontSize: '2rem',
-                          transition: 'color 0.2s',
-                          display: 'inline-block'
-                        }}
-                      >
-                        ★
-                      </span>
-                    ))}
+                {successMsg && (
+                  <div className="alert alert-success mb-3 border-0 rounded-2" role="alert">
+                    {successMsg}
                   </div>
-                </div>
+                )}
 
-                <div className="mb-4">
-                  <label className="form-label fw-bold text-dark">Comment</label>
-                  <textarea
-                    className="form-control rounded-2 border-0"
-                    style={{ backgroundColor: '#f8f9fa', minHeight: '100px' }}
-                    rows="4"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Share your experience with this product..."
-                  />
-                </div>
+                {errorMsg && (
+                  <div className="alert alert-danger mb-3 border-0 rounded-2" role="alert">
+                    {errorMsg}
+                  </div>
+                )}
 
-                <button type="submit" className="btn btn-dark w-100 rounded-2 fw-bold py-2">
-                  Submit Review
-                </button>
-              </form>
+                <form onSubmit={handleSubmitReview}>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold text-dark">Your Name</label>
+                    <input
+                      type="text"
+                      className="form-control rounded-2 border-0"
+                      style={{ backgroundColor: '#f8f9fa' }}
+                      value={reviewerName}
+                      onChange={(e) => setReviewerName(e.target.value)}
+                      placeholder="Enter your name"
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-bold text-dark mb-2">Rating</label>
+                    <div className="fs-5" style={{ letterSpacing: '8px', marginBottom: '10px' }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span
+                          key={star}
+                          onClick={() => setRating(star)}
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          style={{
+                            cursor: 'pointer',
+                            color: star <= (hoverRating || rating) ? '#ffc107' : '#dee2e6',
+                            fontSize: '2rem',
+                            transition: 'color 0.2s',
+                            display: 'inline-block',
+                          }}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="form-label fw-bold text-dark">Comment</label>
+                    <textarea
+                      className="form-control rounded-2 border-0"
+                      style={{ backgroundColor: '#f8f9fa', minHeight: '100px' }}
+                      rows="4"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Share your experience with this product..."
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-dark w-100 rounded-2 fw-bold py-2"
+                    disabled={isSubmittingReview}
+                  >
+                    {isSubmittingReview ? "Posting..." : "Submit Review"}
+                  </button>
+                </form>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
