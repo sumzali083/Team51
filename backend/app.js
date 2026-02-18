@@ -1,8 +1,19 @@
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
+const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
+
+const productRoutes = require("./routes/products");
+const cartRoutes = require("./routes/cart");
+const orderRoutes = require("./routes/orders");
+const feedbackRoutes = require("./routes/feedback");
+const contactRoutes = require("./routes/contact");
+const userRoutes = require("./routes/users");
+const reviewRoutes = require("./routes/reviews");
+const chatbotRoutes = require("./routes/chatbot");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 
@@ -20,7 +31,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session config with secure settings for HTTPS
+// Session config
 app.use(session({
   name: "team51.sid",
   secret: process.env.SESSION_SECRET || "osai-fashion-secret-key-summer",
@@ -28,30 +39,64 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: true,      // Required for HTTPS
-    sameSite: "none",  // Required for cross-origin cookies
-    maxAge: 604800000  // 7 days in milliseconds
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 604800000
   }
 }));
 
-// API Routes
-app.use("/api/products", require("./routes/products"));
-app.use("/api/cart", require("./routes/cart"));
-app.use("/api/users", require("./routes/users"));
-app.use("/api/feedback", require("./routes/feedback"));
-app.use("/api/contact", require("./routes/contact"));
+app.get("/api", (req, res) => {
+  res.json({
+    message: "API Backend is working - Summer",
+    endpoints: [
+      "GET /api/products",
+      "GET /api/products/:id",
+      "POST /api/cart",
+      "POST /api/orders/checkout",
+      "POST /api/feedback",
+      "POST /api/contact",
+      "POST /api/users/register",
+      "POST /api/users/login",
+      "GET /api/users/me",
+      "POST /api/users/logout",
+      "GET /api/reviews/:productId",
+      "POST /api/reviews/:productId",
+      "DELETE /api/reviews/:reviewId",
+      "POST /api/chatbot"
+    ]
+  });
+});
 
-// Serve Static Frontend Files
+// API routes
+app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/contact", contactRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/admin", adminRoutes);
+
+// Serve static frontend if built
 const distPath = path.join(__dirname, "../frontend/dist");
-app.use(express.static(distPath));
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
 
-// Fallback Middleware (Fixes PathError by avoiding the '*' wildcard)
 app.use((req, res) => {
-  // If the request is for an API that doesn't exist, return 404
   if (req.url.startsWith("/api")) {
     return res.status(404).json({ message: "API route not found" });
   }
-  // Otherwise, serve the React app
-  res.sendFile(path.join(distPath, "index.html"));
+
+  if (fs.existsSync(path.join(distPath, "index.html"))) {
+    return res.sendFile(path.join(distPath, "index.html"));
+  }
+
+  return res.status(404).send("Frontend build not found");
 });
 
+const PORT = process.env.PORT || 21051;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

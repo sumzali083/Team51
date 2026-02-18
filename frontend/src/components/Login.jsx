@@ -3,10 +3,9 @@ import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { CiUser } from "react-icons/ci";
 import { RiLockPasswordLine } from "react-icons/ri";
-import api from "../api"; // axios instance pointing at your backend
+import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 
-// ✅ Named export (what LoginPage and App import)
 export function Login({ initialEmail = "" }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
@@ -38,9 +37,8 @@ export function Login({ initialEmail = "" }) {
       setMessage(res.data?.message || "Login successful");
 
       if (user) {
-        // Update AuthContext (session is stored on backend)
         login(user);
-        // Redirect after a short delay
+        localStorage.setItem("osaiUser", JSON.stringify(user));
         setTimeout(() => {
           navigate("/");
         }, 1000);
@@ -108,7 +106,6 @@ export function Login({ initialEmail = "" }) {
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: 18 }}
       >
-        {/* Email */}
         <div
           style={{
             display: "flex",
@@ -136,7 +133,6 @@ export function Login({ initialEmail = "" }) {
           />
         </div>
 
-        {/* Password */}
         <div
           style={{
             display: "flex",

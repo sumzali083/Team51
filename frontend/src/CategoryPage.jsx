@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Link } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
+import { WishlistContext } from "./context/WishlistContext";
 import api from "./api";
 import { PRODUCTS, Fallback } from "./data";
 
 export function CategoryPage({ cat, pageTitle }) {
   const { addToCart } = useContext(CartContext);
+  const { addToWishlist } = useContext(WishlistContext);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,9 +49,27 @@ export function CategoryPage({ cat, pageTitle }) {
         if (!cancelled) {
           const catMap = { Mens: "men", Womens: "women", Kids: "kids", "New Arrivals": "newarrivals", Sale: "sale" };
           const catKey = catMap[pageTitle] || cat || pageTitle.toLowerCase();
-          const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
-          console.log("Products loaded from fallback:", localProducts.length);
-          setProducts(localProducts);
+
+          if (catKey === "newarrivals" || catKey === "sale") {
+            const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+            const menProducts = shuffle(PRODUCTS.filter((p) => p.cat === "men"));
+            const womenProducts = shuffle(PRODUCTS.filter((p) => p.cat === "women"));
+            const kidsProducts = shuffle(PRODUCTS.filter((p) => p.cat === "kids"));
+
+            const mixed = [
+              womenProducts[0],
+              menProducts[0],
+              kidsProducts[0],
+              womenProducts[1],
+              kidsProducts[1],
+              menProducts[1],
+            ].filter(Boolean);
+
+            setProducts(mixed);
+          } else {
+            const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
+            setProducts(localProducts);
+          }
         }
       } finally {
         if (!cancelled) {
@@ -62,7 +82,7 @@ export function CategoryPage({ cat, pageTitle }) {
     return () => {
       cancelled = true;
     };
-  }, [pageTitle]);
+  }, [cat, pageTitle]);
 
   // Apply sorting when products or sortBy changes
   useEffect(() => {
@@ -236,12 +256,20 @@ export function CategoryPage({ cat, pageTitle }) {
                   <p className="card-text fw-bold">
                     £{price.toFixed(2)}
                   </p>
-                  <button
-                    className="btn btn-dark mt-auto"
-                    onClick={() => addToCart(product)}
-                  >
-                    Add to Basket
-                  </button>
+                  <div className="d-grid gap-2 mt-auto">
+                    <button
+                      className="btn btn-dark"
+                      onClick={() => addToCart(product)}
+                    >
+                      Add to Basket
+                    </button>
+                    <button
+                      className="btn btn-outline-danger"
+                      onClick={() => addToWishlist(product)}
+                    >
+                      ♡ Favourite
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

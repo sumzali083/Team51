@@ -211,6 +211,16 @@ const CheckoutPage = () => {
                       />
                       <div className="product-info">
                         <p className="product-name">{item.name}</p>
+                        {item.size && (
+                          <p className="product-meta">
+                            Size: {item.size}
+                          </p>
+                        )}
+                        {item.color && (
+                          <p className="product-meta">
+                            Color: {item.color}
+                          </p>
+                        )}
                         <p className="product-meta">
                           Price: £{priceNum.toFixed(2)}
                         </p>
