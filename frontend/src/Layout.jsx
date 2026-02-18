@@ -77,6 +77,9 @@ export function Layout() {
                 {user ? (
                   <>
                     <span className="text-light me-2">Hello, {user.name}!</span>
+                    <NavLink to="/account/change-password" className="btn btn-outline-light profile-btn">
+                      <i className="bi bi-key" /> Change Password
+                    </NavLink>
                     <button onClick={handleLogout} className="btn btn-outline-light profile-btn">
                       <i className="bi bi-box-arrow-right" /> Logout
                     </button>
