@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api";
+import { Fallback } from "../data";
 import "./CheckoutPage.css";
 
 const CheckoutPage = () => {
@@ -25,6 +26,17 @@ const CheckoutPage = () => {
     expiry: "",
     cvv: "",
   });
+
+  const resolveImage = (item) => {
+    const raw =
+      item.image ||
+      item.image_url ||
+      (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : "") ||
+      Fallback;
+
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return raw.startsWith("/") ? raw : `/${raw}`;
+  };
 
   // Calculate subtotal safely
   const subtotal = cart.reduce(
@@ -230,7 +242,7 @@ const CheckoutPage = () => {
               </div>
             ) : (
               cart.map((item) => {
-                const img = item.image || item.image_url || "/images/placeholder.jpg";
+                const img = resolveImage(item);
                 const priceNum = Number(item.price || 0);
                 const qtyNum = Number(item.quantity || 0);
                 const itemTotal = priceNum * qtyNum;
@@ -243,6 +255,9 @@ const CheckoutPage = () => {
                         src={img}
                         alt={item.name}
                         className="product-img"
+                        onError={(e) => {
+                          e.currentTarget.src = Fallback;
+                        }}
                       />
                       <div className="product-info">
                         <p className="product-name">{item.name}</p>

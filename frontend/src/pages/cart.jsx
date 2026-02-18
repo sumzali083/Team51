@@ -2,11 +2,23 @@
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
+import { Fallback } from "../data";
 
 export default function Cart() {
   const cartContext = useContext(CartContext);
   const { cart, removeFromCart, changeQuantity } = cartContext;
   const navigate = useNavigate();
+
+  const resolveImage = (item) => {
+    const raw =
+      item.image ||
+      item.image_url ||
+      (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : "") ||
+      Fallback;
+
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return raw.startsWith("/") ? raw : `/${raw}`;
+  };
 
   // Ensure we always use numbers for price/quantity
   const total = cart.reduce(
@@ -34,7 +46,7 @@ export default function Cart() {
             </thead>
             <tbody>
               {cart.map((item) => {
-                const img = item.image || item.image_url || "/images/placeholder.jpg";
+                const img = resolveImage(item);
                 const priceNum = Number(item.price || 0);
                 const qtyNum = Number(item.quantity || 0);
                 const lineTotal = priceNum * qtyNum;
@@ -47,6 +59,9 @@ export default function Cart() {
                         alt={item.name}
                         width="50"
                         className="me-2"
+                        onError={(e) => {
+                          e.currentTarget.src = Fallback;
+                        }}
                       />
                       <div className="d-inline-block">
                         <div>{item.name}</div>

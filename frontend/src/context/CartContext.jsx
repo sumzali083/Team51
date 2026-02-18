@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import api from "../api";
 import { AuthContext } from "./AuthContext";
+import { Fallback } from "../data";
 
 export var CartContext = createContext();
 
@@ -10,6 +11,12 @@ export function CartProvider(props) {
 
   var [cart, setCart] = useState([]);
   var [loading, setLoading] = useState(true);
+
+  function normalizeImage(url) {
+    if (!url) return Fallback;
+    if (/^https?:\/\//i.test(url)) return url;
+    return url.startsWith("/") ? url : `/${url}`;
+  }
 
   // Load cart on mount and when user changes
   useEffect(function() {
@@ -40,7 +47,7 @@ export function CartProvider(props) {
         id: item.product_id,
         name: item.name,
         price: parseFloat(item.price),
-        image: item.image_url,
+        image: normalizeImage(item.image_url),
         quantity: item.quantity
       }));
       setCart(formattedCart);
