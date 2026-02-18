@@ -57,6 +57,9 @@ export function Layout() {
                 <li className="nav-item"><NavLink className="nav-link" to="/sale">Sale</NavLink></li>
                 <li className="nav-item"><NavLink className="nav-link" to="/contact">Contact</NavLink></li>
                 <li className="nav-item"><NavLink className="nav-link" to="/about">About Us</NavLink></li>
+                {user?.is_admin && (
+                  <li className="nav-item"><NavLink className="nav-link" to="/admin">Admin</NavLink></li>
+                )}
               </ul>
 
               <form className="nav-search d-flex me-3" onSubmit={handleSearchSubmit}>

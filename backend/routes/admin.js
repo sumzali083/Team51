@@ -109,6 +109,45 @@ router.get("/low-stock", adminMiddleware, async (req, res) => {
   }
 });
 
+// GET all products for inventory management
+router.get("/products", adminMiddleware, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT id, name, category, price, stock FROM products ORDER BY id DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Admin get products error:", err);
+    res.status(500).json({ message: "Failed to fetch products" });
+  }
+});
+
+// UPDATE stock for one product
+router.put("/products/:id/stock", adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const nextStock = Number(req.body?.stock);
+
+    if (!Number.isInteger(nextStock) || nextStock < 0) {
+      return res.status(400).json({ message: "Stock must be a non-negative integer" });
+    }
+
+    const [result] = await db.query(
+      "UPDATE products SET stock = ? WHERE id = ?",
+      [nextStock, id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    return res.json({ message: "Stock updated successfully" });
+  } catch (err) {
+    console.error("Admin update stock error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 /* ======================================================
    REPORTS (Required Only)
 ====================================================== */
@@ -181,6 +220,42 @@ router.delete("/messages/:id", adminMiddleware, async (req, res) => {
     res.json({ message: "Message deleted" });
   } catch (err) {
     console.error("Admin delete message error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ======================================================
+   REVIEWS
+====================================================== */
+
+// GET all reviews
+router.get("/reviews", adminMiddleware, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment, r.reviewer_name, r.created_at
+       FROM reviews r
+       ORDER BY r.created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Admin get reviews error:", err);
+    res.status(500).json({ message: "Failed to fetch reviews" });
+  }
+});
+
+// DELETE review
+router.delete("/reviews/:id", adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await db.query("DELETE FROM reviews WHERE id = ?", [id]);
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Review not found" });
+    }
+
+    res.json({ message: "Review deleted" });
+  } catch (err) {
+    console.error("Admin delete review error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

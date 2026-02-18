@@ -25,6 +25,8 @@ import CheckoutPage from "./pages/CheckoutPage";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import { ChangePassword } from "./components/ChangePassword";
+import { RequireAdmin } from "./components/RequireAdmin";
+import AdminPage from "./pages/AdminPage";
 
 export default function App() {
   console.log("DEBUG: App.jsx is rendering");
@@ -55,6 +57,14 @@ export default function App() {
                 <Route
                   path="/account/change-password"
                   element={<ChangePassword />}
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <RequireAdmin>
+                      <AdminPage />
+                    </RequireAdmin>
+                  }
                 />
                 <Route path="/feedback" element={<FeedbackPage />} />
               </Route>

@@ -79,7 +79,7 @@ router.post("/login", async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT id, name, email, password_hash FROM users WHERE email = ?",
+      "SELECT id, name, email, password_hash, is_admin FROM users WHERE email = ?",
       [email]
     );
 
@@ -100,6 +100,7 @@ router.post("/login", async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      is_admin: user.is_admin === 1,
     };
 
     return res.json({
@@ -108,6 +109,7 @@ router.post("/login", async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        is_admin: user.is_admin === 1,
       },
     });
   } catch (err) {
@@ -120,6 +122,7 @@ router.post("/login", async (req, res) => {
         id: 1,
         name: "Test User",
         email,
+        is_admin: false,
       };
       return res.status(200).json({
         message:
@@ -128,6 +131,7 @@ router.post("/login", async (req, res) => {
           id: 1,
           name: "Test User",
           email,
+          is_admin: false,
         },
       });
     }
@@ -138,6 +142,7 @@ router.post("/login", async (req, res) => {
       id: 1,
       name: "Test User",
       email,
+      is_admin: false,
     };
     return res.status(200).json({
       message:
@@ -151,11 +156,34 @@ router.post("/login", async (req, res) => {
  * GET /api/users/me
  * Returns current logged-in user from session
  */
-router.get("/me", (req, res) => {
-  if (req.session && req.session.user) {
-    return res.json({ user: req.session.user });
+router.get("/me", async (req, res) => {
+  if (!(req.session && req.session.userId)) {
+    return res.status(401).json({ message: "Not authenticated" });
   }
-  return res.status(401).json({ message: "Not authenticated" });
+
+  try {
+    const [rows] = await db.query(
+      "SELECT id, name, email, is_admin FROM users WHERE id = ?",
+      [req.session.userId]
+    );
+
+    if (!rows.length) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const user = {
+      id: rows[0].id,
+      name: rows[0].name,
+      email: rows[0].email,
+      is_admin: rows[0].is_admin === 1,
+    };
+
+    req.session.user = user;
+    return res.json({ user });
+  } catch (err) {
+    console.error("Get current user error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
 });
 
 /**
