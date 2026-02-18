@@ -14,6 +14,10 @@ export function CategoryPage({ cat, pageTitle }) {
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("featured");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const localById = React.useMemo(
+    () => Object.fromEntries(PRODUCTS.map((p) => [String(p.id), p])),
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +33,27 @@ export function CategoryPage({ cat, pageTitle }) {
         });
 
         if (!cancelled) {
-          const apiProducts = res.data || [];
+          const apiProducts = (res.data || []).map((apiProduct) => {
+            const localMatch =
+              localById[String(apiProduct.id)] ||
+              PRODUCTS.find((p) => p.name === apiProduct.name);
+
+            if (!localMatch) return apiProduct;
+
+            const hasImage =
+              apiProduct.image ||
+              apiProduct.image_url ||
+              (Array.isArray(apiProduct.images) && apiProduct.images.length > 0);
+
+            if (hasImage) return apiProduct;
+
+            // Backfill missing media fields from local dataset
+            return {
+              ...apiProduct,
+              image: localMatch.image || localMatch.images?.[0],
+              images: localMatch.images || (localMatch.image ? [localMatch.image] : []),
+            };
+          });
           console.log("Products loaded from API:", apiProducts.length);
           
           // If API returns empty array (DB not connected), use fallback
