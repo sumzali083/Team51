@@ -46,7 +46,7 @@ app.use(session({
 }));
 
 app.get("/api", (req, res) => {
-  res.json({
+  res.json({ 
     message: "API Backend is working - Summer",
     endpoints: [
       "GET /api/products",
