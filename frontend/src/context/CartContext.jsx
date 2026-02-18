@@ -143,8 +143,30 @@ export function CartProvider(props) {
     }
   }
 
+  async function clearCart() {
+    if (user) {
+      try {
+        await api.delete("/api/cart");
+        await loadCartFromBackend();
+      } catch (err) {
+        console.error("Error clearing cart:", err);
+      }
+    } else {
+      setCart([]);
+    }
+  }
+
+  async function refreshCart() {
+    if (user) {
+      await loadCartFromBackend();
+    } else {
+      var saved = localStorage.getItem("cart");
+      setCart(saved ? JSON.parse(saved) : []);
+    }
+  }
+
   return (
-    <CartContext.Provider value={{ cart: cart, addToCart: addToCart, removeFromCart: removeFromCart, changeQuantity: changeQuantity, loading: loading }}>
+    <CartContext.Provider value={{ cart: cart, addToCart: addToCart, removeFromCart: removeFromCart, changeQuantity: changeQuantity, clearCart: clearCart, refreshCart: refreshCart, loading: loading }}>
       {children}
     </CartContext.Provider>
   );

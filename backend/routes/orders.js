@@ -17,7 +17,7 @@ const router = express.Router();
  * 6. Clear basket_items for that user
  */
 router.post("/checkout", async (req, res) => {
-  const { userId } = req.body;
+  const userId = (req.session && req.session.userId) || req.body?.userId;
   //get userId from request body
 
   if (!userId) {

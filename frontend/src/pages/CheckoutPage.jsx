@@ -1,10 +1,17 @@
 // frontend/src/pages/CheckoutPage.jsx
 import React, { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
+import { AuthContext } from "../context/AuthContext";
+import api from "../api";
 import "./CheckoutPage.css";
 
 const CheckoutPage = () => {
-  const { cart } = useContext(CartContext);
+  const { cart, clearCart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutMsg, setCheckoutMsg] = useState("");
   const [deliveryType, setDeliveryType] = useState("SHIP");
   const [deliveryOption, setDeliveryOption] = useState("Home/Office");
   const [form, setForm] = useState({
@@ -39,9 +46,33 @@ const CheckoutPage = () => {
     setDeliveryOption(e.target.value);
   }
 
-  function handlePayment(e) {
+  async function handlePayment(e) {
     e.preventDefault();
-    alert("Payment processed! Thank you for your order.");
+
+    if (!user?.id) {
+      setCheckoutMsg("Please log in to complete checkout.");
+      return;
+    }
+
+    if (!cart.length) {
+      setCheckoutMsg("Your basket is empty.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setCheckoutMsg("");
+    try {
+      const res = await api.post("/api/orders/checkout", { userId: user.id });
+      await clearCart();
+      setCheckoutMsg(res.data?.message || "Order placed successfully.");
+      setTimeout(() => navigate("/"), 1200);
+    } catch (err) {
+      setCheckoutMsg(
+        err?.response?.data?.message || "Checkout failed. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -135,6 +166,9 @@ const CheckoutPage = () => {
               SAVE & CONTINUE
             </button>
             <h2 className="section-title">2. PAYMENT</h2>
+            <p className="text-muted mb-2" style={{ fontSize: "0.9rem" }}>
+              Demo checkout: no real payment is processed.
+            </p>
             <div className="form-grid">
               <input
                 name="cardName"
@@ -142,7 +176,6 @@ const CheckoutPage = () => {
                 placeholder="Cardholder Name"
                 value={form.cardName}
                 onChange={handleFormChange}
-                required
               />
               <input
                 name="cardNumber"
@@ -150,14 +183,12 @@ const CheckoutPage = () => {
                 placeholder="Card Number"
                 value={form.cardNumber}
                 onChange={handleFormChange}
-                required
               />
               <input
                 name="expiry"
                 placeholder="Expiry (MM/YY)"
                 value={form.expiry}
                 onChange={handleFormChange}
-                required
               />
               <input
                 name="cvv"
@@ -165,11 +196,15 @@ const CheckoutPage = () => {
                 type="password"
                 value={form.cvv}
                 onChange={handleFormChange}
-                required
               />
             </div>
-            <button className="continue-btn" type="submit">
-              PAY NOW
+            {checkoutMsg && (
+              <div className="mt-2" style={{ color: checkoutMsg.includes("success") || checkoutMsg.includes("placed") ? "green" : "#b00020" }}>
+                {checkoutMsg}
+              </div>
+            )}
+            <button className="continue-btn" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "PROCESSING..." : "PAY NOW"}
             </button>
           </form>
 
