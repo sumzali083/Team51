@@ -3,6 +3,8 @@ import React, { useContext, useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
 import { WishlistContext } from "./context/WishlistContext";
+import { AuthContext } from "./context/AuthContext";
+import api from "./api";
 import { PRODUCTS, Fallback } from "./data";
 
 export function ProductPage() {
@@ -29,20 +31,7 @@ export function ProductPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
 
-  // User authentication state
-  const [user, setUser] = useState(null);
-
-  // Load user from sessionStorage (set during login)
-  useEffect(() => {
-    const storedUser = sessionStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (err) {
-        console.error("Error parsing user data:", err);
-      }
-    }
-  }, []);
+  const { user } = useContext(AuthContext);
 
   // Load reviews from backend API
   useEffect(() => {
@@ -54,22 +43,8 @@ export function ProductPage() {
   const loadReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      const response = await fetch(
-        `http://localhost:21051/api/reviews/${product.id}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setReviews(data || []);
-      } else {
-        console.error("Failed to load reviews:", response.statusText);
-        // Fallback to empty reviews
-        setReviews([]);
-      }
+      const response = await api.get(`/api/reviews/${product.id}`);
+      setReviews(response.data || []);
     } catch (err) {
       console.error("Error loading reviews:", err);
       // Fallback to empty reviews if API is not available
@@ -128,11 +103,13 @@ export function ProductPage() {
     setTimeout(() => setMsg(""), 2000);
   };
 
+  const canReview = Boolean(user);
+
   const handleSubmitReview = async (e) => {
     e.preventDefault();
 
     // Check if user is logged in
-    if (!user || !user.id) {
+    if (!canReview) {
       setErrorMsg("You must be logged in to post a review. Please log in and try again.");
       setTimeout(() => setErrorMsg(""), 4000);
       return;
@@ -148,45 +125,30 @@ export function ProductPage() {
     setErrorMsg("");
 
     try {
-      const response = await fetch(
-        `http://localhost:21051/api/reviews/${product.id}`,
+      const response = await api.post(
+        `/api/reviews/${product.id}`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": user.id, // Send user ID for authentication
-          },
-          body: JSON.stringify({
-            rating: rating,
-            comment: comment.trim(),
-            reviewer_name: reviewerName.trim(),
-            user_id: user.id,
-          }),
-        }
+          rating: rating,
+          comment: comment.trim(),
+          reviewer_name: reviewerName.trim(),
+        },
       );
+      const newReview = response.data;
 
-      if (response.ok) {
-        const newReview = await response.json();
+      // Add new review to the list
+      setReviews([newReview.review || { ...newReview, id: Date.now() }, ...reviews]);
 
-        // Add new review to the list
-        setReviews([newReview.review || { ...newReview, id: Date.now() }, ...reviews]);
+      // Clear form
+      setComment("");
+      setReviewerName("");
+      setRating(5);
 
-        // Clear form
-        setComment("");
-        setReviewerName("");
-        setRating(5);
-
-        // Show success message
-        setSuccessMsg("Review posted successfully!");
-        setTimeout(() => setSuccessMsg(""), 3000);
-      } else {
-        const errorData = await response.json();
-        setErrorMsg(errorData.message || "Failed to post review");
-        setTimeout(() => setErrorMsg(""), 4000);
-      }
+      // Show success message
+      setSuccessMsg("Review posted successfully!");
+      setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
       console.error("Error submitting review:", err);
-      setErrorMsg("Error posting review. Please try again.");
+      setErrorMsg(err?.response?.data?.message || "Error posting review. Please try again.");
       setTimeout(() => setErrorMsg(""), 4000);
     } finally {
       setIsSubmittingReview(false);
@@ -304,7 +266,7 @@ export function ProductPage() {
 
         <div className="row">
           {/* Reviews List */}
-          <div className={user && user.id ? "col-lg-8 mb-5" : "col-12 mb-5"}>
+            <div className={canReview ? "col-lg-8 mb-5" : "col-12 mb-5"}>
             {/* Average Rating */}
             {reviews.length > 0 && (
               <div className="mb-4 p-4 bg-light rounded-3">
@@ -351,13 +313,13 @@ export function ProductPage() {
               </div>
             ) : (
               <div className="alert alert-info border-0 rounded-3 mb-4">
-                <p className="mb-0">No reviews yet. {user && user.id ? "Be the first to share your experience!" : "Login to be the first to share your experience!"}</p>
+                <p className="mb-0">No reviews yet. {canReview ? "Be the first to share your experience!" : "Login to be the first to share your experience!"}</p>
               </div>
             )}
           </div>
 
           {/* Review Form - Only show if user is logged in */}
-          {user && user.id && (
+          {canReview && (
             <div className="col-lg-4">
               <div className="card border-0 shadow-sm rounded-3 p-4 position-sticky" style={{ top: '120px' }}>
                 <h5 className="mb-4 fw-bold">Leave a Review</h5>
