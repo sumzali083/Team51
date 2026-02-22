@@ -1,5 +1,6 @@
 // frontend/src/components/Login.jsx
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api";
 
 const INPUT = {
@@ -87,12 +88,8 @@ export function Login({ initialEmail = "" }) {
 
       {error && (
         <div style={{
-          marginBottom: 20,
-          padding: "12px 16px",
-          borderRadius: 6,
-          fontSize: 13,
-          background: "rgba(255,60,60,0.12)",
-          border: "1px solid rgba(255,60,60,0.25)",
+          marginBottom: 20, padding: "12px 16px", borderRadius: 6, fontSize: 13,
+          background: "rgba(255,60,60,0.12)", border: "1px solid rgba(255,60,60,0.25)",
           color: "#f87171",
         }}>
           {error}
@@ -101,12 +98,8 @@ export function Login({ initialEmail = "" }) {
 
       {message && (
         <div style={{
-          marginBottom: 20,
-          padding: "12px 16px",
-          borderRadius: 6,
-          fontSize: 13,
-          background: "rgba(0,200,80,0.12)",
-          border: "1px solid rgba(0,200,80,0.25)",
+          marginBottom: 20, padding: "12px 16px", borderRadius: 6, fontSize: 13,
+          background: "rgba(0,200,80,0.12)", border: "1px solid rgba(0,200,80,0.25)",
           color: "#4ade80",
         }}>
           {message}
@@ -129,7 +122,21 @@ export function Login({ initialEmail = "" }) {
         </div>
 
         <div>
-          <label style={LABEL} htmlFor="login-password">Password</label>
+          {/* Password label row with forgot link */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={LABEL}>Password</span>
+            <Link
+              to="/reset-password"
+              style={{
+                fontSize: 12,
+                color: "#888",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+              }}
+            >
+              Forgot password?
+            </Link>
+          </div>
           <input
             id="login-password"
             type="password"
@@ -146,19 +153,12 @@ export function Login({ initialEmail = "" }) {
           type="submit"
           disabled={loading}
           style={{
-            width: "100%",
-            padding: "14px",
-            background: loading ? "#ccc" : "#fff",
-            color: "#000",
-            border: "none",
-            borderRadius: 4,
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
+            width: "100%", padding: "14px",
+            background: loading ? "#ccc" : "#fff", color: "#000",
+            border: "none", borderRadius: 4, fontWeight: 700, fontSize: 13,
+            letterSpacing: "0.1em", textTransform: "uppercase",
             cursor: loading ? "not-allowed" : "pointer",
-            marginTop: 8,
-            transition: "background 0.18s ease",
+            marginTop: 8, transition: "background 0.18s ease",
           }}
           onMouseEnter={e => { if (!loading) e.target.style.background = "#e0e0e0"; }}
           onMouseLeave={e => { if (!loading) e.target.style.background = "#fff"; }}

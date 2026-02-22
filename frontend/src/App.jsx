@@ -17,6 +17,7 @@ import LoginPage from "./pages/LoginPage";
 
 import FeedbackPage from "./pages/FeedbackPage";
 import WishlistPage from "./pages/WishlistPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
 
               <Route path="/feedback" element={<FeedbackPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

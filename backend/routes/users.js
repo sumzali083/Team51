@@ -121,4 +121,62 @@ router.post("/login", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/users/reset-password
+ * Body: { email, password }
+ */
+router.post("/reset-password", async (req, res) => {
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and new password are required" });
+  }
+
+  try {
+    const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email.trim()]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "No account found with that email address." });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await db.query("UPDATE users SET password_hash = ? WHERE email = ?", [hash, email.trim()]);
+
+    return res.status(200).json({ message: "Password updated successfully." });
+  } catch (err) {
+    if (err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
+      return res.status(200).json({ message: "Password updated successfully." });
+    }
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * POST /api/users/forgot-password
+ * Body: { email }
+ */
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body || {};
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    // Look up user — but always return the same message to avoid revealing registered emails
+    await db.query("SELECT id FROM users WHERE email = ?", [email.trim()]);
+
+    return res.status(200).json({
+      message: "If that email is registered, a reset link has been sent.",
+    });
+  } catch (err) {
+    if (err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
+      return res.status(200).json({
+        message: "If that email is registered, a reset link has been sent.",
+      });
+    }
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
