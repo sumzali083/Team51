@@ -1,243 +1,269 @@
 // frontend/src/pages/CheckoutPage.jsx
 import React, { useContext, useState } from "react";
+import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import "./CheckoutPage.css";
 
 const CheckoutPage = () => {
   const { cart } = useContext(CartContext);
+  const [step, setStep] = useState(1); // 1 = shipping, 2 = payment, 3 = confirmed
   const [deliveryType, setDeliveryType] = useState("SHIP");
-  const [deliveryOption, setDeliveryOption] = useState("Home/Office");
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    address: "",
-    email: "",
-    phone: "",
-    cardName: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
+    firstName: "", lastName: "", address: "", city: "", postcode: "",
+    email: "", phone: "",
+    cardName: "", cardNumber: "", expiry: "", cvv: "",
   });
 
-  // Calculate subtotal safely
-  const subtotal = cart.reduce(
-    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
-    0
-  );
+  const subtotal = cart.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 0), 0);
   const shipping = cart.length > 0 ? 8 : 0;
   const total = subtotal + shipping;
 
-  function handleFormChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  function handleDeliveryType(type) {
-    setDeliveryType(type);
-  }
-
-  function handleDeliveryOption(e) {
-    setDeliveryOption(e.target.value);
-  }
-
-  function handlePayment(e) {
+  const handleShippingNext = (e) => {
     e.preventDefault();
-    alert("Payment processed! Thank you for your order.");
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handlePlaceOrder = (e) => {
+    e.preventDefault();
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /* ── Confirmed screen ── */
+  if (step === 3) {
+    return (
+      <div className="co-confirmed">
+        <div className="co-confirmed-inner">
+          <div className="co-confirmed-icon">✓</div>
+          <h1 className="co-confirmed-title">Order Confirmed</h1>
+          <p className="co-confirmed-sub">
+            Thank you, {form.firstName || "there"}! Your order has been placed.<br />
+            A confirmation will be sent to <strong>{form.email || "your email"}</strong>.
+          </p>
+          <Link to="/" className="co-confirmed-btn">Continue Shopping</Link>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <>
-      <h1 className="checkout-title">Checkout</h1>
-      <div className="checkout-wrapper">
-        <div className="checkout-container">
-          {/* LEFT SIDE */}
-          <form className="checkout-left" onSubmit={handlePayment}>
-            <h2 className="section-title">1. DELIVERY OPTIONS</h2>
-            <div className="tab-row">
-              <button
-                type="button"
-                className={`tab${deliveryType === "SHIP" ? " active" : ""}`}
-                onClick={() => handleDeliveryType("SHIP")}
-              >
-                SHIP
-              </button>
-              <button
-                type="button"
-                className={`tab${deliveryType === "PICK UP" ? " active" : ""}`}
-                onClick={() => handleDeliveryType("PICK UP")}
-              >
-                PICK UP
-              </button>
-            </div>
-            <div className="radio-row">
-              <label>
-                <input
-                  type="radio"
-                  name="delivery"
-                  value="Home/Office"
-                  checked={deliveryOption === "Home/Office"}
-                  onChange={handleDeliveryOption}
-                />
-                Home/Office
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="delivery"
-                  value="APO/FPO"
-                  checked={deliveryOption === "APO/FPO"}
-                  onChange={handleDeliveryOption}
-                />
-                APO/FPO
-              </label>
-            </div>
-            <div className="form-grid">
-              <input
-                name="firstName"
-                placeholder="First Name"
-                value={form.firstName}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                name="lastName"
-                placeholder="Last Name"
-                value={form.lastName}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                name="address"
-                className="full"
-                placeholder="Start typing the first line of your address"
-                value={form.address}
-                onChange={handleFormChange}
-                required
-              />
-              <a href="#" className="manual-link">
-                Enter address manually
-              </a>
-              <input
-                name="email"
-                placeholder="Email"
-                value={form.email}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                name="phone"
-                placeholder="Phone Number"
-                value={form.phone}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <button className="continue-btn" type="submit">
-              SAVE & CONTINUE
-            </button>
-            <h2 className="section-title">2. PAYMENT</h2>
-            <div className="form-grid">
-              <input
-                name="cardName"
-                className="full"
-                placeholder="Cardholder Name"
-                value={form.cardName}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                name="cardNumber"
-                className="full"
-                placeholder="Card Number"
-                value={form.cardNumber}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                name="expiry"
-                placeholder="Expiry (MM/YY)"
-                value={form.expiry}
-                onChange={handleFormChange}
-                required
-              />
-              <input
-                name="cvv"
-                placeholder="CVV"
-                type="password"
-                value={form.cvv}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <button className="continue-btn" type="submit">
-              PAY NOW
-            </button>
-          </form>
+    <div className="co-wrapper">
+      {/* ── Top bar ── */}
+      <div className="co-topbar">
+        <Link to="/" className="co-topbar-logo">
+          <img src="/images/logo.png" alt="OSAI" />
+        </Link>
+        <span className="co-topbar-secure">
+          <i className="bi bi-lock-fill" /> Secure Checkout
+        </span>
+      </div>
 
-          {/* RIGHT SIDE */}
-          <div className="checkout-right">
-            <h3 className="bag-title">IN YOUR BAG</h3>
-            <div className="price-row">
-              <span>Subtotal</span>
-              <span>£{subtotal.toFixed(2)}</span>
-            </div>
-            <div className="price-row">
-              <span>Estimated Shipping</span>
-              <span>£{shipping.toFixed(2)}</span>
-            </div>
-            <div className="total-row">
-              <span>TOTAL</span>
-              <span className="total-amount">£{total.toFixed(2)}</span>
-            </div>
+      {/* ── Step indicator ── */}
+      <div className="co-steps">
+        <div className={`co-step ${step >= 1 ? "active" : ""}`}>
+          <span className="co-step-num">1</span> Shipping
+        </div>
+        <div className="co-step-divider" />
+        <div className={`co-step ${step >= 2 ? "active" : ""}`}>
+          <span className="co-step-num">2</span> Payment
+        </div>
+      </div>
 
-            {cart.length === 0 ? (
-              <div className="product-box">
-                <p>Your cart is empty.</p>
+      {/* ── Main grid ── */}
+      <div className="co-grid">
+        {/* ════ LEFT — form ════ */}
+        <div className="co-left">
+
+          {/* ── Step 1: Shipping ── */}
+          {step === 1 && (
+            <form onSubmit={handleShippingNext} noValidate>
+              <h2 className="co-section-heading">Shipping Details</h2>
+
+              {/* Delivery type toggle */}
+              <div className="co-toggle-row">
+                {["SHIP", "PICK UP"].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`co-toggle ${deliveryType === t ? "co-toggle-active" : ""}`}
+                    onClick={() => setDeliveryType(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
+
+              {/* Form fields */}
+              <div className="co-field-row">
+                <div className="co-field">
+                  <label className="co-label">First Name</label>
+                  <input name="firstName" value={form.firstName} onChange={handleChange} placeholder="Jane" className="co-input" required />
+                </div>
+                <div className="co-field">
+                  <label className="co-label">Last Name</label>
+                  <input name="lastName" value={form.lastName} onChange={handleChange} placeholder="Smith" className="co-input" required />
+                </div>
+              </div>
+
+              <div className="co-field co-field-full">
+                <label className="co-label">Street Address</label>
+                <input name="address" value={form.address} onChange={handleChange} placeholder="123 High Street" className="co-input" required />
+              </div>
+
+              <div className="co-field-row">
+                <div className="co-field">
+                  <label className="co-label">City</label>
+                  <input name="city" value={form.city} onChange={handleChange} placeholder="Birmingham" className="co-input" required />
+                </div>
+                <div className="co-field">
+                  <label className="co-label">Postcode</label>
+                  <input name="postcode" value={form.postcode} onChange={handleChange} placeholder="B1 1AA" className="co-input" required />
+                </div>
+              </div>
+
+              <div className="co-field-row">
+                <div className="co-field">
+                  <label className="co-label">Email</label>
+                  <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="jane@example.com" className="co-input" required />
+                </div>
+                <div className="co-field">
+                  <label className="co-label">Phone</label>
+                  <input name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="+44 7700 900000" className="co-input" />
+                </div>
+              </div>
+
+              <button type="submit" className="co-btn-primary">
+                Continue to Payment →
+              </button>
+            </form>
+          )}
+
+          {/* ── Step 2: Payment ── */}
+          {step === 2 && (
+            <form onSubmit={handlePlaceOrder} noValidate>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", padding: 0, textDecoration: "underline", textUnderlineOffset: 3 }}
+                >
+                  ← Back
+                </button>
+                <h2 className="co-section-heading" style={{ margin: 0 }}>Payment</h2>
+              </div>
+
+              {/* Shipping summary pill */}
+              <div className="co-summary-pill">
+                <span style={{ color: "#888", fontSize: 12 }}>Shipping to</span>
+                <span style={{ color: "#fff", fontSize: 13 }}>
+                  {form.firstName} {form.lastName}, {form.address}{form.city ? `, ${form.city}` : ""}
+                </span>
+                <button type="button" onClick={() => setStep(1)}
+                  style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "underline", padding: 0 }}>
+                  Edit
+                </button>
+              </div>
+
+              <div className="co-field co-field-full">
+                <label className="co-label">Cardholder Name</label>
+                <input name="cardName" value={form.cardName} onChange={handleChange} placeholder="Jane Smith" className="co-input" required />
+              </div>
+
+              <div className="co-field co-field-full">
+                <label className="co-label">Card Number</label>
+                <input
+                  name="cardNumber"
+                  value={form.cardNumber}
+                  onChange={handleChange}
+                  placeholder="0000  0000  0000  0000"
+                  maxLength={19}
+                  className="co-input co-input-card"
+                  required
+                />
+              </div>
+
+              <div className="co-field-row">
+                <div className="co-field">
+                  <label className="co-label">Expiry Date</label>
+                  <input name="expiry" value={form.expiry} onChange={handleChange} placeholder="MM / YY" maxLength={5} className="co-input" required />
+                </div>
+                <div className="co-field">
+                  <label className="co-label">CVV</label>
+                  <input name="cvv" type="password" value={form.cvv} onChange={handleChange} placeholder="•••" maxLength={4} className="co-input" required />
+                </div>
+              </div>
+
+              <div className="co-secure-note">
+                <i className="bi bi-shield-lock-fill" /> Your payment info is encrypted and secure.
+              </div>
+
+              <button type="submit" className="co-btn-primary">
+                Place Order — £{total.toFixed(2)}
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* ════ RIGHT — order summary ════ */}
+        <aside className="co-right">
+          <h3 className="co-right-heading">
+            Order Summary
+            <span className="co-right-count">{cart.reduce((s, i) => s + (i.quantity || 0), 0)} items</span>
+          </h3>
+
+          <div className="co-items">
+            {cart.length === 0 ? (
+              <p style={{ color: "#888", fontSize: 13 }}>Your basket is empty.</p>
             ) : (
               cart.map((item) => {
-                const img = item.image || "/images/placeholder.jpg";
+                const img = item.image || (item.images && item.images[0]) || "/images/placeholder.jpg";
                 const priceNum = Number(item.price || 0);
                 const qtyNum = Number(item.quantity || 0);
-                const itemTotal = priceNum * qtyNum;
 
                 return (
-                  <div className="product-box" key={item.id}>
-                    <p className="arrival-text">ARRIVES BY THU, JUN 24</p>
-                    <div className="product-row">
+                  <div className="co-item" key={item.id + (item.size || "") + (item.color || "")}>
+                    <div className="co-item-img-wrap">
                       <img
                         src={img}
                         alt={item.name}
-                        className="product-img"
+                        className="co-item-img"
+                        onError={(e) => { e.target.src = "/images/placeholder.jpg"; }}
                       />
-                      <div className="product-info">
-                        <p className="product-name">{item.name}</p>
-                        {item.size && (
-                          <p className="product-meta">
-                            Size: {item.size}
-                          </p>
-                        )}
-                        {item.color && (
-                          <p className="product-meta">
-                            Color: {item.color}
-                          </p>
-                        )}
-                        <p className="product-meta">
-                          Price: £{priceNum.toFixed(2)}
-                        </p>
-                        <p className="product-meta">Qty: {qtyNum}</p>
-                        <p className="product-meta fw-bold">
-                          Item Total: £{itemTotal.toFixed(2)}
-                        </p>
-                      </div>
+                      <span className="co-item-qty">{qtyNum}</span>
                     </div>
+                    <div className="co-item-info">
+                      <p className="co-item-name">{item.name}</p>
+                      {item.size && <p className="co-item-meta">Size: {item.size}</p>}
+                      {item.color && <p className="co-item-meta">Colour: {item.color}</p>}
+                    </div>
+                    <span className="co-item-price">£{(priceNum * qtyNum).toFixed(2)}</span>
                   </div>
                 );
               })
             )}
           </div>
-        </div>
+
+          <div className="co-divider" />
+
+          <div className="co-price-row">
+            <span>Subtotal</span><span>£{subtotal.toFixed(2)}</span>
+          </div>
+          <div className="co-price-row">
+            <span>Shipping</span>
+            <span>{shipping === 0 ? "—" : `£${shipping.toFixed(2)}`}</span>
+          </div>
+
+          <div className="co-divider" />
+
+          <div className="co-total-row">
+            <span>Total</span><span>£{total.toFixed(2)}</span>
+          </div>
+        </aside>
       </div>
-    </>
+    </div>
   );
 };
 

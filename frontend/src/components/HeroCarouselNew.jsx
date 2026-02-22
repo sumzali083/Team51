@@ -23,7 +23,7 @@ export default function HeroCarouselNew() {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
   return (
-    <div className="osai-hero-container mt-4 mb-5">
+    <div className="osai-hero-container">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
