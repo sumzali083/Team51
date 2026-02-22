@@ -17,6 +17,7 @@ import LoginPage from "./pages/LoginPage";
 
 import FeedbackPage from "./pages/FeedbackPage";
 import WishlistPage from "./pages/WishlistPage";
+import AdminPage from "./pages/AdminPage";
 
 import { CartProvider } from "./context/CartContext";
 import { WishlistProvider } from "./context/WishlistContext";
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/admin" element={<AdminPage />} />
 
               <Route path="/feedback" element={<FeedbackPage />} />
             </Route>

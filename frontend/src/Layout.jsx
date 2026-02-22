@@ -7,6 +7,7 @@ export function Layout() {
   const [search, setSearch] = React.useState("");
   const location = useLocation();
   const navigate = useNavigate();
+  const isAdminArea = location.pathname.startsWith("/admin");
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -83,6 +84,11 @@ export function Layout() {
                 <li className="nav-item">
                   <NavLink className="nav-link" to="/about">
                     About Us
+                  </NavLink>
+                </li>
+                <li className="nav-item">
+                  <NavLink className="nav-link" to="/admin">
+                    {isAdminArea ? "Admin Dashboard" : "Admin"}
                   </NavLink>
                 </li>
               </ul>
