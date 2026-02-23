@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 
@@ -33,6 +33,26 @@ export default function Contact() {
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
   const clearTimer = useRef(null);
+  const revealRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!revealRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    observer.observe(revealRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -85,8 +105,22 @@ export default function Contact() {
     }
   };
 
+  const titleSlideFadeIn = {
+    opacity: isVisible ? 1 : 0,
+    transform: isVisible ? "translateX(0)" : "translateX(-90px)",
+    transition: "opacity 0.8s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
+  };
+
+  const formSlideFadeIn = {
+    opacity: isVisible ? 1 : 0,
+    transform: isVisible ? "translateX(0)" : "translateX(-120px)",
+    transition: "opacity 0.9s ease 0.12s, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s",
+  };
+
   return (
-    <div style={{
+    <div
+      ref={revealRef}
+      style={{
       minHeight: "80vh",
       display: "flex",
       flexDirection: "column",
@@ -104,6 +138,7 @@ export default function Contact() {
         color: "#fff",
         marginBottom: 48,
         textAlign: "center",
+        ...titleSlideFadeIn,
       }}>
         Get In Touch
       </h1>
@@ -116,6 +151,7 @@ export default function Contact() {
         border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 12,
         padding: "32px 32px 28px",
+        ...formSlideFadeIn,
       }}>
         {/* Card header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>

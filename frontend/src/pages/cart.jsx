@@ -1,11 +1,49 @@
 // frontend/src/pages/Cart.jsx
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 
 export default function Cart() {
   const { cart, removeFromCart, changeQuantity } = useContext(CartContext);
   const navigate = useNavigate();
+  const revealRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!revealRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    observer.observe(revealRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const titleSlideFadeIn = {
+    opacity: isVisible ? 1 : 0,
+    transform: isVisible ? "translateX(0)" : "translateX(-90px)",
+    transition: "opacity 0.8s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
+  };
+
+  const contentSlideFadeIn = {
+    opacity: isVisible ? 1 : 0,
+    transform: isVisible ? "translateX(0)" : "translateX(-120px)",
+    transition: "opacity 0.9s ease 0.12s, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s",
+  };
+
+  const summarySlideFadeIn = {
+    opacity: isVisible ? 1 : 0,
+    transform: isVisible ? "translateX(0)" : "translateX(120px)",
+    transition: "opacity 0.9s ease 0.18s, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.18s",
+  };
 
   const total = cart.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
@@ -13,7 +51,7 @@ export default function Cart() {
   );
 
   return (
-    <div className="page-padded">
+    <div className="page-padded" ref={revealRef}>
       <h1 style={{
         fontFamily: "'Barlow Condensed', sans-serif",
         fontSize: "clamp(32px,6vw,64px)",
@@ -23,6 +61,7 @@ export default function Cart() {
         marginBottom: 32,
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         paddingBottom: 24,
+        ...titleSlideFadeIn,
       }}>
         Your Basket
         {cart.length > 0 && (
@@ -33,7 +72,7 @@ export default function Cart() {
       </h1>
 
       {cart.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "80px 0" }}>
+        <div style={{ textAlign: "center", padding: "80px 0", ...contentSlideFadeIn }}>
           <p style={{ color: "#888", marginBottom: 24, fontSize: 16 }}>Your basket is empty.</p>
           <Link to="/" className="osai-cta-primary">Continue Shopping →</Link>
         </div>
@@ -41,7 +80,7 @@ export default function Cart() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 32, alignItems: "start" }}>
 
           {/* ── Item list ── */}
-          <div style={{ flex: "1 1 480px", minWidth: 0 }}>
+          <div style={{ flex: "1 1 480px", minWidth: 0, ...contentSlideFadeIn }}>
             {cart.map((item) => {
               const img = item.image || (item.images && item.images[0]) || "/images/placeholder.jpg";
               const priceNum = Number(item.price || 0);
@@ -152,6 +191,7 @@ export default function Cart() {
             padding: 24,
             position: "sticky",
             top: 80,
+            ...summarySlideFadeIn,
           }}>
             <h3 style={{
               fontFamily: "'Barlow Condensed',sans-serif",

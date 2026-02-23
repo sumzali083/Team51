@@ -1,15 +1,40 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { CartContext } from "./context/CartContext";
 import { WishlistContext } from "./context/WishlistContext";
 import api from "./api";
 import { PRODUCTS, Fallback } from "./data";
+
+const gridVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.08,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 28 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut",
+    },
+  },
+};
 
 export function CategoryPage({ cat, pageTitle }) {
   const { addToCart } = useContext(CartContext);
   const { addToWishlist } = useContext(WishlistContext);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [hoveredProductId, setHoveredProductId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("featured");
@@ -190,23 +215,56 @@ export function CategoryPage({ cat, pageTitle }) {
         </div>
       </div>
 
-      <div className="row g-4">
+      <motion.div
+        className="row g-4"
+        variants={gridVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {filteredProducts.map((product) => {
           // Handle both API format (image/image_url) and local format (images array)
           const img = product.image || product.image_url || (product.images && product.images[0]) || Fallback;
+          const hoverImg = (product.images && product.images[1]) || img;
+          const isHovered = hoveredProductId === product.id;
           const price = Number(product.price || 0);
 
           return (
-            <div key={product.id} className="col-md-4">
+            <motion.div key={product.id} className="col-md-4" variants={cardVariants}>
               <div className="card h-100 shadow-sm">
-                <Link to={`/product/${product.id}`} className="text-decoration-none">
-                  <img
-                    src={img}
-                    className="card-img-top"
-                    alt={product.name}
-                    style={{ cursor: 'pointer' }}
-                    onError={(e) => { e.target.src = Fallback; }}
-                  />
+                <Link
+                  to={`/product/${product.id}`}
+                  className="text-decoration-none"
+                  onMouseEnter={() => setHoveredProductId(product.id)}
+                  onMouseLeave={() => setHoveredProductId(null)}
+                >
+                  <div className="card-img-top" style={{ position: 'relative', overflow: 'hidden' }}>
+                    <img
+                      src={img}
+                      alt={product.name}
+                      style={{
+                        width: '100%',
+                        display: 'block',
+                        opacity: isHovered ? 0 : 1,
+                        transition: 'opacity 0.45s ease',
+                      }}
+                      onError={(e) => { e.target.src = Fallback; }}
+                    />
+                    <img
+                      src={hoverImg}
+                      alt={`${product.name} alternate view`}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        opacity: isHovered ? 1 : 0,
+                        transition: 'opacity 0.45s ease',
+                      }}
+                      onError={(e) => { e.target.src = Fallback; }}
+                    />
+                  </div>
                 </Link>
 
                 <div className="card-body d-flex flex-column">
@@ -232,14 +290,14 @@ export function CategoryPage({ cat, pageTitle }) {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
 
         {!filteredProducts.length && (
           <p>No products found in this category.</p>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

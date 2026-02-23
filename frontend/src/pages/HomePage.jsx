@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import HeroCarouselNew from "../components/HeroCarouselNew";
 
@@ -18,7 +19,52 @@ const galleryImages = [
   { src: "/images/Family2.jpg", alt: "Family Fit 2" },
 ];
 
+const s3 = {
+  card: { position: "relative", overflow: "hidden", height: 440, cursor: "pointer", transition: "flex 0.5s ease" },
+  img: { width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "filter 0.4s ease" },
+  label: { position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: 20, gap: 8 },
+  name: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: "clamp(20px,3vw,32px)", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#fff", transition: "all 0.3s ease" },
+  sub: { fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" },
+};
+
 export function HomePage() {
+  const welcomeRef = useRef(null);
+  const [hoveredCategory, setHoveredCategory] = useState(null);
+  const [isWelcomeVisible, setIsWelcomeVisible] = useState(false);
+
+  useEffect(() => {
+    if (!welcomeRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsWelcomeVisible(entry.isIntersecting);
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(welcomeRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const fromLeft = {
+    opacity: isWelcomeVisible ? 1 : 0,
+    transform: isWelcomeVisible ? "translateX(0)" : "translateX(-36px)",
+    transition: "opacity 0.7s ease, transform 0.7s ease",
+  };
+
+  const fromRight = {
+    opacity: isWelcomeVisible ? 1 : 0,
+    transform: isWelcomeVisible ? "translateX(0)" : "translateX(36px)",
+    transition: "opacity 0.7s ease, transform 0.7s ease",
+  };
+
+  const bodyReveal = {
+    opacity: isWelcomeVisible ? 1 : 0,
+    transform: isWelcomeVisible ? "translateY(0)" : "translateY(18px)",
+    transition: "opacity 0.75s ease 0.2s, transform 0.75s ease 0.2s",
+  };
+
   return (
     <>
       {/* ── Hero ── */}
@@ -26,65 +72,38 @@ export function HomePage() {
 
       {/* ── Category strip ── */}
       <section style={{ background: "#000", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex" }}>
-          {categories.map((cat) => (
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", gap: 6 }}>
+          {categories.map((cat, i) => (
             <NavLink
               key={cat.to}
               to={cat.to}
               style={{
-                flex: 1,
-                position: "relative",
-                overflow: "hidden",
-                aspectRatio: "1/1.1",
+                ...s3.card,
+                flex: hoveredCategory === i ? 2.2 : 1,
                 display: "block",
-                borderRight: "1px solid rgba(255,255,255,0.07)",
               }}
+              onMouseEnter={() => setHoveredCategory(i)}
+              onMouseLeave={() => setHoveredCategory(null)}
             >
               <img
                 src={cat.img}
                 alt={cat.label}
                 style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                  filter: "brightness(0.7)",
-                  transition: "transform 0.5s ease, filter 0.3s ease",
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = "scale(1.04)";
-                  e.currentTarget.style.filter = "brightness(0.85)";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.filter = "brightness(0.7)";
+                  ...s3.img,
+                  filter: hoveredCategory === i ? "brightness(0.75)" : "brightness(0.45)",
                 }}
               />
-              <div style={{
-                position: "absolute",
-                bottom: 0, left: 0, right: 0,
-                padding: "24px 20px",
-                background: "linear-gradient(0deg, rgba(0,0,0,0.7) 0%, transparent 100%)",
-              }}>
-                <span style={{
-                  fontFamily: "'Barlow Condensed', sans-serif",
-                  fontSize: "clamp(22px, 4vw, 36px)",
-                  fontWeight: 800,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "#fff",
-                  display: "block",
-                }}>
+              <div style={s3.label}>
+                <span
+                  style={{
+                    ...s3.name,
+                    writingMode: hoveredCategory === i ? "horizontal-tb" : "vertical-rl",
+                    transform: hoveredCategory === i ? "none" : "rotate(180deg)",
+                  }}
+                >
                   {cat.label}
                 </span>
-                <span style={{
-                  fontSize: 10,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.5)",
-                }}>
-                  Shop Now →
-                </span>
+                {hoveredCategory === i && <span style={s3.sub}>Shop Now →</span>}
               </div>
             </NavLink>
           ))}
@@ -92,25 +111,65 @@ export function HomePage() {
       </section>
 
       {/* ── Welcome / Brand statement ── */}
-      <section className="osai-welcome">
-        <div>
-          <h1 className="osai-welcome-heading">
-            Wear<br />
-            <span>Your</span><br />
-            Story.
+      <section
+        ref={welcomeRef}
+        style={{
+        background: "#000",
+        padding: "100px 24px",
+        display: "flex",
+        gap: 80,
+        maxWidth: 1200,
+        margin: "0 auto",
+        alignItems: "flex-start",
+      }}>
+        <div style={{ flex: "0 0 auto" }}>
+          <h1 style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: "clamp(64px, 10vw, 120px)",
+            fontWeight: 900,
+            lineHeight: 0.9,
+            letterSpacing: "-0.02em",
+            textTransform: "uppercase",
+            color: "#fff",
+            margin: 0,
+          }}>
+            <span style={{ display: "block", ...fromLeft }}>Wear</span>
+            <span style={{ display: "block", color: "rgba(255,255,255,0.25)", ...fromRight, transitionDelay: "0.12s" }}>Your</span>
+            <span style={{ display: "block", ...fromLeft, transitionDelay: "0.22s" }}>Story.</span>
           </h1>
         </div>
-        <div className="osai-welcome-body">
-          <p>
+        <div style={{ paddingTop: 16, maxWidth: 480, ...bodyReveal }}>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, lineHeight: 1.8, marginBottom: 20 }}>
             OSAI is one of the leading companies in the fashion industry.
             Pure fashion created from the finest Japanese fibers — hand-woven
             and tailor-made for every body type.
           </p>
-          <p>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, lineHeight: 1.8, marginBottom: 36 }}>
             From kids to adults, daily wear to timeless pieces, we have it all.
             You will always find something for everyone with us.
           </p>
-          <NavLink to="/about" className="osai-cta-primary">
+          <NavLink
+            to="/about"
+            style={{
+              display: "inline-block",
+              padding: "12px 32px",
+              border: "1px solid rgba(255,255,255,0.3)",
+              color: "#fff",
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              textDecoration: "none",
+              transition: "background 0.2s, border-color 0.2s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.6)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+            }}
+          >
             Our Story →
           </NavLink>
         </div>
