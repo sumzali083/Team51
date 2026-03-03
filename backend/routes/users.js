@@ -1,15 +1,10 @@
-// backend/routes/users.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const db = require("../config/db"); // mysql2/promise pool
+const db = require("../config/db");
 
 const router = express.Router();
 
-/**
- * POST /api/users/register
- * Body: { name, email, password }
- */
 router.post("/register", async (req, res) => {
   const { name, email, password } = req.body || {};
 
@@ -20,17 +15,12 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    // check if user already exists
-    const [existing] = await db.query(
-      "SELECT id FROM users WHERE email = ?",
-      [email]
-    );
+    const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existing.length) {
       return res.status(409).json({ message: "Email already registered" });
     }
 
     const hash = await bcrypt.hash(password, 10);
-
     const [result] = await db.query(
       "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
       [name.trim(), email.trim(), hash]
@@ -47,8 +37,7 @@ router.post("/register", async (req, res) => {
   } catch (err) {
     console.error("Error registering user:", err);
 
-    // local laptop: DB not reachable → friendly fallback
-    if (err.code === "ETIMEDOUT") {
+    if (err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
       return res.status(200).json({
         message:
           "Registered (DB not available in local setup, but it will work on the uni server).",
@@ -64,10 +53,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-/**
- * POST /api/users/login
- * Body: { email, password }
- */
 router.post("/login", async (req, res) => {
   const { email, password } = req.body || {};
 
@@ -88,13 +73,11 @@ router.post("/login", async (req, res) => {
     }
 
     const user = rows[0];
-
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Create session
     req.session.userId = user.id;
     req.session.user = {
       id: user.id,
@@ -105,38 +88,11 @@ router.post("/login", async (req, res) => {
 
     return res.json({
       message: "Login successful",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        is_admin: user.is_admin === 1,
-      },
+      user: req.session.user,
     });
   } catch (err) {
     console.error("Error logging in:", err);
 
-    if (err.code === "ETIMEDOUT") {
-      // Create session even for simulated login
-      req.session.userId = 1;
-      req.session.user = {
-        id: 1,
-        name: "Test User",
-        email,
-        is_admin: false,
-      };
-      return res.status(200).json({
-        message:
-          "Login simulated (DB not available in local setup, but it will work on the uni server).",
-        user: {
-          id: 1,
-          name: "Test User",
-          email,
-          is_admin: false,
-        },
-      });
-    }
-
-    // Generic local fallback: still establish a session so other routes work
     req.session.userId = 1;
     req.session.user = {
       id: 1,
@@ -144,6 +100,15 @@ router.post("/login", async (req, res) => {
       email,
       is_admin: false,
     };
+
+    if (err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
+      return res.status(200).json({
+        message:
+          "Login simulated (DB not available in local setup, but it will work on the uni server).",
+        user: req.session.user,
+      });
+    }
+
     return res.status(200).json({
       message:
         "Simulated on local machine (DB not connected here, but it will work on the uni server).",
@@ -152,10 +117,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/**
- * GET /api/users/me
- * Returns current logged-in user from session
- */
 router.get("/me", async (req, res) => {
   if (!(req.session && req.session.userId)) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -186,22 +147,15 @@ router.get("/me", async (req, res) => {
   }
 });
 
-/**
- * POST /api/users/logout
- * Destroys session
- */
 router.post("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       return res.status(500).json({ message: "Error logging out" });
     }
-    res.json({ message: "Logged out successfully" });
+    return res.json({ message: "Logged out successfully" });
   });
 });
 
-/**
- * Middleware: require logged-in user via session
- */
 function requireAuth(req, res, next) {
   if (req.session && req.session.userId) {
     return next();
@@ -209,11 +163,6 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ message: "Please log in" });
 }
 
-/**
- * POST /api/users/forgot-password
- * Body: { email }
- * - Stores reset token in forgot_password table
- */
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body || {};
 
@@ -222,11 +171,9 @@ router.post("/forgot-password", async (req, res) => {
   }
 
   try {
-    // Check if a user exists for this email
-    const [users] = await db.query(
-      "SELECT id, email FROM users WHERE email = ?",
-      [email.trim()]
-    );
+    const [users] = await db.query("SELECT id, email FROM users WHERE email = ?", [
+      email.trim(),
+    ]);
 
     // Always respond the same for security, even if user doesn't exist
     if (!users.length) {
@@ -236,11 +183,9 @@ router.post("/forgot-password", async (req, res) => {
       });
     }
 
-    // Generate token and expiry (1 hour)
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Store in forgot_password table
     await db.query(
       "INSERT INTO forgot_password (email, reset_token, token_expiry, requested_at) VALUES (?, ?, ?, NOW())",
       [email.trim(), token, expiresAt]
@@ -248,7 +193,6 @@ router.post("/forgot-password", async (req, res) => {
 
     // Build reset URL for your frontend using your specific university domain
     const resetUrl = `https://cs2team51.cs2410-web01pvm.aston.ac.uk/reset-password?token=${token}`;
-    
     console.log("Password reset link for", email.trim(), "=>", resetUrl);
 
     return res.json({
@@ -256,6 +200,15 @@ router.post("/forgot-password", async (req, res) => {
     });
   } catch (err) {
     console.error("Forgot password error:", err);
+
+    if (err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
+      return res.status(200).json({
+        message:
+          "If an account with that email exists, you will receive a password reset link.",
+        resetUrl: null,
+      });
+    }
+
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -275,7 +228,6 @@ router.post("/reset-password", async (req, res) => {
   }
 
   try {
-    // Look up latest matching token
     const [rows] = await db.query(
       `SELECT email, token_expiry
        FROM forgot_password
@@ -290,26 +242,16 @@ router.post("/reset-password", async (req, res) => {
     }
 
     const record = rows[0];
-    const now = new Date();
-
-    if (new Date(record.token_expiry) < now) {
+    if (new Date(record.token_expiry) < new Date()) {
       return res.status(400).json({ message: "Token has expired" });
     }
 
-    // Hash the new password
     const hash = await bcrypt.hash(password, 10);
-
-    // Update user password based on email
-    await db.query(
-      "UPDATE users SET password_hash = ? WHERE email = ?",
-      [hash, record.email]
-    );
-
-    // Delete this token so it can't be reused
-    await db.query(
-      "DELETE FROM forgot_password WHERE reset_token = ?",
-      [token]
-    );
+    await db.query("UPDATE users SET password_hash = ? WHERE email = ?", [
+      hash,
+      record.email,
+    ]);
+    await db.query("DELETE FROM forgot_password WHERE reset_token = ?", [token]);
 
     return res.json({ message: "Password has been reset successfully" });
   } catch (err) {
@@ -318,11 +260,6 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
-/**
- * POST /api/users/change-password
- * Body: { currentPassword, newPassword }
- * Requires logged-in user (session)
- */
 router.post("/change-password", requireAuth, async (req, res) => {
   const userId = req.session.userId;
   const { currentPassword, newPassword } = req.body || {};
@@ -334,10 +271,9 @@ router.post("/change-password", requireAuth, async (req, res) => {
   }
 
   try {
-    const [users] = await db.query(
-      "SELECT id, password_hash FROM users WHERE id = ?",
-      [userId]
-    );
+    const [users] = await db.query("SELECT id, password_hash FROM users WHERE id = ?", [
+      userId,
+    ]);
 
     if (!users.length) {
       return res.status(404).json({ message: "User not found" });
@@ -345,16 +281,15 @@ router.post("/change-password", requireAuth, async (req, res) => {
 
     const user = users[0];
     const ok = await bcrypt.compare(currentPassword, user.password_hash);
-
     if (!ok) {
       return res.status(400).json({ message: "Current password is incorrect" });
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
-    await db.query(
-      "UPDATE users SET password_hash = ? WHERE id = ?",
-      [newHash, user.id]
-    );
+    await db.query("UPDATE users SET password_hash = ? WHERE id = ?", [
+      newHash,
+      user.id,
+    ]);
 
     return res.json({ message: "Password updated successfully" });
   } catch (err) {
