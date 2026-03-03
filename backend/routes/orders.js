@@ -1,7 +1,5 @@
-// routes/orders.js
 const express = require("express");
-// your mysql2/promise pool
-const db = require("../config/db"); 
+const db = require("../config/db");
 const router = express.Router();
 
 /**
@@ -17,19 +15,21 @@ const router = express.Router();
  * 6. Clear basket_items for that user
  */
 router.post("/checkout", async (req, res) => {
-  const userId = (req.session && req.session.userId) || req.body?.userId;
-  //get userId from request body
+  const userId = req.session && req.session.userId;
 
   if (!userId) {
     //validate userId
-    return res.status(400).json({ message: "userId is required" });
-    //return 400 bad request if userId is missing
+    return res.status(401).json({ message: "Please log in to checkout" });
   }
 
   let connection;
 
   try {
-    // 1. Get basket items with product price AND stock
+    const [userRows] = await db.query("SELECT id FROM users WHERE id = ?", [userId]);
+    if (!userRows.length) {
+      return res.status(401).json({ message: "User does not exist" });
+    }
+
     const [cartItems] = await db.query(
       `SELECT b.id, b.product_id, b.quantity, p.price, p.stock
        FROM basket_items b
@@ -37,41 +37,31 @@ router.post("/checkout", async (req, res) => {
        WHERE b.user_id = ?`,
       [userId]
     );
-    //execute sql query to get cart items for the user
-
     if (cartItems.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
-    //return 400 if cart is empty
-
-    // check stock before proceeding
     for (const item of cartItems) {
       if (item.stock < item.quantity) {
         return res.status(400).json({
-          message: `Insufficient stock for product ID ${item.product_id}`
+          message: `Insufficient stock for product ID ${item.product_id}`,
         });
       }
     }
 
-    // 2. Calculate total
     const totalPrice = cartItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
-      //calculate total price of the cart items
     );
 
-    // 3. Start transaction
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // 4. Insert into orders table
     const [orderResult] = await connection.query(
       "INSERT INTO orders (user_id, total_price) VALUES (?, ?)",
       [userId, totalPrice]
     );
     const orderId = orderResult.insertId;
 
-    // 5. Insert order_items rows AND reduce stock
     for (const item of cartItems) {
       await connection.query(
         `INSERT INTO order_items (order_id, product_id, quantity, price_each)
@@ -79,7 +69,6 @@ router.post("/checkout", async (req, res) => {
         [orderId, item.product_id, item.quantity, item.price]
       );
 
-      // reduce stock
       await connection.query(
         `UPDATE products
          SET stock = stock - ?
@@ -88,16 +77,12 @@ router.post("/checkout", async (req, res) => {
       );
     }
 
-    // 6. Clear basket for this user
-    await connection.query(
-      "DELETE FROM basket_items WHERE user_id = ?",
-      [userId]
-    );
+    await connection.query("DELETE FROM basket_items WHERE user_id = ?", [userId]);
 
-    // 7. Commit
     await connection.commit();
 
-    res.status(201).json({
+    return res.status(201).json({
+      saved: true,
       message: "Order placed",
       orderId,
       totalPrice,
@@ -111,7 +96,7 @@ router.post("/checkout", async (req, res) => {
         console.error("Rollback error:", rollbackErr);
       }
     }
-    res.status(500).json({ message: "Server error during checkout" });
+    return res.status(500).json({ message: "Server error during checkout" });
   } finally {
     if (connection) connection.release();
   }

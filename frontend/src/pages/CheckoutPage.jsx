@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import { AuthContext } from "../context/AuthContext";
@@ -25,6 +25,10 @@ const CheckoutPage = () => {
     expiry: "",
     cvv: "",
   });
+  const orderItemCount = useMemo(
+    () => cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    [cart]
+  );
 
   const subtotal = cart.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
@@ -34,11 +38,55 @@ const CheckoutPage = () => {
   const total = subtotal + shipping;
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    if (name === "cardNumber" || name === "cvv" || name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "");
+      setForm((current) => ({ ...current, [name]: digitsOnly }));
+      return;
+    }
+
+    if (name === "expiry") {
+      let digits = value.replace(/\D/g, "").slice(0, 4);
+
+      if (digits.length >= 2) {
+        const month = Number(digits.slice(0, 2));
+        if (month < 1 || month > 12) {
+          return;
+        }
+      }
+
+      if (digits.length >= 3) {
+        digits = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+      }
+
+      setForm((current) => ({ ...current, expiry: digits }));
+      return;
+    }
+
+    setForm((current) => ({ ...current, [name]: value }));
   };
 
   const handleShippingNext = (e) => {
     e.preventDefault();
+
+    if (
+      !form.firstName.trim() ||
+      !form.lastName.trim() ||
+      !form.address.trim() ||
+      !form.city.trim() ||
+      !form.postcode.trim() ||
+      !form.email.trim()
+    ) {
+      setCheckoutError("Please complete all required shipping details.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setCheckoutError("Please enter a valid email address.");
+      return;
+    }
+
     setCheckoutError("");
     setStep(2);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -57,11 +105,31 @@ const CheckoutPage = () => {
       return;
     }
 
+    if (!form.cardName.trim()) {
+      setCheckoutError("Please enter the cardholder name.");
+      return;
+    }
+
+    if (form.cardNumber.length < 16) {
+      setCheckoutError("Please enter a valid 16-digit card number.");
+      return;
+    }
+
+    if (!/^\d{2}\/\d{2}$/.test(form.expiry)) {
+      setCheckoutError("Please enter expiry date in MM/YY format.");
+      return;
+    }
+
+    if (form.cvv.length < 3) {
+      setCheckoutError("Please enter a valid CVV.");
+      return;
+    }
+
     setIsSubmitting(true);
     setCheckoutError("");
 
     try {
-      await api.post("/api/orders/checkout", { userId: user.id });
+      await api.post("/api/orders/checkout");
       await clearCart();
       setStep(3);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -83,7 +151,7 @@ const CheckoutPage = () => {
           <p className="co-confirmed-sub">
             Thank you, {form.firstName || "there"}! Your order has been placed.
             <br />
-            A confirmation will be sent to <strong>{form.email || "your email"}</strong>.
+            A confirmation will be sent to <strong>{form.email || user?.email || "your email"}</strong>.
           </p>
           <Link to="/" className="co-confirmed-btn">
             Continue Shopping
@@ -167,7 +235,7 @@ const CheckoutPage = () => {
                 </div>
                 <div className="co-field">
                   <label className="co-label">Phone</label>
-                  <input name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="+44 7700 900000" className="co-input" />
+                  <input name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="+44 7700 900000" maxLength={15} className="co-input" />
                 </div>
               </div>
 
@@ -211,7 +279,7 @@ const CheckoutPage = () => {
 
               <div className="co-field co-field-full">
                 <label className="co-label">Card Number</label>
-                <input name="cardNumber" value={form.cardNumber} onChange={handleChange} placeholder="0000  0000  0000  0000" maxLength={19} className="co-input co-input-card" required />
+                <input name="cardNumber" value={form.cardNumber} onChange={handleChange} placeholder="0000 0000 0000 0000" maxLength={16} className="co-input co-input-card" required />
               </div>
 
               <div className="co-field-row">
@@ -236,7 +304,7 @@ const CheckoutPage = () => {
               )}
 
               <button type="submit" className="co-btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? "Processing..." : `Place Order - GBP ${total.toFixed(2)}`}
+                {isSubmitting ? "Processing..." : `Place Order - £${total.toFixed(2)}`}
               </button>
             </form>
           )}
@@ -245,9 +313,7 @@ const CheckoutPage = () => {
         <aside className="co-right">
           <h3 className="co-right-heading">
             Order Summary
-            <span className="co-right-count">
-              {cart.reduce((sum, item) => sum + (item.quantity || 0), 0)} items
-            </span>
+            <span className="co-right-count">{orderItemCount} items</span>
           </h3>
 
           <div className="co-items">
@@ -277,7 +343,7 @@ const CheckoutPage = () => {
                       {item.size && <p className="co-item-meta">Size: {item.size}</p>}
                       {item.color && <p className="co-item-meta">Color: {item.color}</p>}
                     </div>
-                    <span className="co-item-price">GBP {(priceNum * qtyNum).toFixed(2)}</span>
+                    <span className="co-item-price">£{(priceNum * qtyNum).toFixed(2)}</span>
                   </div>
                 );
               })
@@ -288,18 +354,18 @@ const CheckoutPage = () => {
 
           <div className="co-price-row">
             <span>Subtotal</span>
-            <span>GBP {subtotal.toFixed(2)}</span>
+            <span>£{subtotal.toFixed(2)}</span>
           </div>
           <div className="co-price-row">
             <span>Shipping</span>
-            <span>{shipping === 0 ? "-" : `GBP ${shipping.toFixed(2)}`}</span>
+            <span>{shipping === 0 ? "-" : `£${shipping.toFixed(2)}`}</span>
           </div>
 
           <div className="co-divider" />
 
           <div className="co-total-row">
             <span>Total</span>
-            <span>GBP {total.toFixed(2)}</span>
+            <span>£{total.toFixed(2)}</span>
           </div>
         </aside>
       </div>
