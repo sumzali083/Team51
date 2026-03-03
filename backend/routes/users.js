@@ -228,11 +228,10 @@ router.post("/forgot-password", async (req, res) => {
       [email.trim()]
     );
 
-    // Always respond the same, even if user doesn't exist
+    // Always respond the same for security, even if user doesn't exist
     if (!users.length) {
       return res.json({
-        message:
-          "If an account with that email exists, you will receive a password reset link.",
+        message: "If an account with that email exists, you will receive a password reset link.",
         resetUrl: null,
       });
     }
@@ -243,30 +242,23 @@ router.post("/forgot-password", async (req, res) => {
 
     // Store in forgot_password table
     await db.query(
-      `INSERT INTO forgot_password (email, reset_token, token_expiry, requested_at)
-       VALUES (?, ?, ?, NOW())`,
+      "INSERT INTO forgot_password (email, reset_token, token_expiry, requested_at) VALUES (?, ?, ?, NOW())",
       [email.trim(), token, expiresAt]
     );
 
-    // Build reset URL for your frontend
-    const baseUrl =
-      process.env.FRONTEND_URL ||
-      `${req.protocol}://${req.get("host")}`;
-    // Build reset URL for your frontend (update domain/path if needed)
+    // Build reset URL for your frontend using your specific university domain
     const resetUrl = `https://cs2team51.cs2410-web01pvm.aston.ac.uk/reset-password?token=${token}`;
+    
     console.log("Password reset link for", email.trim(), "=>", resetUrl);
 
     return res.json({
-      message:
-        "If an account with that email exists, you will receive a password reset link.",
-      resetUrl,
+      message: "If an account with that email exists, you will receive a password reset link.",
     });
   } catch (err) {
     console.error("Forgot password error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 /**
  * POST /api/users/reset-password
  * Body: { token, password }
