@@ -9,7 +9,7 @@ export default function Cart() {
   const { cart, removeFromCart, changeQuantity } = cartContext;
   const navigate = useNavigate();
 
-  // Ensure we always use numbers for price/quantity
+ 
   const total = cart.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0

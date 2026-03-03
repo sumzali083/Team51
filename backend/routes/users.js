@@ -1,4 +1,3 @@
-// backend/routes/users.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../config/db"); // mysql2/promise pool
@@ -19,11 +18,10 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    // check if user already exists
-    const [existing] = await db.query(
-      "SELECT id FROM users WHERE email = ?",
-      [email]
-    );
+    const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [
+      email.trim(),
+    ]);
+
     if (existing.length) {
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -45,20 +43,6 @@ router.post("/register", async (req, res) => {
     });
   } catch (err) {
     console.error("Error registering user:", err);
-
-    // local laptop: DB not reachable → friendly fallback
-    if (err.code === "ETIMEDOUT") {
-      return res.status(200).json({
-        message:
-          "Registered (DB not available in local setup, but it will work on the uni server).",
-        user: {
-          id: Date.now(),
-          name: name.trim(),
-          email: email.trim(),
-        },
-      });
-    }
-
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -79,7 +63,7 @@ router.post("/login", async (req, res) => {
   try {
     const [rows] = await db.query(
       "SELECT id, name, email, password_hash FROM users WHERE email = ?",
-      [email]
+      [email.trim()]
     );
 
     if (!rows.length) {
@@ -93,6 +77,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // ✅ Return user; frontend stores in localStorage
     return res.json({
       message: "Login successful",
       user: {
@@ -103,24 +88,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("Error logging in:", err);
-
-    if (err.code === "ETIMEDOUT") {
-      return res.status(200).json({
-        message:
-          "Login simulated (DB not available in local setup, but it will work on the uni server).",
-        user: {
-          id: 1,
-          name: "Test User",
-          email,
-        },
-      });
-    }
-
-   return res.status(200).json({
-  message:
-    "Simulated on local machine (DB not connected here, but it will work on the uni server).",
-});
-
+    return res.status(500).json({ message: "Server error" });
   }
 });
 

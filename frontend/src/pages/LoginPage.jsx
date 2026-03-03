@@ -1,4 +1,5 @@
 // frontend/src/pages/LoginPage.jsx
+
 import React, { useState } from "react";
 import { Login } from "../components/Login";
 import { Registration } from "../components/Registration";
@@ -9,7 +10,8 @@ export default function LoginPage() {
 
   return (
     <main className="container mt-5" style={{ maxWidth: 600 }}>
-      {/* Tabs */}
+      
+      {/* Toggle Buttons */}
       <div
         style={{
           display: "flex",
@@ -33,6 +35,7 @@ export default function LoginPage() {
         >
           Login
         </button>
+
         <button
           type="button"
           onClick={() => setMode("signup")}
@@ -50,7 +53,7 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Card containing whichever form is active */}
+      {/* Card Wrapper */}
       <div
         style={{
           background: "#111",
@@ -64,8 +67,10 @@ export default function LoginPage() {
         ) : (
           <Registration
             onSuccess={(email) => {
+              // After successful registration,
+              // switch back to login and prefill email
               setPrefillEmail(email);
-              setMode("login"); // switch back to login after signup
+              setMode("login");
             }}
           />
         )}
