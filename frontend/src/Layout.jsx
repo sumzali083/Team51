@@ -116,19 +116,37 @@ export function Layout() {
 
               {user ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: "rgba(255,255,255,0.8)",
-                      fontFamily: "var(--font-body)",
-                      maxWidth: 100,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {user.name}
-                  </span>
+                  {user.is_admin ? (
+                    <NavLink
+                      to="/admin"
+                      style={{
+                        fontSize: 13,
+                        color: "rgba(255,255,255,0.8)",
+                        fontFamily: "var(--font-body)",
+                        maxWidth: 100,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {user.name}
+                    </NavLink>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "rgba(255,255,255,0.8)",
+                        fontFamily: "var(--font-body)",
+                        maxWidth: 100,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {user.name}
+                    </span>
+                  )}
                   {user.is_admin && (
                     <NavLink to="/admin" className="osai-action-btn" title="Admin">
                       <i className="bi bi-speedometer2" />
