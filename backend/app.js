@@ -1,5 +1,8 @@
 const express = require("express");
 const cors = require("cors");
+const reviewRoutes = require("./routes/reviewRoutes");
+app.use("/api", reviewRoutes);
+
 
 const app = express();
 
@@ -52,6 +55,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api", reviewRoutes);
 
 
 // === 404 HANDLER ===

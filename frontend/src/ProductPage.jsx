@@ -4,6 +4,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
 import { PRODUCTS } from "./data";      // local demo products
 import api from "./api";                // your axios instance for backend
+import Reviews from "./components/Reviews";
+
 
 export function ProductPage() {
   const { id } = useParams();
@@ -188,6 +190,8 @@ export function ProductPage() {
           <h1>{product.name}</h1>
           <h3 className="text-primary">£{product.price.toFixed(2)}</h3>
           <p className="mt-3">{product.desc || product.description}</p>
+          
+          
 
           {/* Size options ONLY */}
           {product.sizes && product.sizes.length > 0 && (
@@ -228,10 +232,17 @@ export function ProductPage() {
           >
             Back to Products
           </button>
-        </div>
+             </div>
       </div>
+
+      {/* Ratings & Reviews Section */}
+      <div className="mt-5">
+        <Reviews productId={String(product.id)} />
+      </div>
+
     </div>
   );
+
 }
 
 export default ProductPage;
