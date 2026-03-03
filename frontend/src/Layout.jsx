@@ -1,5 +1,5 @@
-import { useContext, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useContext, useState, useEffect } from "react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
 import { AuthContext } from "./context/AuthContext";
 import { WishlistContext } from "./context/WishlistContext";
@@ -7,7 +7,13 @@ import Chatbot from "./components/Chatbot";
 
 export function Layout() {
   const [search, setSearch] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
   const { user, logout } = useContext(AuthContext);
 
   const handleLogout = async () => {
@@ -37,6 +43,15 @@ export function Layout() {
               <img src="/images/logo.png" alt="OSAI" />
             </NavLink>
 
+            <button
+              className="osai-hamburger"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <span className={`osai-hamburger-icon${menuOpen ? " open" : ""}`} />
+            </button>
+
             <ul className="osai-nav-links">
               {[
                 { to: "/", label: "Home", end: true },
@@ -59,6 +74,31 @@ export function Layout() {
                 </li>
               ))}
             </ul>
+
+            {menuOpen && (
+              <ul className="osai-mobile-menu">
+                {[
+                  { to: "/", label: "Home", end: true },
+                  { to: "/mens", label: "Mens" },
+                  { to: "/womens", label: "Womens" },
+                  { to: "/kids", label: "Kids" },
+                  { to: "/newarrivals", label: "New Arrivals" },
+                  { to: "/sale", label: "Sale" },
+                  { to: "/contact", label: "Contact" },
+                  { to: "/about", label: "About" },
+                ].map(({ to, label, end }) => (
+                  <li key={to}>
+                    <NavLink
+                      className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`}
+                      to={to}
+                      end={end}
+                    >
+                      {label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="osai-nav-actions">
               <form className="osai-search" onSubmit={handleSearchSubmit}>
