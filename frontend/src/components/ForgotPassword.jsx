@@ -41,43 +41,77 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="osai-auth-page">
-      <div className="osai-auth-card">
-        <h2 className="osai-auth-title">Forgot Password</h2>
-        <p className="osai-auth-sub">
+    <div style={{ maxWidth: 520, margin: "40px auto" }}>
+      <div
+        style={{
+          background: "#111",
+          borderRadius: 16,
+          padding: 24,
+          boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
+          color: "#fff",
+        }}
+      >
+        <h2 style={{ color: "#ff5a00", fontWeight: 800, marginBottom: 8 }}>
+          Forgot Password
+        </h2>
+        <p style={{ color: "#bbb", marginBottom: 16 }}>
           Enter your account email and we will generate a reset link.
         </p>
 
-        {error && <div className="osai-alert osai-alert-error">{error}</div>}
-        {message && <div className="osai-alert osai-alert-success">{message}</div>}
+        {error && (
+          <div style={{ background: "#5c1a1a", padding: 10, marginBottom: 10 }}>
+            {error}
+          </div>
+        )}
+        {message && (
+          <div style={{ background: "#1d3b21", padding: 10, marginBottom: 10 }}>
+            {message}
+          </div>
+        )}
         {resetUrl && (
-          <div className="osai-alert osai-alert-info">
-            <div className="osai-auth-note">Reset link (demo):</div>
-            <a href={resetUrl} className="osai-link-inline osai-break-all">
+          <div style={{ background: "#203549", padding: 10, marginBottom: 10 }}>
+            <div style={{ marginBottom: 6 }}>Reset link (demo):</div>
+            <a href={resetUrl} style={{ color: "#9ad0ff", wordBreak: "break-all" }}>
               {resetUrl}
             </a>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="osai-auth-form">
-          <label className="osai-auth-label" htmlFor="forgot-email">
-            Email
-          </label>
-          <input
-            id="forgot-email"
-            className="osai-auth-input"
-            type="email"
-            placeholder="Your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button type="submit" disabled={loading} className="osai-cta-primary">
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 12 }}>
+            <input
+              type="email"
+              placeholder="Your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid #333",
+                background: "#222",
+                color: "#fff",
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              background: loading ? "#aa4400" : "#ff5a00",
+              color: "#fff",
+              borderRadius: 8,
+              padding: "12px 18px",
+              fontWeight: 700,
+              border: "none",
+            }}
+          >
             {loading ? "Sending..." : "Send reset link"}
           </button>
         </form>
 
-        <div className="osai-auth-footer">
-          <Link to="/login" className="osai-link-inline">
+        <div style={{ marginTop: 12 }}>
+          <Link to="/login" style={{ color: "#ff5a00", textDecoration: "none", fontWeight: 600 }}>
             Back to Login
           </Link>
         </div>

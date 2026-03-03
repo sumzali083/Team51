@@ -1,49 +1,93 @@
-// frontend/src/pages/CheckoutPage.jsx
 import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
+import { AuthContext } from "../context/AuthContext";
+import api from "../api";
 import "./CheckoutPage.css";
 
 const CheckoutPage = () => {
-  const { cart } = useContext(CartContext);
-  const [step, setStep] = useState(1); // 1 = shipping, 2 = payment, 3 = confirmed
+  const { cart, clearCart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
+  const [step, setStep] = useState(1);
   const [deliveryType, setDeliveryType] = useState("SHIP");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
   const [form, setForm] = useState({
-    firstName: "", lastName: "", address: "", city: "", postcode: "",
-    email: "", phone: "",
-    cardName: "", cardNumber: "", expiry: "", cvv: "",
+    firstName: "",
+    lastName: "",
+    address: "",
+    city: "",
+    postcode: "",
+    email: "",
+    phone: "",
+    cardName: "",
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
   });
 
-  const subtotal = cart.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 0), 0);
+  const subtotal = cart.reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+    0
+  );
   const shipping = cart.length > 0 ? 8 : 0;
   const total = subtotal + shipping;
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleShippingNext = (e) => {
     e.preventDefault();
+    setCheckoutError("");
     setStep(2);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    setStep(3);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (!user?.id) {
+      setCheckoutError("Please log in to complete checkout.");
+      return;
+    }
+
+    if (!cart.length) {
+      setCheckoutError("Your basket is empty.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setCheckoutError("");
+
+    try {
+      await api.post("/api/orders/checkout", { userId: user.id });
+      await clearCart();
+      setStep(3);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setCheckoutError(
+        err?.response?.data?.message || "Checkout failed. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  /* ── Confirmed screen ── */
   if (step === 3) {
     return (
       <div className="co-confirmed">
         <div className="co-confirmed-inner">
-          <div className="co-confirmed-icon">✓</div>
+          <div className="co-confirmed-icon">OK</div>
           <h1 className="co-confirmed-title">Order Confirmed</h1>
           <p className="co-confirmed-sub">
-            Thank you, {form.firstName || "there"}! Your order has been placed.<br />
+            Thank you, {form.firstName || "there"}! Your order has been placed.
+            <br />
             A confirmation will be sent to <strong>{form.email || "your email"}</strong>.
           </p>
-          <Link to="/" className="co-confirmed-btn">Continue Shopping</Link>
+          <Link to="/" className="co-confirmed-btn">
+            Continue Shopping
+          </Link>
         </div>
       </div>
     );
@@ -51,7 +95,6 @@ const CheckoutPage = () => {
 
   return (
     <div className="co-wrapper">
-      {/* ── Top bar ── */}
       <div className="co-topbar">
         <Link to="/" className="co-topbar-logo">
           <img src="/images/logo.png" alt="OSAI" />
@@ -61,7 +104,6 @@ const CheckoutPage = () => {
         </span>
       </div>
 
-      {/* ── Step indicator ── */}
       <div className="co-steps">
         <div className={`co-step ${step >= 1 ? "active" : ""}`}>
           <span className="co-step-num">1</span> Shipping
@@ -72,31 +114,25 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* ── Main grid ── */}
       <div className="co-grid">
-        {/* ════ LEFT — form ════ */}
         <div className="co-left">
-
-          {/* ── Step 1: Shipping ── */}
           {step === 1 && (
             <form onSubmit={handleShippingNext} noValidate>
               <h2 className="co-section-heading">Shipping Details</h2>
 
-              {/* Delivery type toggle */}
               <div className="co-toggle-row">
-                {["SHIP", "PICK UP"].map((t) => (
+                {["SHIP", "PICK UP"].map((type) => (
                   <button
-                    key={t}
+                    key={type}
                     type="button"
-                    className={`co-toggle ${deliveryType === t ? "co-toggle-active" : ""}`}
-                    onClick={() => setDeliveryType(t)}
+                    className={`co-toggle ${deliveryType === type ? "co-toggle-active" : ""}`}
+                    onClick={() => setDeliveryType(type)}
                   >
-                    {t}
+                    {type}
                   </button>
                 ))}
               </div>
 
-              {/* Form fields */}
               <div className="co-field-row">
                 <div className="co-field">
                   <label className="co-label">First Name</label>
@@ -136,12 +172,11 @@ const CheckoutPage = () => {
               </div>
 
               <button type="submit" className="co-btn-primary">
-                Continue to Payment →
+                Continue to Payment
               </button>
             </form>
           )}
 
-          {/* ── Step 2: Payment ── */}
           {step === 2 && (
             <form onSubmit={handlePlaceOrder} noValidate>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
@@ -150,19 +185,21 @@ const CheckoutPage = () => {
                   onClick={() => setStep(1)}
                   style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", padding: 0, textDecoration: "underline", textUnderlineOffset: 3 }}
                 >
-                  ← Back
+                  Back
                 </button>
                 <h2 className="co-section-heading" style={{ margin: 0 }}>Payment</h2>
               </div>
 
-              {/* Shipping summary pill */}
               <div className="co-summary-pill">
                 <span style={{ color: "#888", fontSize: 12 }}>Shipping to</span>
                 <span style={{ color: "#fff", fontSize: 13 }}>
                   {form.firstName} {form.lastName}, {form.address}{form.city ? `, ${form.city}` : ""}
                 </span>
-                <button type="button" onClick={() => setStep(1)}
-                  style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "underline", padding: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "underline", padding: 0 }}
+                >
                   Edit
                 </button>
               </div>
@@ -174,15 +211,7 @@ const CheckoutPage = () => {
 
               <div className="co-field co-field-full">
                 <label className="co-label">Card Number</label>
-                <input
-                  name="cardNumber"
-                  value={form.cardNumber}
-                  onChange={handleChange}
-                  placeholder="0000  0000  0000  0000"
-                  maxLength={19}
-                  className="co-input co-input-card"
-                  required
-                />
+                <input name="cardNumber" value={form.cardNumber} onChange={handleChange} placeholder="0000  0000  0000  0000" maxLength={19} className="co-input co-input-card" required />
               </div>
 
               <div className="co-field-row">
@@ -192,7 +221,7 @@ const CheckoutPage = () => {
                 </div>
                 <div className="co-field">
                   <label className="co-label">CVV</label>
-                  <input name="cvv" type="password" value={form.cvv} onChange={handleChange} placeholder="•••" maxLength={4} className="co-input" required />
+                  <input name="cvv" type="password" value={form.cvv} onChange={handleChange} placeholder="***" maxLength={4} className="co-input" required />
                 </div>
               </div>
 
@@ -200,18 +229,25 @@ const CheckoutPage = () => {
                 <i className="bi bi-shield-lock-fill" /> Your payment info is encrypted and secure.
               </div>
 
-              <button type="submit" className="co-btn-primary">
-                Place Order — £{total.toFixed(2)}
+              {checkoutError && (
+                <div style={{ color: "#f87171", marginBottom: 16, fontSize: 13 }}>
+                  {checkoutError}
+                </div>
+              )}
+
+              <button type="submit" className="co-btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? "Processing..." : `Place Order - GBP ${total.toFixed(2)}`}
               </button>
             </form>
           )}
         </div>
 
-        {/* ════ RIGHT — order summary ════ */}
         <aside className="co-right">
           <h3 className="co-right-heading">
             Order Summary
-            <span className="co-right-count">{cart.reduce((s, i) => s + (i.quantity || 0), 0)} items</span>
+            <span className="co-right-count">
+              {cart.reduce((sum, item) => sum + (item.quantity || 0), 0)} items
+            </span>
           </h3>
 
           <div className="co-items">
@@ -230,16 +266,18 @@ const CheckoutPage = () => {
                         src={img}
                         alt={item.name}
                         className="co-item-img"
-                        onError={(e) => { e.target.src = "/images/placeholder.jpg"; }}
+                        onError={(e) => {
+                          e.target.src = "/images/placeholder.jpg";
+                        }}
                       />
                       <span className="co-item-qty">{qtyNum}</span>
                     </div>
                     <div className="co-item-info">
                       <p className="co-item-name">{item.name}</p>
                       {item.size && <p className="co-item-meta">Size: {item.size}</p>}
-                      {item.color && <p className="co-item-meta">Colour: {item.color}</p>}
+                      {item.color && <p className="co-item-meta">Color: {item.color}</p>}
                     </div>
-                    <span className="co-item-price">£{(priceNum * qtyNum).toFixed(2)}</span>
+                    <span className="co-item-price">GBP {(priceNum * qtyNum).toFixed(2)}</span>
                   </div>
                 );
               })
@@ -249,17 +287,19 @@ const CheckoutPage = () => {
           <div className="co-divider" />
 
           <div className="co-price-row">
-            <span>Subtotal</span><span>£{subtotal.toFixed(2)}</span>
+            <span>Subtotal</span>
+            <span>GBP {subtotal.toFixed(2)}</span>
           </div>
           <div className="co-price-row">
             <span>Shipping</span>
-            <span>{shipping === 0 ? "—" : `£${shipping.toFixed(2)}`}</span>
+            <span>{shipping === 0 ? "-" : `GBP ${shipping.toFixed(2)}`}</span>
           </div>
 
           <div className="co-divider" />
 
           <div className="co-total-row">
-            <span>Total</span><span>£{total.toFixed(2)}</span>
+            <span>Total</span>
+            <span>GBP {total.toFixed(2)}</span>
           </div>
         </aside>
       </div>

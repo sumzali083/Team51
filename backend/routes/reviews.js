@@ -9,7 +9,10 @@ const router = express.Router();
  * For now, we'll accept userId from request - in production, verify JWT token
  */
 const verifyUser = (req, res, next) => {
-    const userId = req.headers["x-user-id"] || req.body.user_id;
+    const userId =
+        (req.session && req.session.userId) ||
+        req.headers["x-user-id"] ||
+        req.body.user_id;
 
     if (!userId) {
         return res.status(401).json({ message: "User must be logged in to review" });

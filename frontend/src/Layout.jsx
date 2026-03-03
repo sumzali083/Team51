@@ -1,21 +1,17 @@
 import { useContext, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
+import { AuthContext } from "./context/AuthContext";
 import { WishlistContext } from "./context/WishlistContext";
 import Chatbot from "./components/Chatbot";
 
 export function Layout() {
   const [search, setSearch] = useState("");
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("osaiUser")); }
-    catch { return null; }
-  });
   const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
 
-  const handleLogout = () => {
-    localStorage.removeItem("osaiUser");
-    sessionStorage.removeItem("user");
-    setUser(null);
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 
@@ -34,17 +30,13 @@ export function Layout() {
 
   return (
     <>
-      {/* ── HEADER ── */}
       <header className="osai-header" id="main-header">
         <nav className="osai-navbar">
           <div className="container-fluid osai-nav-inner">
-
-            {/* Logo */}
             <NavLink className="navbar-brand osai-brand" to="/">
               <img src="/images/logo.png" alt="OSAI" />
             </NavLink>
 
-            {/* Centered nav links */}
             <ul className="osai-nav-links">
               {[
                 { to: "/", label: "Home", end: true },
@@ -58,9 +50,7 @@ export function Layout() {
               ].map(({ to, label, end }) => (
                 <li key={to}>
                   <NavLink
-                    className={({ isActive }) =>
-                      `osai-link${isActive ? " active" : ""}`
-                    }
+                    className={({ isActive }) => `osai-link${isActive ? " active" : ""}`}
                     to={to}
                     end={end}
                   >
@@ -70,13 +60,11 @@ export function Layout() {
               ))}
             </ul>
 
-            {/* Right-side actions */}
             <div className="osai-nav-actions">
-              {/* Search */}
               <form className="osai-search" onSubmit={handleSearchSubmit}>
                 <input
                   type="search"
-                  placeholder="Search…"
+                  placeholder="Search..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search products"
@@ -86,20 +74,33 @@ export function Layout() {
                 </button>
               </form>
 
-              {/* Login / User */}
               {user ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{
-                    fontSize: 13,
-                    color: "rgba(255,255,255,0.8)",
-                    fontFamily: "var(--font-body)",
-                    maxWidth: 100,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: "rgba(255,255,255,0.8)",
+                      fontFamily: "var(--font-body)",
+                      maxWidth: 100,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {user.name}
                   </span>
+                  {user.is_admin && (
+                    <NavLink to="/admin" className="osai-action-btn" title="Admin">
+                      <i className="bi bi-speedometer2" />
+                    </NavLink>
+                  )}
+                  <NavLink
+                    to="/account/change-password"
+                    className="osai-action-btn"
+                    title="Change password"
+                  >
+                    <i className="bi bi-key" />
+                  </NavLink>
                   <button
                     onClick={handleLogout}
                     className="osai-action-btn"
@@ -117,43 +118,34 @@ export function Layout() {
                 </NavLink>
               )}
 
-              {/* Wishlist */}
               <NavLink
                 to="/wishlist"
                 className="osai-action-btn"
                 aria-label={`Wishlist (${totalFav} items)`}
               >
                 <i className="bi bi-heart" />
-                {totalFav > 0 && (
-                  <span className="osai-badge">{totalFav}</span>
-                )}
+                {totalFav > 0 && <span className="osai-badge">{totalFav}</span>}
               </NavLink>
 
-              {/* Cart */}
               <NavLink
                 to="/cart"
                 className="osai-action-btn"
                 aria-label={`Cart (${totalItems} items)`}
               >
                 <i className="bi bi-bag" />
-                {totalItems > 0 && (
-                  <span className="osai-badge">{totalItems}</span>
-                )}
+                {totalItems > 0 && <span className="osai-badge">{totalItems}</span>}
               </NavLink>
             </div>
           </div>
         </nav>
       </header>
 
-      {/* ── MAIN ── */}
       <main aria-live="polite">
         <Outlet />
       </main>
 
-      {/* ── FOOTER ── */}
       <footer className="osai-footer">
         <div className="osai-footer-inner">
-          {/* Brand column */}
           <div className="osai-footer-brand">
             <img src="/images/logo.png" alt="OSAI" />
             <p>
@@ -162,7 +154,6 @@ export function Layout() {
             </p>
           </div>
 
-          {/* Shop links */}
           <div className="osai-footer-col">
             <h5>Shop</h5>
             <ul>
@@ -174,7 +165,6 @@ export function Layout() {
             </ul>
           </div>
 
-          {/* Info links */}
           <div className="osai-footer-col">
             <h5>Info</h5>
             <ul>

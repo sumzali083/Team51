@@ -1,7 +1,7 @@
-// frontend/src/components/Login.jsx
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useContext, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
+import { AuthContext } from "../context/AuthContext";
 
 const INPUT = {
   width: "100%",
@@ -30,6 +30,8 @@ const LABEL = {
 export function Login({ initialEmail = "" }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
+  const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
@@ -55,9 +57,12 @@ export function Login({ initialEmail = "" }) {
       setMessage(res.data?.message || "Login successful");
 
       if (user) {
+        login(user);
         localStorage.setItem("osaiUser", JSON.stringify(user));
         sessionStorage.setItem("user", JSON.stringify(user));
-        setTimeout(() => { window.location.href = "/"; }, 1500);
+        setTimeout(() => {
+          navigate("/");
+        }, 1000);
       }
     } catch (err) {
       const msg =
@@ -71,15 +76,17 @@ export function Login({ initialEmail = "" }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <h2 style={{
-        fontFamily: "'Barlow Condensed', sans-serif",
-        fontSize: 22,
-        fontWeight: 800,
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        color: "#fff",
-        margin: "0 0 6px",
-      }}>
+      <h2
+        style={{
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontSize: 22,
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: "#fff",
+          margin: "0 0 6px",
+        }}
+      >
         Login
       </h2>
       <p style={{ color: "#888", fontSize: 13, marginBottom: 28 }}>
@@ -87,21 +94,33 @@ export function Login({ initialEmail = "" }) {
       </p>
 
       {error && (
-        <div style={{
-          marginBottom: 20, padding: "12px 16px", borderRadius: 6, fontSize: 13,
-          background: "rgba(255,60,60,0.12)", border: "1px solid rgba(255,60,60,0.25)",
-          color: "#f87171",
-        }}>
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "12px 16px",
+            borderRadius: 6,
+            fontSize: 13,
+            background: "rgba(255,60,60,0.12)",
+            border: "1px solid rgba(255,60,60,0.25)",
+            color: "#f87171",
+          }}
+        >
           {error}
         </div>
       )}
 
       {message && (
-        <div style={{
-          marginBottom: 20, padding: "12px 16px", borderRadius: 6, fontSize: 13,
-          background: "rgba(0,200,80,0.12)", border: "1px solid rgba(0,200,80,0.25)",
-          color: "#4ade80",
-        }}>
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "12px 16px",
+            borderRadius: 6,
+            fontSize: 13,
+            background: "rgba(0,200,80,0.12)",
+            border: "1px solid rgba(0,200,80,0.25)",
+            color: "#4ade80",
+          }}
+        >
           {message}
         </div>
       )}
@@ -116,17 +135,16 @@ export function Login({ initialEmail = "" }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={INPUT}
-            onFocus={e => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
-            onBlur={e  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+            onFocus={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
+            onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
           />
         </div>
 
         <div>
-          {/* Password label row with forgot link */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={LABEL}>Password</span>
             <Link
-              to="/reset-password"
+              to="/forgot-password"
               style={{
                 fontSize: 12,
                 color: "#888",
@@ -140,12 +158,12 @@ export function Login({ initialEmail = "" }) {
           <input
             id="login-password"
             type="password"
-            placeholder="••••••••"
+            placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={INPUT}
-            onFocus={e => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
-            onBlur={e  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+            onFocus={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
+            onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
           />
         </div>
 
@@ -153,18 +171,42 @@ export function Login({ initialEmail = "" }) {
           type="submit"
           disabled={loading}
           style={{
-            width: "100%", padding: "14px",
-            background: loading ? "#ccc" : "#fff", color: "#000",
-            border: "none", borderRadius: 4, fontWeight: 700, fontSize: 13,
-            letterSpacing: "0.1em", textTransform: "uppercase",
+            width: "100%",
+            padding: "14px",
+            background: loading ? "#ccc" : "#fff",
+            color: "#000",
+            border: "none",
+            borderRadius: 4,
+            fontWeight: 700,
+            fontSize: 13,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
             cursor: loading ? "not-allowed" : "pointer",
-            marginTop: 8, transition: "background 0.18s ease",
+            marginTop: 8,
+            transition: "background 0.18s ease",
           }}
-          onMouseEnter={e => { if (!loading) e.target.style.background = "#e0e0e0"; }}
-          onMouseLeave={e => { if (!loading) e.target.style.background = "#fff"; }}
+          onMouseEnter={(e) => {
+            if (!loading) e.target.style.background = "#e0e0e0";
+          }}
+          onMouseLeave={(e) => {
+            if (!loading) e.target.style.background = "#fff";
+          }}
         >
-          {loading ? "Logging in…" : "Login"}
+          {loading ? "Logging in..." : "Login"}
         </button>
+
+        <Link
+          to="/account/change-password"
+          style={{
+            alignSelf: "flex-start",
+            fontSize: 12,
+            color: "#888",
+            textDecoration: "underline",
+            textUnderlineOffset: 3,
+          }}
+        >
+          Change password
+        </Link>
       </form>
     </div>
   );
