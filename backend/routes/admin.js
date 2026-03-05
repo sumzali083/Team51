@@ -1,9 +1,38 @@
 // backend/routes/admin.js
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const db = require("../config/db");
 const adminMiddleware = require("../middleware/adminMiddleware");
 
 const router = express.Router();
+
+// Multer storage: saves to backend/uploads/products/
+const uploadDir = path.join(__dirname, "../uploads/products");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
+
+// UPLOAD product image
+router.post("/upload-image", adminMiddleware, upload.single("image"), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No image file provided" });
+  res.json({ url: `/uploads/products/${req.file.filename}` });
+});
 
 /* ======================================================
    USER MANAGEMENT

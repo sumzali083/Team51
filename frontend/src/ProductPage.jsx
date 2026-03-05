@@ -12,11 +12,13 @@ export function ProductPage() {
   const navigate = useNavigate();
   const { addToCart } = useContext(CartContext);
   const { wishlist, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
+  const { user } = useContext(AuthContext);
 
-  const product = PRODUCTS.find((p) => p.id === id);
+  const [product, setProduct] = useState(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
-  const [size, setSize] = useState(product?.sizes?.[0] || "");
-  const [color, setColor] = useState(product?.colors?.[0] || "");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
   const [msg, setMsg] = useState("");
   const isInWishlist = product && wishlist && wishlist.some((item) => item.id === product.id);
 
@@ -31,7 +33,23 @@ export function ProductPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
 
-  const { user } = useContext(AuthContext);
+  // Fetch product from API, fall back to local data for legacy products
+  useEffect(() => {
+    setLoadingProduct(true);
+    setActiveImg(0);
+    api.get(`/api/products/${id}`)
+      .then((res) => setProduct(res.data))
+      .catch(() => setProduct(PRODUCTS.find((p) => p.id === id) || null))
+      .finally(() => setLoadingProduct(false));
+  }, [id]);
+
+  // Set default size/color once product is available
+  useEffect(() => {
+    if (product) {
+      setSize(product.sizes?.[0] || "");
+      setColor(product.colors?.[0] || "");
+    }
+  }, [product]);
 
   // Load reviews from backend API
   useEffect(() => {
@@ -54,11 +72,19 @@ export function ProductPage() {
     }
   };
 
+  if (loadingProduct) {
+    return (
+      <div className="container mt-5 text-center" style={{ color: "var(--sub)" }}>
+        Loading product...
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div className="container mt-5">
         <div className="alert alert-warning">Product not found.</div>
-        <button className="btn btn-primary" onClick={() => navigate(-1)}>
+        <button className="btn btn-secondary" onClick={() => navigate(-1)}>
           Go Back
         </button>
       </div>

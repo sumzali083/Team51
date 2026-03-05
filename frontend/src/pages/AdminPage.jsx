@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -22,7 +22,7 @@ export default function AdminPage() {
   const [deletingProductId, setDeletingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
     sku: "", name: "", category_id: 11, price: "", stock: 0,
-    description: "", sizes: [], colors: ["", ""], images: ["", "", ""],
+    description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
   });
 
   const loadAll = async () => {
@@ -129,7 +129,7 @@ export default function AdminPage() {
   };
 
   const addProduct = async () => {
-    const { sku, name, category_id, price, stock, description, sizes, colors, images } = productDraft;
+    const { sku, name, category_id, price, stock, description, sizes, colors, imageFiles } = productDraft;
     if (!sku.trim() || !name.trim() || !price) {
       alert("SKU, Name, and Price are required.");
       return;
@@ -140,6 +140,17 @@ export default function AdminPage() {
     }
     setSubmittingProduct(true);
     try {
+      // Upload each selected image file, collect returned URLs
+      const uploadedUrls = [];
+      for (const file of imageFiles.filter(Boolean)) {
+        const fd = new FormData();
+        fd.append("image", file);
+        const res = await api.post("/api/admin/upload-image", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        uploadedUrls.push(res.data.url);
+      }
+
       await api.post("/api/admin/products", {
         sku: sku.trim(),
         name: name.trim(),
@@ -149,11 +160,11 @@ export default function AdminPage() {
         description: description.trim(),
         sizes,
         colors: colors.filter((c) => c.trim()),
-        images: images.filter((u) => u.trim()),
+        images: uploadedUrls,
       });
       setProductDraft({
         sku: "", name: "", category_id: 11, price: "", stock: 0,
-        description: "", sizes: [], colors: ["", ""], images: ["", "", ""],
+        description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
       });
       setShowAddProduct(false);
       const res = await api.get("/api/admin/products");
@@ -196,13 +207,13 @@ export default function AdminPage() {
   }, [messages.length, orders.length, products.length, reports, reviews.length]);
 
   const tabs = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "products",  label: "Products" },
-    { key: "inventory", label: "Inventory" },
-    { key: "orders", label: "Orders" },
-    { key: "reviews", label: "Reviews" },
-    { key: "contacts", label: "Contact Messages" },
-    { key: "users", label: "Users" },
+    { key: "dashboard", label: "Dashboard",        icon: "bi-speedometer2" },
+    { key: "products",  label: "Products",          icon: "bi-box-seam" },
+    { key: "inventory", label: "Inventory",         icon: "bi-clipboard-data" },
+    { key: "orders",    label: "Orders",            icon: "bi-bag-check" },
+    { key: "reviews",   label: "Reviews",           icon: "bi-star" },
+    { key: "contacts",  label: "Contact Messages",  icon: "bi-envelope" },
+    { key: "users",     label: "Users",             icon: "bi-people" },
   ];
 
   if (loading) {
@@ -225,40 +236,45 @@ export default function AdminPage() {
     <div className="osai-admin page-container">
       <div className="row g-4">
         <aside className="col-lg-2 col-md-3">
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm" style={{ position: "sticky", top: 90 }}>
             <div className="card-body">
-              <h6 className="text-uppercase text-muted mb-3">Admin</h6>
-              <div className="nav flex-column nav-pills gap-2">
+              <p className="osai-admin-sidebar-label">Navigation</p>
+              <div className="nav flex-column nav-pills gap-1">
                 {tabs.map((tab) => (
                   <button
                     key={tab.key}
                     className={`btn text-start ${activeTab === tab.key ? "btn-dark" : "btn-outline-secondary"}`}
                     onClick={() => setActiveTab(tab.key)}
                   >
+                    <i className={`bi ${tab.icon}`} />
                     {tab.label}
                   </button>
                 ))}
               </div>
-              <button className="btn btn-outline-dark w-100 mt-3" onClick={loadAll}>
-                Refresh Data
+              <hr style={{ borderColor: "var(--line)", margin: "16px 0" }} />
+              <button className="btn btn-outline-dark w-100" onClick={loadAll}>
+                <i className="bi bi-arrow-clockwise" /> Refresh
               </button>
             </div>
           </div>
         </aside>
 
         <section className="col-lg-10 col-md-9">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h2 className="mb-0">Admin Dashboard</h2>
-            <span className="badge text-bg-dark px-3 py-2">Logged in: {user?.name || "Admin"}</span>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h2 className="osai-admin-section-title" style={{ fontSize: 28 }}>Admin Dashboard</h2>
+            <span className="badge text-bg-dark px-3 py-2">
+              <i className="bi bi-person-check me-1" />
+              {user?.name || "Admin"}
+            </span>
           </div>
 
           <div className="row g-3 mb-4">
             {kpis.map((kpi) => (
               <div key={kpi.label} className="col-xl-2 col-lg-4 col-md-6">
-                <div className="card border-0 shadow-sm h-100">
-                  <div className="card-body">
-                    <div className="text-muted small">{kpi.label}</div>
-                    <div className="h5 mb-0 mt-1">{kpi.value}</div>
+                <div className="card border-0 shadow-sm h-100 kpi-card">
+                  <div className="card-body" style={{ padding: "14px 16px" }}>
+                    <div className="kpi-label">{kpi.label}</div>
+                    <div className="kpi-value">{kpi.value}</div>
                   </div>
                 </div>
               </div>
@@ -268,9 +284,15 @@ export default function AdminPage() {
           {activeTab === "dashboard" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <h4 className="mb-3">Overview</h4>
-                <p className="mb-1">Use sidebar tabs to manage products, inventory, orders, reviews, contacts, and users.</p>
-                <p className="mb-0 text-muted">All actions here are restricted to admin users only.</p>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Overview</h4>
+                </div>
+                <p className="mb-1" style={{ color: "var(--sub)", fontSize: 14 }}>
+                  Use the sidebar to manage products, inventory, orders, reviews, contact messages, and users.
+                </p>
+                <p className="mb-0" style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>
+                  All actions on this panel are restricted to admin accounts only.
+                </p>
               </div>
             </div>
           )}
@@ -278,19 +300,19 @@ export default function AdminPage() {
           {activeTab === "products" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h4 className="mb-0">Product Management</h4>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Product Management</h4>
                   <button
                     className="btn btn-dark btn-sm"
                     onClick={() => setShowAddProduct((prev) => !prev)}
                   >
-                    {showAddProduct ? "Cancel" : "+ Add Product"}
+                    {showAddProduct ? <><i className="bi bi-x-lg me-1" />Cancel</> : <><i className="bi bi-plus-lg me-1" />Add Product</>}
                   </button>
                 </div>
 
                 {showAddProduct && (
-                  <div className="border rounded p-3 mb-4 bg-light">
-                    <h5 className="mb-3">New Product</h5>
+                  <div className="osai-admin-form-panel p-4 mb-4">
+                    <h5 className="mb-4">New Product</h5>
                     <div className="row g-3">
 
                       <div className="col-md-4">
@@ -361,10 +383,10 @@ export default function AdminPage() {
                         />
                       </div>
 
-                      <div className="col-12">
-                        <label className="form-label d-block">Sizes</label>
+                      <div className="col-12 osai-admin-form-section">
+                        <p className="osai-admin-form-section-label">Sizes</p>
                         <div className="d-flex flex-wrap gap-2 mb-1">
-                          <small className="text-muted w-100">Adult:</small>
+                          <small className="w-100" style={{ color: "var(--muted)", fontSize: 11 }}>Adult:</small>
                           {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
                             <div key={size} className="form-check form-check-inline">
                               <input
@@ -378,8 +400,8 @@ export default function AdminPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="d-flex flex-wrap gap-2">
-                          <small className="text-muted w-100">Kids:</small>
+                        <div className="d-flex flex-wrap gap-2 mt-2">
+                          <small className="w-100" style={{ color: "var(--muted)", fontSize: 11 }}>Kids:</small>
                           {["5-6", "7-8", "9-10", "11-12"].map((size) => (
                             <div key={size} className="form-check form-check-inline">
                               <input
@@ -395,7 +417,7 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      <div className="col-12">
+                      <div className="col-12 osai-admin-form-section">
                         <label className="form-label">Colors</label>
                         <div className="d-flex flex-wrap gap-2 align-items-center">
                           {productDraft.colors.map((color, idx) => (
@@ -426,21 +448,55 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      <div className="col-12">
-                        <label className="form-label">Image URLs (up to 3)</label>
-                        <div className="d-flex flex-column gap-2">
-                          {productDraft.images.map((url, idx) => (
-                            <input
-                              key={idx}
-                              className="form-control form-control-sm"
-                              placeholder={`Image ${idx + 1} URL — e.g. /assets/men/shirt.jpg`}
-                              value={url}
-                              onChange={(e) => {
-                                const next = [...productDraft.images];
-                                next[idx] = e.target.value;
-                                setProductDraft((prev) => ({ ...prev, images: next }));
-                              }}
-                            />
+                      <div className="col-12 osai-admin-form-section">
+                        <label className="form-label">Product Images (up to 3)</label>
+                        <div className="d-flex flex-column gap-3">
+                          {productDraft.imageFiles.map((file, idx) => (
+                            <div key={idx} className="d-flex align-items-center gap-3">
+                              {file && (
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  alt={`Preview ${idx + 1}`}
+                                  style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "var(--radius)", border: "1px solid var(--line)" }}
+                                />
+                              )}
+                              {!file && (
+                                <div style={{ width: 56, height: 56, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: "var(--radius)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                  <i className="bi bi-image" style={{ color: "var(--muted)", fontSize: 20 }} />
+                                </div>
+                              )}
+                              <div className="flex-grow-1">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="form-control form-control-sm"
+                                  onChange={(e) => {
+                                    const next = [...productDraft.imageFiles];
+                                    next[idx] = e.target.files[0] || null;
+                                    setProductDraft((prev) => ({ ...prev, imageFiles: next }));
+                                  }}
+                                />
+                                {file && (
+                                  <small style={{ color: "var(--sub)", fontSize: 11, marginTop: 3, display: "block" }}>
+                                    {file.name} ({(file.size / 1024).toFixed(0)} KB)
+                                  </small>
+                                )}
+                              </div>
+                              {file && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-danger btn-sm"
+                                  style={{ flexShrink: 0 }}
+                                  onClick={() => {
+                                    const next = [...productDraft.imageFiles];
+                                    next[idx] = null;
+                                    setProductDraft((prev) => ({ ...prev, imageFiles: next }));
+                                  }}
+                                >
+                                  <i className="bi bi-x" />
+                                </button>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -508,7 +564,10 @@ export default function AdminPage() {
           {activeTab === "inventory" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <h4 className="mb-3">Inventory Stock Management</h4>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Inventory</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{products.length} products</span>
+                </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
@@ -529,7 +588,7 @@ export default function AdminPage() {
                           <td>{p.sku || "-"}</td>
                           <td>{p.name}</td>
                           <td>{p.category || "-"}</td>
-                          <td>GBP {Number(p.price || 0).toFixed(2)}</td>
+                          <td>£{Number(p.price || 0).toFixed(2)}</td>
                           <td style={{ width: 120 }}>
                             <input
                               type="number"
@@ -562,28 +621,37 @@ export default function AdminPage() {
           {activeTab === "orders" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <h4 className="mb-3">Orders</h4>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Orders</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{orders.length} orders</span>
+                </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
                       <tr>
                         <th>ID</th>
-                        <th>User</th>
+                        <th>Customer</th>
                         <th>Email</th>
                         <th>Total</th>
-                        <th>Status</th>
-                        <th>Created</th>
+                        <th>Current Status</th>
+                        <th>Update Status</th>
+                        <th>Date</th>
                         <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {orders.map((o) => (
                         <tr key={o.id}>
-                          <td>{o.id}</td>
+                          <td>#{o.id}</td>
                           <td>{o.name}</td>
-                          <td>{o.email}</td>
-                          <td>GBP {Number(o.total_price || 0).toFixed(2)}</td>
-                          <td style={{ width: 160 }}>
+                          <td style={{ color: "var(--sub)" }}>{o.email}</td>
+                          <td>£{Number(o.total_price || 0).toFixed(2)}</td>
+                          <td>
+                            <span className={`osai-status osai-status-${orderStatusDraft[o.id] || "pending"}`}>
+                              {orderStatusDraft[o.id] || "pending"}
+                            </span>
+                          </td>
+                          <td style={{ width: 150 }}>
                             <select
                               className="form-select form-select-sm"
                               value={orderStatusDraft[o.id] || "pending"}
@@ -591,25 +659,30 @@ export default function AdminPage() {
                                 setOrderStatusDraft((prev) => ({ ...prev, [o.id]: e.target.value }))
                               }
                             >
-                              <option value="pending">pending</option>
-                              <option value="processing">processing</option>
-                              <option value="shipped">shipped</option>
-                              <option value="delivered">delivered</option>
-                              <option value="cancelled">cancelled</option>
+                              <option value="pending">Pending</option>
+                              <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
                             </select>
                           </td>
-                          <td>{o.created_at ? new Date(o.created_at).toLocaleString() : "-"}</td>
+                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                            {o.created_at ? new Date(o.created_at).toLocaleDateString() : "—"}
+                          </td>
                           <td>
                             <button
                               className="btn btn-sm btn-dark"
                               onClick={() => updateOrderStatus(o.id)}
                               disabled={savingOrderId === o.id}
                             >
-                              {savingOrderId === o.id ? "Saving..." : "Update"}
+                              {savingOrderId === o.id ? "Saving..." : "Save"}
                             </button>
                           </td>
                         </tr>
                       ))}
+                      {orders.length === 0 && (
+                        <tr><td colSpan={8} className="text-center" style={{ color: "var(--sub)" }}>No orders yet.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -620,16 +693,18 @@ export default function AdminPage() {
           {activeTab === "reviews" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <h4 className="mb-3">Customer Reviews</h4>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Customer Reviews</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{reviews.length} reviews</span>
+                </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
                       <tr>
                         <th>ID</th>
-                        <th>Product ID</th>
-                        <th>User ID</th>
-                        <th>Rating</th>
+                        <th>Product</th>
                         <th>Reviewer</th>
+                        <th>Rating</th>
                         <th>Comment</th>
                         <th>Date</th>
                         <th>Action</th>
@@ -639,12 +714,19 @@ export default function AdminPage() {
                       {reviews.map((r) => (
                         <tr key={r.id}>
                           <td>{r.id}</td>
-                          <td>{r.product_id}</td>
-                          <td>{r.user_id}</td>
-                          <td>{r.rating}</td>
+                          <td style={{ color: "var(--sub)" }}>#{r.product_id}</td>
                           <td>{r.reviewer_name}</td>
-                          <td>{r.comment}</td>
-                          <td>{r.created_at ? new Date(r.created_at).toLocaleString() : "-"}</td>
+                          <td>
+                            <span style={{ color: "#fbbf24", fontFamily: "var(--font-display)", fontWeight: 600 }}>
+                              {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.comment}
+                          </td>
+                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                            {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
+                          </td>
                           <td>
                             <button className="btn btn-sm btn-outline-danger" onClick={() => deleteReview(r.id)}>
                               Delete
@@ -652,6 +734,9 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ))}
+                      {reviews.length === 0 && (
+                        <tr><td colSpan={7} className="text-center" style={{ color: "var(--sub)" }}>No reviews yet.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -662,7 +747,10 @@ export default function AdminPage() {
           {activeTab === "contacts" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <h4 className="mb-3">Contact Messages</h4>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Contact Messages</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{messages.length} messages</span>
+                </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
@@ -680,9 +768,13 @@ export default function AdminPage() {
                         <tr key={m.id}>
                           <td>{m.id}</td>
                           <td>{m.name}</td>
-                          <td>{m.email}</td>
-                          <td>{m.message}</td>
-                          <td>{m.created_at ? new Date(m.created_at).toLocaleString() : "-"}</td>
+                          <td style={{ color: "var(--sub)" }}>{m.email}</td>
+                          <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {m.message}
+                          </td>
+                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                            {m.created_at ? new Date(m.created_at).toLocaleDateString() : "—"}
+                          </td>
                           <td>
                             <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(m.id)}>
                               Delete
@@ -690,6 +782,9 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ))}
+                      {messages.length === 0 && (
+                        <tr><td colSpan={6} className="text-center" style={{ color: "var(--sub)" }}>No messages yet.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -700,7 +795,10 @@ export default function AdminPage() {
           {activeTab === "users" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
-                <h4 className="mb-3">Users</h4>
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Users</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{users.length} accounts</span>
+                </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
@@ -709,7 +807,7 @@ export default function AdminPage() {
                         <th>Name</th>
                         <th>Email</th>
                         <th>Role</th>
-                        <th>Created</th>
+                        <th>Joined</th>
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -718,7 +816,7 @@ export default function AdminPage() {
                         <tr key={u.id}>
                           <td>{u.id}</td>
                           <td>{u.name}</td>
-                          <td>{u.email}</td>
+                          <td style={{ color: "var(--sub)" }}>{u.email}</td>
                           <td>
                             {u.is_admin === 1 ? (
                               <span className="badge text-bg-dark">Admin</span>
@@ -726,7 +824,9 @@ export default function AdminPage() {
                               <span className="badge text-bg-secondary">Customer</span>
                             )}
                           </td>
-                          <td>{u.created_at ? new Date(u.created_at).toLocaleString() : "-"}</td>
+                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                          </td>
                           <td>
                             <button
                               className="btn btn-sm btn-outline-danger"
@@ -738,6 +838,9 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ))}
+                      {users.length === 0 && (
+                        <tr><td colSpan={6} className="text-center" style={{ color: "var(--sub)" }}>No users found.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

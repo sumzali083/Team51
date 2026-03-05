@@ -80,6 +80,11 @@ app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 
+// Serve uploaded product images
+const uploadsPath = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
+app.use("/uploads", express.static(uploadsPath));
+
 // Serve static frontend if built
 const distPath = path.join(__dirname, "../frontend/dist");
 if (fs.existsSync(distPath)) {
