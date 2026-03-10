@@ -1,3 +1,16 @@
+<<<<<<< HEAD
+// backend/routes/users.js
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const db = require("../config/db"); // mysql2/promise pool
+
+const router = express.Router();
+
+/**
+ * POST /api/users/register
+ * Body: { name, email, password }
+ */
+=======
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -5,6 +18,7 @@ const db = require("../config/db");
 
 const router = express.Router();
 
+>>>>>>> deploy-branch
 router.post("/register", async (req, res) => {
   const { name, email, password } = req.body || {};
 
@@ -15,12 +29,24 @@ router.post("/register", async (req, res) => {
   }
 
   try {
+<<<<<<< HEAD
+    // check if user already exists
+    const [existing] = await db.query(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+=======
     const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+>>>>>>> deploy-branch
     if (existing.length) {
       return res.status(409).json({ message: "Email already registered" });
     }
 
     const hash = await bcrypt.hash(password, 10);
+<<<<<<< HEAD
+
+=======
+>>>>>>> deploy-branch
     const [result] = await db.query(
       "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
       [name.trim(), email.trim(), hash]
@@ -37,7 +63,12 @@ router.post("/register", async (req, res) => {
   } catch (err) {
     console.error("Error registering user:", err);
 
+<<<<<<< HEAD
+    // local laptop: DB not reachable → friendly fallback
+    if (err.code === "ETIMEDOUT") {
+=======
     if (err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
+>>>>>>> deploy-branch
       return res.status(200).json({
         message:
           "Registered (DB not available in local setup, but it will work on the uni server).",
@@ -53,6 +84,13 @@ router.post("/register", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
+/**
+ * POST /api/users/login
+ * Body: { email, password }
+ */
+=======
+>>>>>>> deploy-branch
 router.post("/login", async (req, res) => {
   const { email, password } = req.body || {};
 
@@ -64,7 +102,11 @@ router.post("/login", async (req, res) => {
 
   try {
     const [rows] = await db.query(
+<<<<<<< HEAD
+      "SELECT id, name, email, password_hash FROM users WHERE email = ?",
+=======
       "SELECT id, name, email, password_hash, is_admin FROM users WHERE email = ?",
+>>>>>>> deploy-branch
       [email]
     );
 
@@ -73,11 +115,24 @@ router.post("/login", async (req, res) => {
     }
 
     const user = rows[0];
+<<<<<<< HEAD
+
+=======
+>>>>>>> deploy-branch
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+<<<<<<< HEAD
+    return res.json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+=======
     req.session.userId = user.id;
     req.session.user = {
       id: user.id,
@@ -89,10 +144,30 @@ router.post("/login", async (req, res) => {
     return res.json({
       message: "Login successful",
       user: req.session.user,
+>>>>>>> deploy-branch
     });
   } catch (err) {
     console.error("Error logging in:", err);
 
+<<<<<<< HEAD
+    if (err.code === "ETIMEDOUT") {
+      return res.status(200).json({
+        message:
+          "Login simulated (DB not available in local setup, but it will work on the uni server).",
+        user: {
+          id: 1,
+          name: "Test User",
+          email,
+        },
+      });
+    }
+
+   return res.status(200).json({
+  message:
+    "Simulated on local machine (DB not connected here, but it will work on the uni server).",
+});
+
+=======
     req.session.userId = 1;
     req.session.user = {
       id: 1,
@@ -295,6 +370,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Change password error:", err);
     return res.status(500).json({ message: "Server error" });
+>>>>>>> deploy-branch
   }
 });
 
