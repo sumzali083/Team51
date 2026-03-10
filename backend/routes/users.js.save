@@ -263,16 +263,8 @@ router.post("/forgot-password", async (req, res) => {
       [email.trim(), token, expiresAt]
     );
 
-<<<<<<< Updated upstream
-    // Build reset URL for your frontend
-    const baseUrl =
-      process.env.FRONTEND_URL ||
-      `${req.protocol}://${req.get("host")}`;
-    const resetUrl = `${String(baseUrl).replace(/\/$/, "")}/reset-password?token=${token}`;
-=======
     // Build reset URL for your frontend (update domain/path if needed)
     const resetUrl = `https://cs2team51.cs2410-web01pvm.aston.ac.uk/reset-password?token=${token}`;
->>>>>>> Stashed changes
     console.log("Password reset link for", email.trim(), "=>", resetUrl);
 
     return res.json({

@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-// backend/routes/cart.js
-=======
->>>>>>> deploy-branch
 const express = require("express");
 const db = require("../config/db"); // mysql2/promise pool
 
@@ -11,27 +7,6 @@ const router = express.Router();
 const TABLE_NAME = "basket_items";
 
 /**
-<<<<<<< HEAD
- * POST /api/cart
- * Body: { userId, productId, quantity }
- * - if item exists for that user+product → increase quantity
- * - else → insert new row
- */
-router.post("/", async (req, res) => {
-  try {
-    const { userId, productId, quantity } = req.body;
-
-    if (!userId || !productId || !quantity) {
-      return res
-        .status(400)
-        .json({ message: "userId, productId and quantity are required" });
-    }
-
-    // 1. check if this product is already in the user's cart
-    const [existingRows] = await db.query(
-      `SELECT * FROM ${TABLE_NAME} WHERE user_id = ? AND product_id = ?`,
-      [userId, productId]
-=======
  * Middleware to get userId from session
  */
 const getUserId = (req, res, next) => {
@@ -85,7 +60,6 @@ router.post("/", getUserId, async (req, res) => {
     const [existingRows] = await db.query(
       `SELECT * FROM ${TABLE_NAME} WHERE user_id = ? AND product_id = ?`,
       [userId, realProductId]
->>>>>>> deploy-branch
     );
 
     if (existingRows.length > 0) {
@@ -102,15 +76,6 @@ router.post("/", getUserId, async (req, res) => {
         message: "Cart item updated",
         itemId: current.id,
         quantity: newQty,
-<<<<<<< HEAD
-      });
-    } else {
-      // insert new row
-      const [result] = await db.query(
-        `INSERT INTO ${TABLE_NAME} (user_id, product_id, quantity)
-         VALUES (?, ?, ?)`,
-        [userId, productId, quantity]
-=======
         productId: realProductId 
       });
     } else {
@@ -119,16 +84,12 @@ router.post("/", getUserId, async (req, res) => {
         `INSERT INTO ${TABLE_NAME} (user_id, product_id, quantity)
          VALUES (?, ?, ?)`,
         [userId, realProductId, quantity]
->>>>>>> deploy-branch
       );
 
       return res.status(201).json({
         message: "Item added to cart",
         itemId: result.insertId,
-<<<<<<< HEAD
-=======
         productId: realProductId
->>>>>>> deploy-branch
       });
     }
   } catch (err) {
@@ -138,23 +99,6 @@ router.post("/", getUserId, async (req, res) => {
 });
 
 /**
-<<<<<<< HEAD
- * GET /api/cart?userId=1
- * Returns all items in user's cart with product info
- */
-router.get("/", async (req, res) => {
-  try {
-    const { userId } = req.query;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({ message: "userId query parameter is required" });
-    }
-
-    const [rows] = await db.query(
-      `SELECT b.*, p.name, p.price, p.image_url
-=======
  * GET /api/cart
  * Returns all items in user's cart with product info
  * Uses userId from session
@@ -180,7 +124,6 @@ router.get("/", getUserId, async (req, res) => {
           p.image_url,
           '/images/placeholder.jpg'
         ) AS image_url
->>>>>>> deploy-branch
        FROM ${TABLE_NAME} b
        JOIN products p ON b.product_id = p.id
        WHERE b.user_id = ?`,
@@ -195,18 +138,6 @@ router.get("/", getUserId, async (req, res) => {
 });
 
 /**
-<<<<<<< HEAD
- * DELETE /api/cart/:itemId
- * Removes a single cart item by its id
- */
-router.delete("/:itemId", async (req, res) => {
-  try {
-    const { itemId } = req.params;
-
-    const [result] = await db.query(
-      `DELETE FROM ${TABLE_NAME} WHERE id = ?`,
-      [itemId]
-=======
  * PUT /api/cart/:itemId
  * Updates quantity of a cart item
  */
@@ -262,7 +193,6 @@ router.delete("/:itemId", getUserId, async (req, res) => {
     const [result] = await db.query(
       `DELETE FROM ${TABLE_NAME} WHERE id = ? AND user_id = ?`,
       [itemId, userId]
->>>>>>> deploy-branch
     );
 
     if (result.affectedRows === 0) {
@@ -277,20 +207,6 @@ router.delete("/:itemId", getUserId, async (req, res) => {
 });
 
 /**
-<<<<<<< HEAD
- * DELETE /api/cart?userId=1
- * Clears all items in a user's cart
- */
-router.delete("/", async (req, res) => {
-  try {
-    const { userId } = req.query;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({ message: "userId query parameter is required" });
-    }
-=======
  * DELETE /api/cart
  * Clears all items in a user's cart
  * Uses userId from session
@@ -298,7 +214,6 @@ router.delete("/", async (req, res) => {
 router.delete("/", getUserId, async (req, res) => {
   try {
     const userId = req.userId;
->>>>>>> deploy-branch
 
     await db.query(
       `DELETE FROM ${TABLE_NAME} WHERE user_id = ?`,
@@ -312,8 +227,4 @@ router.delete("/", getUserId, async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 module.exports = router;
-=======
-module.exports = router;
->>>>>>> deploy-branch

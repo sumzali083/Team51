@@ -1,11 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-<<<<<<< HEAD
-
-const app = express();
-
-// === MIDDLEWARE ===
-=======
 const session = require("express-session");
 const fs = require("fs");
 const path = require("path");
@@ -27,7 +21,6 @@ const app = express();
 // Required for HTTPS sessions on university VMs
 app.set("trust proxy", 1);
 
->>>>>>> deploy-branch
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -37,22 +30,6 @@ app.use(cors({
   credentials: true
 }));
 
-<<<<<<< HEAD
-app.use(express.json()); // middleware to parse JSON request bodies
-
-// === ROUTE IMPORTS ===
-const productRoutes = require("./routes/products");
-const cartRoutes = require("./routes/cart");
-const orderRoutes = require("./routes/orders");
-const feedbackRoutes = require("./routes/feedback");
-const contactRoutes = require("./routes/contact");
-const userRoutes = require("./routes/users");
-
-// === BASIC ROUTES ===
-app.get("/", (req, res) => {
-  res.send("Backend is working - Summer");
-});
-=======
 app.use(express.json());
 
 // Session config
@@ -68,22 +45,14 @@ app.use(session({
     maxAge: 604800000
   }
 }));
->>>>>>> deploy-branch
 
 app.get("/api", (req, res) => {
-  res.json({ 
+  res.json({
     message: "API Backend is working - Summer",
     endpoints: [
       "GET /api/products",
       "GET /api/products/:id",
       "POST /api/cart",
-<<<<<<< HEAD
-      "GET /api/orders",
-      "POST /api/feedback",
-      "POST /api/contact",
-      "POST /api/users/register",
-      "POST /api/users/login"
-=======
       "POST /api/orders/checkout",
       "POST /api/feedback",
       "POST /api/contact",
@@ -95,41 +64,17 @@ app.get("/api", (req, res) => {
       "POST /api/reviews/:productId",
       "DELETE /api/reviews/:reviewId",
       "POST /api/chatbot"
->>>>>>> deploy-branch
     ]
   });
 });
 
-<<<<<<< HEAD
-
-// === API ROUTES ===
-=======
 // API routes
->>>>>>> deploy-branch
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/users", userRoutes);
-<<<<<<< HEAD
-
-
-// === 404 HANDLER ===
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Route not found",
-    requested: `${req.method} ${req.originalUrl}`
-  });
-});
-
-// === START SERVER ===
-const PORT = process.env.PORT || 21051;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log(`🌐 Live URL: https://cs2team51.cs2410-web01pvm.aston.ac.uk:${PORT}`);
-});
-=======
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminRoutes);
@@ -162,4 +107,3 @@ const PORT = process.env.PORT || 21051;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
->>>>>>> deploy-branch
