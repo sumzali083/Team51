@@ -108,7 +108,7 @@ router.post("/checkout", async (req, res) => {
  */
 
 router.get("/history", async(req,res) =>{
-  const userId - req.session && req.session.userId;
+  const userId = req.session && req.session.userId;
 
   if(!userId){
     return res.status(401).json({ message: "Please log in to view order history"});
