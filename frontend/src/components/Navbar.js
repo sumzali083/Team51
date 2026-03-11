@@ -1,12 +1,15 @@
 import { Link } from "react-router-dom";
 import { useContext } from "react";
 import { CartContext } from "../context/CartContext";
+import { WishlistContext } from "../context/WishlistContext";
 import osaiLogo from "/images/logo.png"; // adjust if your logo path differs
 
 export default function Navbar() {
   const { cart } = useContext(CartContext);
+  const { wishlist } = useContext(WishlistContext);
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalFav = wishlist.length;
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark py-3">
@@ -62,6 +65,16 @@ export default function Navbar() {
             <li className="nav-item">
               <Link className="btn btn-outline-light btn-sm me-3" to="/login">
                 Login / Profile
+              </Link>
+            </li>
+            <li className="nav-item me-2">
+              <Link className="btn btn-outline-light position-relative me-2" to="/wishlist">
+                ❤️
+                {totalFav > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {totalFav}
+                  </span>
+                )}
               </Link>
             </li>
             <li className="nav-item">
