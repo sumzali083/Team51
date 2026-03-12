@@ -39,9 +39,38 @@ export function CategoryPage({ cat, pageTitle }) {
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("featured");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const catMap = React.useMemo(
+    () => ({
+      Mens: "men",
+      Womens: "women",
+      Kids: "kids",
+      "New Arrivals": "newarrivals",
+      Sale: "sale",
+    }),
+    []
+  );
+  const catKey = (catMap[pageTitle] || cat || pageTitle.toLowerCase()).toLowerCase();
+  const normalizeName = React.useCallback(
+    (name) =>
+      String(name || "")
+        .toLowerCase()
+        .replace(/[\u2019']/g, "")
+        .replace(/\s*-\s*sale\s*$/i, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim(),
+    []
+  );
   const localById = React.useMemo(
     () => Object.fromEntries(PRODUCTS.map((p) => [String(p.id), p])),
     []
+  );
+  const localByName = React.useMemo(
+    () => Object.fromEntries(PRODUCTS.map((p) => [normalizeName(p.name), p])),
+    [normalizeName]
+  );
+  const localProductsForCategory = React.useMemo(
+    () => PRODUCTS.filter((p) => p.cat === catKey),
+    [catKey]
   );
 
   useEffect(() => {
@@ -53,24 +82,23 @@ export function CategoryPage({ cat, pageTitle }) {
 
       try {
         // Try to fetch from backend API first
-        const res = await api.get("/api/products", {
-          params: { cat: cat || (pageTitle === "Mens" ? "men" : pageTitle === "Womens" ? "women" : pageTitle === "Kids" ? "kids" : pageTitle === "New Arrivals" ? "newarrivals" : pageTitle === "Sale" ? "sale" : pageTitle.toLowerCase()) },
-        });
+        const res = await api.get("/api/products", { params: { cat: catKey } });
 
         if (!cancelled) {
-          const apiProducts = (res.data || []).map((apiProduct) => {
+          const apiProducts = (res.data || []).map((apiProduct, index) => {
+            const fallbackByIndex =
+              localProductsForCategory[index % localProductsForCategory.length];
             const localMatch =
               localById[String(apiProduct.id)] ||
-              PRODUCTS.find((p) => p.name === apiProduct.name);
-
-            if (!localMatch) return apiProduct;
+              localByName[normalizeName(apiProduct.name)] ||
+              fallbackByIndex;
 
             const hasImage =
               apiProduct.image ||
               apiProduct.image_url ||
               (Array.isArray(apiProduct.images) && apiProduct.images.length > 0);
 
-            if (hasImage) return apiProduct;
+            if (hasImage || !localMatch) return apiProduct;
 
             // Backfill missing media fields from local dataset
             return {
@@ -83,42 +111,17 @@ export function CategoryPage({ cat, pageTitle }) {
           
           // If API returns empty array (DB not connected), use fallback
           if (apiProducts.length === 0) {
-            const catMap = { Mens: "men", Womens: "women", Kids: "kids", "New Arrivals": "newarrivals", Sale: "sale" };
-            const catKey = catMap[pageTitle] || cat || pageTitle.toLowerCase();
-            const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
-            console.log("API returned empty — using local PRODUCTS fallback:", localProducts.length);
+            const localProducts = localProductsForCategory;
             setProducts(localProducts);
           } else {
             setProducts(apiProducts);
           }
         }
       } catch (err) {
-        console.error("API failed — using local PRODUCTS fallback", err);
+        console.error("API failed - using local PRODUCTS fallback", err);
         // Fallback to local data if API fails
         if (!cancelled) {
-          const catMap = { Mens: "men", Womens: "women", Kids: "kids", "New Arrivals": "newarrivals", Sale: "sale" };
-          const catKey = catMap[pageTitle] || cat || pageTitle.toLowerCase();
-
-          if (catKey === "newarrivals" || catKey === "sale") {
-            const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-            const menProducts = shuffle(PRODUCTS.filter((p) => p.cat === "men"));
-            const womenProducts = shuffle(PRODUCTS.filter((p) => p.cat === "women"));
-            const kidsProducts = shuffle(PRODUCTS.filter((p) => p.cat === "kids"));
-
-            const mixed = [
-              womenProducts[0],
-              menProducts[0],
-              kidsProducts[0],
-              womenProducts[1],
-              kidsProducts[1],
-              menProducts[1],
-            ].filter(Boolean);
-
-            setProducts(mixed);
-          } else {
-            const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
-            setProducts(localProducts);
-          }
+          setProducts(localProductsForCategory);
         }
       } finally {
         if (!cancelled) {
@@ -131,7 +134,7 @@ export function CategoryPage({ cat, pageTitle }) {
     return () => {
       cancelled = true;
     };
-  }, [cat, pageTitle]);
+  }, [catKey, localById, localByName, localProductsForCategory, normalizeName]);
 
   // Apply sorting when products or sortBy changes
   useEffect(() => {
@@ -332,3 +335,4 @@ export function CategoryPage({ cat, pageTitle }) {
     </div>
   );
 }
+
