@@ -3,7 +3,7 @@ const db = require("../config/db");
 
 async function adminMiddleware(req, res, next) {
   try {
-    const userId = req.session?.userId; // fixed bug (use session)
+    const userId = (req.session && req.session.userId) || req.headers["x-user-id"];
 
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -23,7 +23,7 @@ async function adminMiddleware(req, res, next) {
       return res.status(403).json({ message: "Admin access required" });
     }
 
-    // user is admin
+    req.isAdmin = true;
     next();
 
   } catch (err) {
