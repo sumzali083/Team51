@@ -70,7 +70,11 @@ app.get("/api", (req, res) => {
 });
 
 // Direct history endpoint fallback to avoid route-mount issues in some deploys.
-app.get("/api/orders/history", async (req, res) => {
+app.use("/api/orders/history", async (req, res) => {
+  if (req.method !== "GET") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
+
   const userId = req.session && req.session.userId;
   if (!userId) {
     return res.status(401).json({ message: "Please log in to view order history" });
