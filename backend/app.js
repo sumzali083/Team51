@@ -4,7 +4,6 @@ const session = require("express-session");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
-const db = require("./config/db");
 
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
@@ -16,6 +15,7 @@ const reviewRoutes = require("./routes/reviews");
 const chatbotRoutes = require("./routes/chatbot");
 const adminRoutes = require("./routes/admin");
 const wishlistRoutes = require("./routes/wishlist");
+const { getOrderHistoryForUser } = require("./services/orderHistory");
 
 const app = express();
 
@@ -81,33 +81,7 @@ app.use("/api/orders/history", async (req, res) => {
   }
 
   try {
-    const [orders] = await db.query(
-      "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC",
-      [userId]
-    );
-
-    for (const order of orders) {
-      const [items] = await db.query(
-        `SELECT
-          oi.product_id,
-          oi.quantity,
-          oi.price_each,
-          p.name,
-          (
-            SELECT pi.url
-            FROM product_images pi
-            WHERE pi.product_id = p.id
-            ORDER BY pi.sort_order ASC, pi.id ASC
-            LIMIT 1
-          ) AS image
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?`,
-        [order.id]
-      );
-      order.items = items;
-    }
-
+    const orders = await getOrderHistoryForUser(userId);
     return res.json(orders);
   } catch (err) {
     console.error("Order history error:", err);
