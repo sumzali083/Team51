@@ -865,6 +865,7 @@ select:focus, .btn:focus { box-shadow: var(--focus) }
 /* ─── ADMIN THEME OVERRIDES ─────────────────────────────────────────────── */
 .osai-admin {
   min-height: 70vh;
+  padding-bottom: 120px;
 }
 .osai-admin-muted { color: var(--sub); font-size: 13px }
 
