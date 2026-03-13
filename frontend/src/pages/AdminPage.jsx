@@ -16,6 +16,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [dashboardRange, setDashboardRange] = useState("30d");
   const [savingStockId, setSavingStockId] = useState(null);
   const [savingOrderId, setSavingOrderId] = useState(null);
   const [savingRefundId, setSavingRefundId] = useState(null);
@@ -345,6 +346,94 @@ export default function AdminPage() {
     [products, LOW_STOCK_LIMIT]
   );
 
+  const inRange = (dateValue, rangeKey) => {
+    if (!dateValue) return false;
+    if (rangeKey === "all") return true;
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return false;
+    const now = new Date();
+    const days = rangeKey === "7d" ? 7 : 30;
+    return now.getTime() - d.getTime() <= days * 24 * 60 * 60 * 1000;
+  };
+
+  const rangeOrders = useMemo(
+    () => orders.filter((o) => inRange(o.created_at, dashboardRange)),
+    [orders, dashboardRange]
+  );
+  const rangeRefunds = useMemo(
+    () => refunds.filter((r) => inRange(r.created_at, dashboardRange)),
+    [refunds, dashboardRange]
+  );
+  const rangeMessages = useMemo(
+    () => messages.filter((m) => inRange(m.created_at, dashboardRange)),
+    [messages, dashboardRange]
+  );
+
+  const rangeRevenue = useMemo(
+    () =>
+      rangeOrders.reduce(
+        (sum, o) => sum + Number(o.total_price || o.total || 0),
+        0
+      ),
+    [rangeOrders]
+  );
+
+  const needsActionItems = useMemo(() => {
+    const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
+    return [
+      {
+        label: "Out of stock products",
+        value: outOfStockProducts.length,
+        tab: "stockAlerts",
+        tone: outOfStockProducts.length > 0 ? "danger" : "secondary",
+      },
+      {
+        label: "Low stock products",
+        value: lowStockProducts.length,
+        tab: "stockAlerts",
+        tone: lowStockProducts.length > 0 ? "warning" : "secondary",
+      },
+      {
+        label: "Pending refunds",
+        value: pendingRefunds,
+        tab: "refunds",
+        tone: pendingRefunds > 0 ? "warning" : "secondary",
+      },
+      {
+        label: "Unread contact messages",
+        value: messages.length,
+        tab: "contacts",
+        tone: messages.length > 0 ? "info" : "secondary",
+      },
+    ];
+  }, [messages.length, outOfStockProducts.length, lowStockProducts.length, refunds]);
+
+  const recentActivity = useMemo(() => {
+    const orderItems = orders.map((o) => ({
+      key: `order-${o.id}`,
+      when: o.created_at,
+      text: `Order #${o.id} placed`,
+      tab: "orders",
+    }));
+    const refundItems = refunds.map((r) => ({
+      key: `refund-${r.id}`,
+      when: r.created_at,
+      text: `Refund #${r.id} is ${r.status || "pending"}`,
+      tab: "refunds",
+    }));
+    const messageItems = messages.map((m) => ({
+      key: `message-${m.id}`,
+      when: m.created_at,
+      text: `New contact message from ${m.name || m.email || "customer"}`,
+      tab: "contacts",
+    }));
+
+    return [...orderItems, ...refundItems, ...messageItems]
+      .filter((x) => x.when)
+      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
+      .slice(0, 8);
+  }, [orders, refunds, messages]);
+
   const tabs = [
     { key: "dashboard", label: "Dashboard",        icon: "bi-speedometer2" },
     { key: "products",  label: "Products",          icon: "bi-box-seam" },
@@ -429,17 +518,106 @@ export default function AdminPage() {
           </div>
 
           {activeTab === "dashboard" && (
-            <div className="card border-0 shadow-sm">
-              <div className="card-body">
-                <div className="osai-admin-tab-header">
-                  <h4 className="osai-admin-section-title">Overview</h4>
+            <div className="d-flex flex-column gap-3">
+              <div className="card border-0 shadow-sm">
+                <div className="card-body">
+                  <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <h4 className="osai-admin-section-title mb-0">Overview</h4>
+                    <div className="btn-group btn-group-sm" role="group" aria-label="Dashboard range">
+                      {[
+                        { key: "7d", label: "7D" },
+                        { key: "30d", label: "30D" },
+                        { key: "all", label: "All" },
+                      ].map((r) => (
+                        <button
+                          key={r.key}
+                          type="button"
+                          className={`btn ${dashboardRange === r.key ? "btn-dark" : "btn-outline-secondary"}`}
+                          onClick={() => setDashboardRange(r.key)}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="row g-2">
+                    <div className="col-md-4">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Orders</div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeOrders.length}</div>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Refund Requests</div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeRefunds.length}</div>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>GBP {rangeRevenue.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2" style={{ color: "var(--sub)", fontSize: 12 }}>
+                    Contact messages in range: <strong>{rangeMessages.length}</strong>
+                  </div>
                 </div>
-                <p className="mb-1" style={{ color: "var(--sub)", fontSize: 14 }}>
-                  Use the sidebar to manage products, inventory, orders, reviews, contact messages, and users.
-                </p>
-                <p className="mb-0" style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>
-                  All actions on this panel are restricted to admin accounts only.
-                </p>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-lg-5">
+                  <div className="card border-0 shadow-sm h-100">
+                    <div className="card-body">
+                      <div className="osai-admin-tab-header">
+                        <h4 className="osai-admin-section-title">Needs Action</h4>
+                      </div>
+                      <div className="d-flex flex-column gap-2">
+                        {needsActionItems.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            className="btn btn-outline-secondary d-flex justify-content-between align-items-center"
+                            onClick={() => setActiveTab(item.tab)}
+                          >
+                            <span>{item.label}</span>
+                            <span className={`badge text-bg-${item.tone}`}>{item.value}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-lg-7">
+                  <div className="card border-0 shadow-sm h-100">
+                    <div className="card-body">
+                      <div className="osai-admin-tab-header">
+                        <h4 className="osai-admin-section-title">Recent Activity</h4>
+                      </div>
+                      {recentActivity.length === 0 ? (
+                        <p className="mb-0" style={{ color: "var(--sub)", fontSize: 13 }}>No recent activity yet.</p>
+                      ) : (
+                        <div className="d-flex flex-column gap-2">
+                          {recentActivity.map((a) => (
+                            <button
+                              key={a.key}
+                              type="button"
+                              className="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center"
+                              onClick={() => setActiveTab(a.tab)}
+                            >
+                              <span>{a.text}</span>
+                              <span style={{ color: "var(--sub)", fontSize: 12, whiteSpace: "nowrap" }}>
+                                {new Date(a.when).toLocaleDateString()}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
