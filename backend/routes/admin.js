@@ -199,6 +199,16 @@ router.get("/reports", adminMiddleware, async (req, res) => {
    PRODUCT MANAGEMENT
 ====================================================== */
 
+router.get("/categories", adminMiddleware, async (_req, res) => {
+  try {
+    const [rows] = await db.query("SELECT id, name FROM categories ORDER BY id ASC");
+    res.json(rows);
+  } catch (err) {
+    console.error("Admin get categories error:", err);
+    res.status(500).json({ message: "Failed to fetch categories" });
+  }
+});
+
 router.get("/products", adminMiddleware, async (_req, res) => {
   try {
     const hasOriginalPrice = await columnExists("products", "original_price");

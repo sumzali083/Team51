@@ -27,18 +27,19 @@ export default function AdminPage() {
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
-    sku: "", name: "", category_id: 11, price: "", original_price: "", stock: 0,
+    sku: "", name: "", category_id: 0, price: "", original_price: "", stock: 0,
     description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
   });
   const [editingProductId, setEditingProductId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [savingEditId, setSavingEditId] = useState(null);
+  const [categories, setCategories] = useState([]);
 
   const loadAll = async () => {
     setLoading(true);
     setError("");
     try {
-      const [reportsRes, productsRes, ordersRes, refundsRes, usersRes, messagesRes, reviewsRes] = await Promise.all([
+      const [reportsRes, productsRes, ordersRes, refundsRes, usersRes, messagesRes, reviewsRes, categoriesRes] = await Promise.all([
         api.get("/api/admin/reports"),
         api.get("/api/admin/products"),
         api.get("/api/admin/orders"),
@@ -46,6 +47,7 @@ export default function AdminPage() {
         api.get("/api/admin/users"),
         api.get("/api/admin/messages"),
         api.get("/api/admin/reviews"),
+        api.get("/api/admin/categories").catch(() => ({ data: [] })),
       ]);
 
       setReports(reportsRes.data || null);
@@ -55,6 +57,12 @@ export default function AdminPage() {
       setUsers(usersRes.data || []);
       setMessages(messagesRes.data || []);
       setReviews(reviewsRes.data || []);
+      const cats = categoriesRes.data || [];
+      setCategories(cats);
+      // Set default category_id to first real category
+      if (cats.length > 0) {
+        setProductDraft((prev) => ({ ...prev, category_id: cats[0].id }));
+      }
       setStockDraft(Object.fromEntries((productsRes.data || []).map((p) => [p.id, p.stock ?? 0])));
       setOrderStatusDraft(Object.fromEntries((ordersRes.data || []).map((o) => [o.id, o.status || "pending"])));
       setRefundStatusDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.status || "pending"])));
@@ -277,7 +285,7 @@ export default function AdminPage() {
         images: uploadedUrls,
       });
       setProductDraft({
-        sku: "", name: "", category_id: 11, price: "", original_price: "", stock: 0,
+        sku: "", name: "", category_id: categories[0]?.id || 0, price: "", original_price: "", stock: 0,
         description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
       });
       setShowAddProduct(false);
@@ -473,11 +481,9 @@ export default function AdminPage() {
                           value={productDraft.category_id}
                           onChange={(e) => setProductDraft((prev) => ({ ...prev, category_id: Number(e.target.value) }))}
                         >
-                          <option value={11}>Mens</option>
-                          <option value={12}>Womens</option>
-                          <option value={13}>Kids</option>
-                          <option value={14}>New Arrivals</option>
-                          <option value={15}>Sale</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
                         </select>
                       </div>
                       <div className="col-md-3">
@@ -681,11 +687,9 @@ export default function AdminPage() {
                         <label className="form-label">Category *</label>
                         <select className="form-select form-select-sm" value={editDraft.category_id}
                           onChange={(e) => setEditDraft((p) => ({ ...p, category_id: Number(e.target.value) }))}>
-                          <option value={11}>Mens</option>
-                          <option value={12}>Womens</option>
-                          <option value={13}>Kids</option>
-                          <option value={14}>New Arrivals</option>
-                          <option value={15}>Sale</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
                         </select>
                       </div>
                       <div className="col-md-3">
