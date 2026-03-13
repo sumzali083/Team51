@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -825,7 +826,16 @@ export default function AdminPage() {
                         <tr key={p.id} style={editingProductId === p.id ? { background: "rgba(255,255,255,0.04)" } : {}}>
                           <td>{p.id}</td>
                           <td>{p.sku || "—"}</td>
-                          <td>{p.name}</td>
+                          <td>
+                            <Link
+                              to={`/product/${p.sku || p.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "var(--text)", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.2)", textUnderlineOffset: 3 }}
+                            >
+                              {p.name}
+                            </Link>
+                          </td>
                           <td>{p.category || "—"}</td>
                           <td>
                             {p.original_price
