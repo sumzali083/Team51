@@ -366,16 +366,16 @@ export default function AdminPage() {
 
   if (error) {
     return (
-      <div className="osai-admin page-container">
+      <div className="osai-admin page-container" style={{ paddingBottom: 160 }}>
         <div className="osai-alert osai-alert-error">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="osai-admin page-container">
-      <div className="row g-4">
-        <aside className="col-lg-2 col-md-3">
+    <div className="osai-admin page-container" style={{ paddingBottom: 160 }}>
+      <div className="row g-4" style={{ alignItems: "flex-start" }}>
+        <aside className="col-lg-2 col-md-3" style={{ alignSelf: "flex-start" }}>
           <div className="card border-0 shadow-sm" style={{ position: "sticky", top: 90 }}>
             <div className="card-body">
               <p className="osai-admin-sidebar-label">Navigation</p>
