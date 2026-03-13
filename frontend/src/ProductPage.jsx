@@ -256,14 +256,12 @@ export function ProductPage() {
             <h3 style={{ color: '#fff', fontWeight: 700 }}>£{product.price.toFixed(2)}</h3>
           )}
           <p className="mt-3">{product.desc || product.description}</p>
-          {hasStockInfo && (
+          {hasStockInfo && (isSoldOut || isLowStock) && (
             <div className="mb-2">
               {isSoldOut ? (
                 <span className="osai-stock-pill osai-stock-pill-soldout">Sold out</span>
               ) : isLowStock ? (
                 <span className="osai-stock-pill osai-stock-pill-low">Low stock: {stock} left</span>
-              ) : (
-                <span className="osai-stock-pill osai-stock-pill-in">In stock</span>
               )}
             </div>
           )}
