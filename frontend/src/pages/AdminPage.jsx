@@ -320,14 +320,14 @@ export default function AdminPage() {
 
   const kpis = useMemo(() => {
     return [
-      { label: "Products", value: reports?.totalProducts ?? products.length },
-      { label: "Orders", value: reports?.totalOrders ?? orders.length },
-      { label: "Refunds", value: reports?.totalRefundRequests ?? refunds.length },
-      { label: "Revenue", value: `GBP ${Number(reports?.totalRevenue || 0).toFixed(2)}` },
-      { label: "Low Stock", value: reports?.lowStockCount ?? 0 },
-      { label: "Pending Refunds", value: reports?.pendingRefundRequests ?? 0 },
-      { label: "Messages", value: messages.length },
-      { label: "Reviews", value: reviews.length },
+      { label: "Products", value: reports?.totalProducts ?? products.length, tab: "products" },
+      { label: "Orders", value: reports?.totalOrders ?? orders.length, tab: "orders" },
+      { label: "Refunds", value: reports?.totalRefundRequests ?? refunds.length, tab: "refunds" },
+      { label: "Revenue", value: `GBP ${Number(reports?.totalRevenue || 0).toFixed(2)}`, tab: "orders" },
+      { label: "Low Stock", value: reports?.lowStockCount ?? 0, tab: "stockAlerts" },
+      { label: "Pending Refunds", value: reports?.pendingRefundRequests ?? 0, tab: "refunds" },
+      { label: "Messages", value: messages.length, tab: "contacts" },
+      { label: "Reviews", value: reviews.length, tab: "reviews" },
     ];
   }, [messages.length, orders.length, products.length, refunds.length, reports, reviews.length]);
 
@@ -412,12 +412,18 @@ export default function AdminPage() {
           <div className="row g-3 mb-4">
             {kpis.map((kpi) => (
               <div key={kpi.label} className="col-xl-2 col-lg-4 col-md-6">
-                <div className="card border-0 shadow-sm h-100 kpi-card">
+                <button
+                  type="button"
+                  className="card border-0 shadow-sm h-100 kpi-card text-start w-100"
+                  onClick={() => setActiveTab(kpi.tab)}
+                  title={`Open ${kpi.label}`}
+                  style={{ cursor: "pointer", padding: 0, background: "none" }}
+                >
                   <div className="card-body" style={{ padding: "14px 16px" }}>
                     <div className="kpi-label">{kpi.label}</div>
                     <div className="kpi-value">{kpi.value}</div>
                   </div>
-                </div>
+                </button>
               </div>
             ))}
           </div>
