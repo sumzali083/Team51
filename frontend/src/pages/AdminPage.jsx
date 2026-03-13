@@ -1267,7 +1267,7 @@ export default function AdminPage() {
                         <th>Email</th>
                         <th>Total</th>
                         <th>Current Status</th>
-                        <th>Update Status</th>
+                        <th style={{ minWidth: 170 }}>Update Status</th>
                         <th>Date</th>
                         <th>Action</th>
                       </tr>
@@ -1284,9 +1284,10 @@ export default function AdminPage() {
                               {orderStatusDraft[o.id] || "pending"}
                             </span>
                           </td>
-                          <td style={{ width: 150 }}>
+                          <td style={{ minWidth: 170 }}>
                             <select
                               className="form-select form-select-sm"
+                              style={{ minWidth: 160, color: "var(--text)", backgroundColor: "var(--bg-surface)" }}
                               value={orderStatusDraft[o.id] || "pending"}
                               onChange={(e) =>
                                 setOrderStatusDraft((prev) => ({ ...prev, [o.id]: e.target.value }))
@@ -1339,7 +1340,7 @@ export default function AdminPage() {
                         <th>Email</th>
                         <th>Order</th>
                         <th>Reason</th>
-                        <th>Status</th>
+                        <th style={{ minWidth: 170 }}>Status</th>
                         <th>Admin Note</th>
                         <th>Instructions Link / QR URL</th>
                         <th>Date</th>
@@ -1356,9 +1357,10 @@ export default function AdminPage() {
                           <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {r.reason}
                           </td>
-                          <td style={{ width: 160 }}>
+                          <td style={{ minWidth: 170 }}>
                             <select
                               className="form-select form-select-sm"
+                              style={{ minWidth: 160, color: "var(--text)", backgroundColor: "var(--bg-surface)" }}
                               value={refundStatusDraft[r.id] || "pending"}
                               onChange={(e) =>
                                 setRefundStatusDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
