@@ -193,16 +193,30 @@ router.get("/products", adminMiddleware, async (_req, res) => {
         p.sku,
         p.name,
         p.price,
+        p.original_price,
         p.stock,
         p.category_id,
         c.name AS category,
         p.description,
-        p.created_at
+        p.created_at,
+        GROUP_CONCAT(DISTINCT pi.url ORDER BY pi.sort_order SEPARATOR '||') AS images,
+        GROUP_CONCAT(DISTINCT ps.size ORDER BY ps.size SEPARATOR '||') AS sizes,
+        GROUP_CONCAT(DISTINCT pc.color ORDER BY pc.color SEPARATOR '||') AS colors
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN product_images pi ON pi.product_id = p.id
+      LEFT JOIN product_sizes  ps ON ps.product_id = p.id
+      LEFT JOIN product_colors pc ON pc.product_id = p.id
+      GROUP BY p.id, p.sku, p.name, p.price, p.original_price, p.stock, p.category_id, c.name, p.description, p.created_at
       ORDER BY p.id DESC`
     );
-    res.json(rows);
+    // Parse delimited lists into arrays
+    res.json(rows.map((r) => ({
+      ...r,
+      images: r.images ? r.images.split("||").filter(Boolean) : [],
+      sizes:  r.sizes  ? r.sizes.split("||").filter(Boolean)  : [],
+      colors: r.colors ? r.colors.split("||").filter(Boolean) : [],
+    })));
   } catch (err) {
     console.error("Admin get products error:", err);
     res.status(500).json({ message: "Failed to fetch products" });
@@ -220,6 +234,7 @@ router.post("/products", adminMiddleware, async (req, res) => {
     name,
     category_id,
     price,
+    original_price = null,
     stock = 0,
     description = "",
     sizes = [],
@@ -236,10 +251,11 @@ router.post("/products", adminMiddleware, async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
+    const originalPriceVal = original_price ? Number(original_price) : null;
     const [ins] = await conn.query(
-      `INSERT INTO products (sku, category_id, name, description, price, stock)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [String(sku).trim(), Number(category_id), String(name).trim(), String(description).trim(), Number(price), Number(stock) || 0]
+      `INSERT INTO products (sku, category_id, name, description, price, original_price, stock)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [String(sku).trim(), Number(category_id), String(name).trim(), String(description).trim(), Number(price), originalPriceVal, Number(stock) || 0]
     );
     const productId = ins.insertId;
 
@@ -279,6 +295,67 @@ router.post("/products", adminMiddleware, async (req, res) => {
     }
     console.error("Admin add product error:", err);
     return res.status(500).json({ message: "Failed to create product" });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+router.put("/products/:id", adminMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const {
+    sku, name, category_id, price, original_price = null,
+    stock = 0, description = "", sizes = [], colors = [], images,
+  } = req.body || {};
+
+  if (!name || !price) {
+    return res.status(400).json({ message: "name and price are required" });
+  }
+
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    const originalPriceVal = original_price ? Number(original_price) : null;
+    await conn.query(
+      `UPDATE products SET sku=?, name=?, category_id=?, price=?, original_price=?, stock=?, description=? WHERE id=?`,
+      [String(sku || "").trim(), String(name).trim(), Number(category_id), Number(price), originalPriceVal, Number(stock) || 0, String(description).trim(), id]
+    );
+
+    if (await tableExists("product_sizes")) {
+      await conn.query("DELETE FROM product_sizes WHERE product_id=?", [id]);
+      for (const s of (sizes || [])) {
+        if (String(s).trim()) {
+          await conn.query("INSERT INTO product_sizes (product_id, size) VALUES (?,?)", [id, String(s).trim()]);
+        }
+      }
+    }
+
+    if (await tableExists("product_colors")) {
+      await conn.query("DELETE FROM product_colors WHERE product_id=?", [id]);
+      for (const c of (colors || [])) {
+        if (String(c).trim()) {
+          await conn.query("INSERT INTO product_colors (product_id, color) VALUES (?,?)", [id, String(c).trim()]);
+        }
+      }
+    }
+
+    if (await tableExists("product_images") && Array.isArray(images)) {
+      await conn.query("DELETE FROM product_images WHERE product_id=?", [id]);
+      for (let i = 0; i < images.length; i++) {
+        const url = String(images[i] || "").trim();
+        if (url) {
+          await conn.query("INSERT INTO product_images (product_id, url, sort_order) VALUES (?,?,?)", [id, url, i]);
+        }
+      }
+    }
+
+    await conn.commit();
+    return res.json({ message: "Product updated" });
+  } catch (err) {
+    if (conn) { try { await conn.rollback(); } catch (_) {} }
+    console.error("Admin update product error:", err);
+    return res.status(500).json({ message: "Failed to update product" });
   } finally {
     if (conn) conn.release();
   }

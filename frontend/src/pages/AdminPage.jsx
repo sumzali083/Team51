@@ -27,9 +27,12 @@ export default function AdminPage() {
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
-    sku: "", name: "", category_id: 11, price: "", stock: 0,
+    sku: "", name: "", category_id: 11, price: "", original_price: "", stock: 0,
     description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
   });
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [savingEditId, setSavingEditId] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -151,6 +154,84 @@ export default function AdminPage() {
     }
   };
 
+  const startEdit = (p) => {
+    setEditingProductId(p.id);
+    setEditDraft({
+      sku: p.sku || "",
+      name: p.name || "",
+      category_id: p.category_id || 11,
+      price: p.price != null ? String(p.price) : "",
+      original_price: p.original_price != null ? String(p.original_price) : "",
+      stock: p.stock != null ? String(p.stock) : "0",
+      description: p.description || "",
+      sizes: Array.isArray(p.sizes) ? [...p.sizes] : [],
+      colors: Array.isArray(p.colors) && p.colors.length ? [...p.colors] : ["", ""],
+      images: Array.isArray(p.images) ? [...p.images] : [],
+      newImageFiles: [null, null, null],
+    });
+    setShowAddProduct(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingProductId(null);
+    setEditDraft(null);
+  };
+
+  const toggleEditSize = (size) => {
+    setEditDraft((prev) => ({
+      ...prev,
+      sizes: prev.sizes.includes(size)
+        ? prev.sizes.filter((s) => s !== size)
+        : [...prev.sizes, size],
+    }));
+  };
+
+  const saveEdit = async () => {
+    if (!editDraft.name.trim() || !editDraft.price) {
+      alert("Name and Price are required.");
+      return;
+    }
+    setSavingEditId(editingProductId);
+    try {
+      // Upload any new image files
+      const uploadedUrls = [];
+      for (const file of (editDraft.newImageFiles || []).filter(Boolean)) {
+        const fd = new FormData();
+        fd.append("image", file);
+        const res = await api.post("/api/admin/upload-image", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        uploadedUrls.push(res.data.url);
+      }
+
+      // Merge: keep existing images that weren't removed, append newly uploaded ones
+      const finalImages = [...(editDraft.images || []), ...uploadedUrls];
+
+      await api.put(`/api/admin/products/${editingProductId}`, {
+        sku: editDraft.sku.trim(),
+        name: editDraft.name.trim(),
+        category_id: Number(editDraft.category_id),
+        price: Number(editDraft.price),
+        original_price: editDraft.original_price ? Number(editDraft.original_price) : null,
+        stock: Number(editDraft.stock) || 0,
+        description: editDraft.description.trim(),
+        sizes: editDraft.sizes,
+        colors: (editDraft.colors || []).filter((c) => c.trim()),
+        images: finalImages,
+      });
+
+      // Refresh products list
+      const res = await api.get("/api/admin/products");
+      setProducts(res.data || []);
+      setStockDraft(Object.fromEntries((res.data || []).map((p) => [p.id, p.stock ?? 0])));
+      cancelEdit();
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update product");
+    } finally {
+      setSavingEditId(null);
+    }
+  };
+
   const toggleSize = (size) => {
     setProductDraft((prev) => ({
       ...prev,
@@ -188,6 +269,7 @@ export default function AdminPage() {
         name: name.trim(),
         category_id: Number(category_id),
         price: Number(price),
+        original_price: productDraft.original_price ? Number(productDraft.original_price) : null,
         stock: Number(stock) || 0,
         description: description.trim(),
         sizes,
@@ -195,7 +277,7 @@ export default function AdminPage() {
         images: uploadedUrls,
       });
       setProductDraft({
-        sku: "", name: "", category_id: 11, price: "", stock: 0,
+        sku: "", name: "", category_id: 11, price: "", original_price: "", stock: 0,
         description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
       });
       setShowAddProduct(false);
@@ -398,7 +480,7 @@ export default function AdminPage() {
                           <option value={15}>Sale</option>
                         </select>
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
                         <label className="form-label">Price (GBP) *</label>
                         <input
                           type="number"
@@ -410,7 +492,19 @@ export default function AdminPage() {
                           onChange={(e) => setProductDraft((prev) => ({ ...prev, price: e.target.value }))}
                         />
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
+                        <label className="form-label">Original Price <small style={{ color: "var(--muted)" }}>(sale items)</small></label>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="form-control form-control-sm"
+                          placeholder="49.99"
+                          value={productDraft.original_price}
+                          onChange={(e) => setProductDraft((prev) => ({ ...prev, original_price: e.target.value }))}
+                        />
+                      </div>
+                      <div className="col-md-2">
                         <label className="form-label">Stock</label>
                         <input
                           type="number"
@@ -565,6 +659,149 @@ export default function AdminPage() {
                   </div>
                 )}
 
+                {/* ── Edit Product Form ── */}
+                {editingProductId && editDraft && (
+                  <div className="osai-admin-form-panel p-4 mb-4">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h5 className="mb-0">Edit Product #{editingProductId}</h5>
+                      <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit}>Cancel</button>
+                    </div>
+                    <div className="row g-3">
+                      <div className="col-md-4">
+                        <label className="form-label">SKU</label>
+                        <input className="form-control form-control-sm" value={editDraft.sku}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, sku: e.target.value }))} />
+                      </div>
+                      <div className="col-md-8">
+                        <label className="form-label">Name *</label>
+                        <input className="form-control form-control-sm" value={editDraft.name}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, name: e.target.value }))} />
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label">Category *</label>
+                        <select className="form-select form-select-sm" value={editDraft.category_id}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, category_id: Number(e.target.value) }))}>
+                          <option value={11}>Mens</option>
+                          <option value={12}>Womens</option>
+                          <option value={13}>Kids</option>
+                          <option value={14}>New Arrivals</option>
+                          <option value={15}>Sale</option>
+                        </select>
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Price (GBP) *</label>
+                        <input type="number" min="0.01" step="0.01" className="form-control form-control-sm"
+                          value={editDraft.price}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, price: e.target.value }))} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Original Price <small style={{ color: "var(--muted)" }}>(sale items)</small></label>
+                        <input type="number" min="0.01" step="0.01" className="form-control form-control-sm"
+                          placeholder="leave blank to remove sale"
+                          value={editDraft.original_price}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, original_price: e.target.value }))} />
+                      </div>
+                      <div className="col-md-2">
+                        <label className="form-label">Stock</label>
+                        <input type="number" min="0" className="form-control form-control-sm"
+                          value={editDraft.stock}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, stock: e.target.value }))} />
+                      </div>
+                      <div className="col-12">
+                        <label className="form-label">Description</label>
+                        <textarea className="form-control form-control-sm" rows={3}
+                          value={editDraft.description}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, description: e.target.value }))} />
+                      </div>
+                      <div className="col-12 osai-admin-form-section">
+                        <p className="osai-admin-form-section-label">Sizes</p>
+                        <div className="d-flex flex-wrap gap-2 mb-1">
+                          <small className="w-100" style={{ color: "var(--muted)", fontSize: 11 }}>Adult:</small>
+                          {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+                            <div key={size} className="form-check form-check-inline">
+                              <input type="checkbox" className="form-check-input" id={`edit-size-${size}`}
+                                checked={editDraft.sizes.includes(size)}
+                                onChange={() => toggleEditSize(size)} />
+                              <label className="form-check-label" htmlFor={`edit-size-${size}`}>{size}</label>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="d-flex flex-wrap gap-2 mt-2">
+                          <small className="w-100" style={{ color: "var(--muted)", fontSize: 11 }}>Kids:</small>
+                          {["5-6", "7-8", "9-10", "11-12"].map((size) => (
+                            <div key={size} className="form-check form-check-inline">
+                              <input type="checkbox" className="form-check-input" id={`edit-size-kids-${size}`}
+                                checked={editDraft.sizes.includes(size)}
+                                onChange={() => toggleEditSize(size)} />
+                              <label className="form-check-label" htmlFor={`edit-size-kids-${size}`}>{size}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-12 osai-admin-form-section">
+                        <label className="form-label">Colors</label>
+                        <div className="d-flex flex-wrap gap-2 align-items-center">
+                          {(editDraft.colors || []).map((color, idx) => (
+                            <input key={idx} className="form-control form-control-sm" style={{ width: 140 }}
+                              placeholder={`Color ${idx + 1}`} value={color}
+                              onChange={(e) => {
+                                const next = [...editDraft.colors];
+                                next[idx] = e.target.value;
+                                setEditDraft((p) => ({ ...p, colors: next }));
+                              }} />
+                          ))}
+                          {(editDraft.colors || []).length < 6 && (
+                            <button type="button" className="btn btn-outline-secondary btn-sm"
+                              onClick={() => setEditDraft((p) => ({ ...p, colors: [...(p.colors || []), ""] }))}>
+                              + Color
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="col-12 osai-admin-form-section">
+                        <label className="form-label">Current Images</label>
+                        <div className="d-flex flex-wrap gap-2 mb-2">
+                          {(editDraft.images || []).map((url, idx) => (
+                            <div key={idx} style={{ position: "relative" }}>
+                              <img src={url} alt={`img-${idx}`}
+                                style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 4, border: "1px solid var(--line)" }}
+                                onError={(e) => { e.target.style.display = "none"; }} />
+                              <button type="button"
+                                style={{ position: "absolute", top: -6, right: -6, background: "#e53935", border: "none", borderRadius: "50%", width: 18, height: 18, color: "#fff", fontSize: 10, lineHeight: "18px", padding: 0, cursor: "pointer" }}
+                                onClick={() => setEditDraft((p) => ({ ...p, images: p.images.filter((_, i) => i !== idx) }))}>
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {(editDraft.images || []).length === 0 && (
+                            <small style={{ color: "var(--muted)" }}>No images yet</small>
+                          )}
+                        </div>
+                        <label className="form-label">Upload New Images</label>
+                        <div className="d-flex flex-column gap-2">
+                          {(editDraft.newImageFiles || [null, null, null]).map((file, idx) => (
+                            <div key={idx} className="d-flex align-items-center gap-2">
+                              <input type="file" accept="image/*" className="form-control form-control-sm"
+                                onChange={(e) => {
+                                  const next = [...(editDraft.newImageFiles || [null, null, null])];
+                                  next[idx] = e.target.files[0] || null;
+                                  setEditDraft((p) => ({ ...p, newImageFiles: next }));
+                                }} />
+                              {file && <small style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>{file.name}</small>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <button className="btn btn-dark btn-sm me-2" onClick={saveEdit} disabled={savingEditId === editingProductId}>
+                          {savingEditId === editingProductId ? "Saving..." : "Save Changes"}
+                        </button>
+                        <button className="btn btn-outline-secondary btn-sm" onClick={cancelEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
@@ -574,33 +811,49 @@ export default function AdminPage() {
                         <th>Name</th>
                         <th>Category</th>
                         <th>Price</th>
+                        <th>Sale Price</th>
                         <th>Stock</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {products.map((p) => (
-                        <tr key={p.id}>
+                        <tr key={p.id} style={editingProductId === p.id ? { background: "rgba(255,255,255,0.04)" } : {}}>
                           <td>{p.id}</td>
                           <td>{p.sku || "—"}</td>
                           <td>{p.name}</td>
                           <td>{p.category || "—"}</td>
-                          <td>£{Number(p.price || 0).toFixed(2)}</td>
+                          <td>
+                            {p.original_price
+                              ? <><span style={{ textDecoration: "line-through", color: "#888", fontSize: 12 }}>£{Number(p.original_price).toFixed(2)}</span>{" "}</>
+                              : null}
+                            £{Number(p.price || 0).toFixed(2)}
+                          </td>
+                          <td>{p.original_price ? `£${Number(p.price || 0).toFixed(2)}` : "—"}</td>
                           <td>{p.stock ?? 0}</td>
                           <td>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => deleteProduct(p.id)}
-                              disabled={deletingProductId === p.id}
-                            >
-                              {deletingProductId === p.id ? "Deleting..." : "Delete"}
-                            </button>
+                            <div className="d-flex gap-1">
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => startEdit(p)}
+                                disabled={deletingProductId === p.id}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => deleteProduct(p.id)}
+                                disabled={deletingProductId === p.id}
+                              >
+                                {deletingProductId === p.id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                       {products.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="text-center text-muted">No products found.</td>
+                          <td colSpan={8} className="text-center text-muted">No products found.</td>
                         </tr>
                       )}
                     </tbody>
