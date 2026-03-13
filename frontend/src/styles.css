@@ -1280,12 +1280,6 @@ span.badge:not(.osai-badge) { background: var(--bg-surface) !important; color: v
   border-color: rgba(251, 191, 36, 0.7);
   box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.15) inset;
 }
-.osai-stock-pill-in {
-  color: #bbf7d0;
-  background: rgba(22, 101, 52, 0.22);
-  border-color: rgba(74, 222, 128, 0.6);
-}
-
 /* Quantity input in cart */
 input[type="number"] {
   background-color: var(--bg-surface) !important;

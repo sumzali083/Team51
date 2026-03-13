@@ -169,15 +169,13 @@ export function SearchPage() {
                       )}
                     </div>
 
-                    {hasStockInfo && (
+                    {hasStockInfo && (isSoldOut || isLowStock) && (
                       <div className="mb-2">
                         {isSoldOut ? (
                           <span className="osai-stock-pill osai-stock-pill-soldout">Sold out</span>
                         ) : isLowStock ? (
                           <span className="osai-stock-pill osai-stock-pill-low">Low stock: {stock} left</span>
-                        ) : (
-                          <span className="osai-stock-pill osai-stock-pill-in">In stock</span>
-                        )}
+                        ) : null}
                       </div>
                     )}
 
