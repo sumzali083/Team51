@@ -419,6 +419,7 @@ router.delete("/products/:id", adminMiddleware, async (req, res) => {
     conn = await db.getConnection();
     await conn.beginTransaction();
 
+    // Remove all child rows that reference this product (FK constraints)
     if (await tableExists("product_images")) {
       await conn.query("DELETE FROM product_images WHERE product_id = ?", [id]);
     }
@@ -427,6 +428,20 @@ router.delete("/products/:id", adminMiddleware, async (req, res) => {
     }
     if (await tableExists("product_colors")) {
       await conn.query("DELETE FROM product_colors WHERE product_id = ?", [id]);
+    }
+    if (await tableExists("basket_items")) {
+      await conn.query("DELETE FROM basket_items WHERE product_id = ?", [id]);
+    }
+    if (await tableExists("wishlist_items")) {
+      await conn.query("DELETE FROM wishlist_items WHERE product_id = ?", [id]);
+    }
+    if (await tableExists("reviews")) {
+      await conn.query("DELETE FROM reviews WHERE product_id = ?", [id]);
+    }
+    // order_items: remove line items referencing this product
+    // (the order record itself and its total_price are preserved)
+    if (await tableExists("order_items")) {
+      await conn.query("DELETE FROM order_items WHERE product_id = ?", [id]);
     }
 
     const [result] = await conn.query("DELETE FROM products WHERE id = ?", [id]);
