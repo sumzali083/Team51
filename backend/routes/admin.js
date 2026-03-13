@@ -2,7 +2,7 @@
 const express = require("express");
 const db = require("../config/db");
 const adminMiddleware = require("../middleware/adminMiddleware");
-const { ensureRefundsTable, ALLOWED_STATUSES } = require("./refunds");
+const { ensureRefundsTable, ALLOWED_STATUSES, getRefundColumns } = require("./refunds");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -348,6 +348,11 @@ router.delete("/products/:id", adminMiddleware, async (req, res) => {
 router.get("/refunds", adminMiddleware, async (req, res) => {
   try {
     await ensureRefundsTable();
+    const cols = await getRefundColumns();
+    if (!cols) return res.json([]);
+    const instructionExpr = cols.has("instruction_link")
+      ? "rr.instruction_link"
+      : "NULL AS instruction_link";
     const [rows] = await db.query(
       `SELECT
         rr.id,
@@ -358,7 +363,7 @@ router.get("/refunds", adminMiddleware, async (req, res) => {
         rr.details,
         rr.status,
         rr.admin_note,
-        rr.instruction_link,
+        ${instructionExpr},
         rr.created_at,
         rr.updated_at,
         u.name AS user_name,
@@ -378,6 +383,8 @@ router.get("/refunds", adminMiddleware, async (req, res) => {
 router.put("/refunds/:id/status", adminMiddleware, async (req, res) => {
   try {
     await ensureRefundsTable();
+    const cols = await getRefundColumns();
+    if (!cols) return res.status(503).json({ message: "Refund system is not initialized on server yet" });
     const { id } = req.params;
     const { status, adminNote, instructionLink } = req.body || {};
 
@@ -385,17 +392,31 @@ router.put("/refunds/:id/status", adminMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Invalid refund status" });
     }
 
-    const [result] = await db.query(
-      `UPDATE refund_requests
-       SET status = ?, admin_note = ?, instruction_link = ?
-       WHERE id = ?`,
-      [
-        status,
-        adminNote ? String(adminNote).slice(0, 4000) : null,
-        instructionLink ? String(instructionLink).slice(0, 1000) : null,
-        id,
-      ]
-    );
+    let result;
+    if (cols.has("instruction_link")) {
+      [result] = await db.query(
+        `UPDATE refund_requests
+         SET status = ?, admin_note = ?, instruction_link = ?
+         WHERE id = ?`,
+        [
+          status,
+          adminNote ? String(adminNote).slice(0, 4000) : null,
+          instructionLink ? String(instructionLink).slice(0, 1000) : null,
+          id,
+        ]
+      );
+    } else {
+      [result] = await db.query(
+        `UPDATE refund_requests
+         SET status = ?, admin_note = ?
+         WHERE id = ?`,
+        [
+          status,
+          adminNote ? String(adminNote).slice(0, 4000) : null,
+          id,
+        ]
+      );
+    }
 
     if (!result.affectedRows) {
       return res.status(404).json({ message: "Refund request not found" });
