@@ -42,13 +42,27 @@ async function ensureRefundsTable() {
         KEY idx_refund_created_at (created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`
     );
-    // Keep older deployments forward-compatible.
-    await db.query(
-      "ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS instruction_link VARCHAR(1000) NULL AFTER admin_note"
-    );
+
+    try {
+      await db.query(
+        "ALTER TABLE refund_requests ADD COLUMN instruction_link VARCHAR(1000) NULL AFTER admin_note"
+      );
+    } catch (err) {
+      if (err?.code !== "ER_DUP_FIELDNAME") throw err;
+    }
   })();
 
   return ensureTablePromise;
+}
+
+async function getRefundColumns() {
+  try {
+    const [rows] = await db.query("SHOW COLUMNS FROM refund_requests");
+    return new Set(rows.map((r) => r.Field));
+  } catch (err) {
+    if (err?.code === "ER_NO_SUCH_TABLE") return null;
+    throw err;
+  }
 }
 
 async function resolveOrderItemId(orderId, productId) {
@@ -68,6 +82,11 @@ router.get("/my", requireAuth, async (req, res) => {
   const userId = req.session.userId;
   try {
     await ensureRefundsTable();
+    const cols = await getRefundColumns();
+    if (!cols) return res.json([]);
+    const instructionExpr = cols.has("instruction_link")
+      ? "rr.instruction_link"
+      : "NULL AS instruction_link";
     const [rows] = await db.query(
       `SELECT
         rr.id,
@@ -77,7 +96,7 @@ router.get("/my", requireAuth, async (req, res) => {
         rr.details,
         rr.status,
         rr.admin_note,
-        rr.instruction_link,
+        ${instructionExpr},
         rr.created_at,
         rr.updated_at
       FROM refund_requests rr
@@ -158,8 +177,11 @@ router.post("/", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("Create refund error:", err);
+    if (err?.code === "ER_NO_SUCH_TABLE" || err?.code === "ER_TABLEACCESS_DENIED_ERROR") {
+      return res.status(503).json({ message: "Refund system is not initialized on server yet" });
+    }
     return res.status(500).json({ message: "Failed to submit refund request" });
   }
 });
 
-module.exports = { router, ensureRefundsTable, ALLOWED_STATUSES };
+module.exports = { router, ensureRefundsTable, ALLOWED_STATUSES, getRefundColumns };
