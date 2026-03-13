@@ -3,6 +3,31 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 
+const STATUS_STYLES = {
+  pending:  { background: "rgba(251,191,36,0.12)",  color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)"  },
+  approved: { background: "rgba(52,211,153,0.12)",  color: "#34d399", border: "1px solid rgba(52,211,153,0.3)"  },
+  refunded: { background: "rgba(52,211,153,0.12)",  color: "#34d399", border: "1px solid rgba(52,211,153,0.3)"  },
+  rejected: { background: "rgba(248,113,113,0.12)", color: "#f87171", border: "1px solid rgba(248,113,113,0.3)" },
+};
+
+function StatusPill({ status }) {
+  const s = STATUS_STYLES[status] || STATUS_STYLES.pending;
+  return (
+    <span style={{
+      ...s,
+      display: "inline-block",
+      padding: "3px 10px",
+      borderRadius: 20,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+    }}>
+      {status}
+    </span>
+  );
+}
+
 export default function RefundPage() {
   const { user, loading: authLoading } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -39,13 +64,11 @@ export default function RefundPage() {
         const safeOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
         setOrders(safeOrders);
         setRefunds(Array.isArray(refundsRes.data) ? refundsRes.data : []);
-
         if (safeOrders.length) {
           setForm((prev) => ({ ...prev, orderId: String(safeOrders[0].id) }));
         }
       } catch (err) {
-        const status = err?.response?.status;
-        if (status === 401) {
+        if (err?.response?.status === 401) {
           navigate("/login", { replace: true });
           return;
         }
@@ -84,7 +107,6 @@ export default function RefundPage() {
         reason: form.reason.trim(),
         details: form.details.trim(),
       });
-
       const refundsRes = await api.get("/api/refunds/my");
       setRefunds(Array.isArray(refundsRes.data) ? refundsRes.data : []);
       setSuccess("Refund request submitted successfully.");
@@ -97,133 +119,214 @@ export default function RefundPage() {
   };
 
   if (authLoading || loading) {
-    return <div className="container mt-4">Loading refunds...</div>;
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#888" }}>
+        Loading...
+      </div>
+    );
   }
 
   return (
-    <div className="container mt-4 mb-5">
-      <h2 className="mb-4">Refund Requests</h2>
+    <div style={{ maxWidth: 860, margin: "0 auto", padding: "48px 24px 100px" }}>
 
-      {error && <div className="alert alert-danger">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {/* Page heading */}
+      <h1 style={{
+        fontFamily: "'Barlow Condensed', sans-serif",
+        fontSize: "clamp(40px, 8vw, 72px)",
+        fontWeight: 900,
+        textTransform: "uppercase",
+        color: "#fff",
+        marginBottom: 8,
+        letterSpacing: "0.02em",
+      }}>
+        Refund Requests
+      </h1>
+      <p style={{ color: "#888", fontSize: 13, marginBottom: 40 }}>
+        Submit a refund request for a recent order. We aim to respond within 2–3 business days.
+      </p>
 
-      <div className="card mb-4 shadow-sm">
-        <div className="card-body">
-          <h5 className="card-title">Request a Refund</h5>
-          <form onSubmit={submitRefund} className="row g-3 mt-1">
-            <div className="col-md-6">
-              <label className="form-label">Order</label>
+      {/* Alerts */}
+      {error && (
+        <div style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", borderRadius: 8, padding: "12px 16px", marginBottom: 24, fontSize: 14 }}>
+          {error}
+        </div>
+      )}
+      {success && (
+        <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.3)", color: "#34d399", borderRadius: 8, padding: "12px 16px", marginBottom: 24, fontSize: 14 }}>
+          {success}
+        </div>
+      )}
+
+      {/* Request form */}
+      <div style={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "32px", marginBottom: 32 }}>
+        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#fff", marginBottom: 24 }}>
+          New Request
+        </h2>
+
+        <form onSubmit={submitRefund}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={labelStyle}>Order</label>
               <select
-                className="form-select"
+                style={inputStyle}
                 value={form.orderId}
                 onChange={(e) => setForm((prev) => ({ ...prev, orderId: e.target.value, productId: "" }))}
                 required
               >
                 {orders.map((order) => (
                   <option key={order.id} value={order.id}>
-                    #{order.id} - GBP {Number(order.total_price || 0).toFixed(2)}
+                    #{order.id} — £{Number(order.total_price || 0).toFixed(2)}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="col-md-6">
-              <label className="form-label">Product (optional)</label>
+            <div>
+              <label style={labelStyle}>Item (optional)</label>
               <select
-                className="form-select"
+                style={inputStyle}
                 value={form.productId}
                 onChange={(e) => setForm((prev) => ({ ...prev, productId: e.target.value }))}
               >
                 <option value="">Whole order</option>
                 {selectedOrderItems.map((item, idx) => (
                   <option key={`${item.product_id}-${idx}`} value={item.product_id}>
-                    {item.name} (Qty: {item.quantity})
+                    {item.name} (×{item.quantity})
                   </option>
                 ))}
               </select>
             </div>
+          </div>
 
-            <div className="col-12">
-              <label className="form-label">Reason</label>
-              <input
-                className="form-control"
-                placeholder="e.g. Item arrived damaged"
-                value={form.reason}
-                maxLength={255}
-                onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
-                required
-              />
-            </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Reason *</label>
+            <input
+              style={inputStyle}
+              placeholder="e.g. Item arrived damaged"
+              value={form.reason}
+              maxLength={255}
+              onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
+              required
+            />
+          </div>
 
-            <div className="col-12">
-              <label className="form-label">Details (optional)</label>
-              <textarea
-                className="form-control"
-                rows={4}
-                placeholder="Add extra detail to help us process your refund quickly."
-                value={form.details}
-                onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
-              />
-            </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={labelStyle}>Additional details (optional)</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 96, resize: "vertical" }}
+              placeholder="Describe the issue in more detail to help us process your request quickly."
+              value={form.details}
+              onChange={(e) => setForm((prev) => ({ ...prev, details: e.target.value }))}
+            />
+          </div>
 
-            <div className="col-12">
-              <button className="btn btn-dark" type="submit" disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit refund request"}
-              </button>
-            </div>
-          </form>
-        </div>
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              background: "#fff",
+              color: "#000",
+              border: "none",
+              borderRadius: 6,
+              padding: "11px 28px",
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              cursor: submitting ? "not-allowed" : "pointer",
+              opacity: submitting ? 0.6 : 1,
+              transition: "opacity 0.15s",
+            }}
+          >
+            {submitting ? "Submitting…" : "Submit Request"}
+          </button>
+        </form>
       </div>
 
-      <div className="card shadow-sm">
-        <div className="card-body">
-          <h5 className="card-title">Your Requests</h5>
-          {refunds.length === 0 ? (
-            <p className="text-muted mb-0">No refund requests yet.</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-sm align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>ID</th>
-                    <th>Order</th>
-                    <th>Status</th>
-                    <th>Reason</th>
-                    <th>Admin Note</th>
-                    <th>Instructions</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {refunds.map((r) => (
-                    <tr key={r.id}>
-                      <td>#{r.id}</td>
-                      <td>#{r.order_id}</td>
-                      <td>
-                        <span className={`badge text-bg-${r.status === "rejected" ? "danger" : r.status === "refunded" ? "success" : "secondary"}`}>
-                          {r.status}
-                        </span>
-                      </td>
-                      <td>{r.reason}</td>
-                      <td>{r.admin_note || "-"}</td>
-                      <td>
-                        {r.instruction_link ? (
-                          <a href={r.instruction_link} target="_blank" rel="noreferrer">
-                            Open link
-                          </a>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td>{r.created_at ? new Date(r.created_at).toLocaleString() : "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      {/* Your requests */}
+      <div style={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "32px" }}>
+        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#fff", marginBottom: 24 }}>
+          Your Requests
+        </h2>
+
+        {refunds.length === 0 ? (
+          <p style={{ color: "#555", fontSize: 14, margin: 0 }}>No refund requests yet.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {refunds.map((r) => (
+              <div key={r.id} style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: 8,
+                padding: "16px 20px",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ color: "#555", fontSize: 11, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.1em" }}>
+                      REQUEST #{r.id}
+                    </span>
+                    <span style={{ color: "#666", fontSize: 11 }}>·</span>
+                    <span style={{ color: "#888", fontSize: 12 }}>Order #{r.order_id}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <StatusPill status={r.status} />
+                    <span style={{ color: "#555", fontSize: 11 }}>
+                      {r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ color: "#ccc", fontSize: 14, margin: 0, marginBottom: r.admin_note || r.instruction_link ? 10 : 0 }}>
+                  {r.reason}
+                </p>
+
+                {(r.admin_note || r.instruction_link) && (
+                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 10, marginTop: 10, display: "flex", flexWrap: "wrap", gap: 16 }}>
+                    {r.admin_note && (
+                      <div>
+                        <span style={{ color: "#555", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Admin note</span>
+                        <span style={{ color: "#aaa", fontSize: 13 }}>{r.admin_note}</span>
+                      </div>
+                    )}
+                    {r.instruction_link && (
+                      <div>
+                        <span style={{ color: "#555", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 2 }}>Instructions</span>
+                        <a href={r.instruction_link} target="_blank" rel="noreferrer" style={{ color: "#fff", fontSize: 13, textDecoration: "underline", textUnderlineOffset: 3 }}>
+                          View instructions →
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+const labelStyle = {
+  display: "block",
+  color: "#888",
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  marginBottom: 6,
+};
+
+const inputStyle = {
+  width: "100%",
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 6,
+  color: "#fff",
+  fontSize: 14,
+  padding: "10px 12px",
+  outline: "none",
+  fontFamily: "inherit",
+  boxSizing: "border-box",
+};
