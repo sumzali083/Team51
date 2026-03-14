@@ -6,21 +6,15 @@ const { ensureRefundsTable, ALLOWED_STATUSES, getRefundColumns } = require("./re
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const sharp = require("sharp");
 
 const router = express.Router();
 
 const uploadsPath = path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsPath),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    const safeExt = ext && ext.length <= 6 ? ext : ".jpg";
-    cb(null, `product-${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`);
-  },
-});
-const upload = multer({ storage });
+// Memory storage so we can process with sharp before writing to disk
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 async function tableExists(tableName) {
   const [rows] = await db.query("SHOW TABLES LIKE ?", [tableName]);
@@ -250,9 +244,22 @@ router.get("/products", adminMiddleware, async (_req, res) => {
   }
 });
 
-router.post("/upload-image", adminMiddleware, upload.single("image"), async (req, res) => {
+router.post("/upload-image", adminMiddleware, uploadMemory.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No image uploaded" });
-  return res.json({ url: `/uploads/${req.file.filename}` });
+  try {
+    // All product images are standardised to 800×1067 (3:4 portrait ratio),
+    // matching the dimensions of the existing product catalogue images.
+    const filename = `product-${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
+    const outPath = path.join(uploadsPath, filename);
+    await sharp(req.file.buffer)
+      .resize(800, 1067, { fit: "cover", position: "centre" })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toFile(outPath);
+    return res.json({ url: `/uploads/${filename}` });
+  } catch (err) {
+    console.error("Image resize error:", err);
+    return res.status(500).json({ message: "Failed to process image" });
+  }
 });
 
 router.post("/products", adminMiddleware, async (req, res) => {
