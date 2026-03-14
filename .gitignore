@@ -14,9 +14,6 @@ frontend/dist/
 *.log
 *.save
 
-# Claude Code
-.claude/
-
 # OS/System files
 .DS_Store
 Thumbs.db
