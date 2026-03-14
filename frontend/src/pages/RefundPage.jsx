@@ -329,4 +329,5 @@ const inputStyle = {
   outline: "none",
   fontFamily: "inherit",
   boxSizing: "border-box",
+  colorScheme: "dark",
 };
