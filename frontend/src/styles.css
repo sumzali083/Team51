@@ -33,6 +33,19 @@ body {
 }
 a { color: inherit; text-decoration: none }
 
+/* ─── MOBILE: PREVENT iOS AUTO-ZOOM ON INPUT FOCUS ──────────────────────── */
+/* iOS Safari zooms in when input font-size < 16px and never zooms back out.
+   Force 16px on mobile so this never triggers.                               */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+/* Prevent double-tap zoom delay on all tappable elements */
+a, button, [role="button"] {
+  touch-action: manipulation;
+}
+
 /* ─── NAVBAR ─────────────────────────────────────────────────────────────── */
 .osai-header {
   position: sticky;
