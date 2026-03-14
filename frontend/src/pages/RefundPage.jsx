@@ -1,7 +1,75 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
+
+function Dropdown({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = options.find((o) => String(o.value) === String(value));
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          ...inputStyle,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span style={{ color: selected ? "#fff" : "#666" }}>
+          {selected ? selected.label : "Select…"}
+        </span>
+        <span style={{ color: "#666", fontSize: 10, marginLeft: 8 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute",
+          top: "calc(100% + 4px)",
+          left: 0,
+          right: 0,
+          background: "#1a1a1a",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 6,
+          zIndex: 999,
+          maxHeight: 220,
+          overflowY: "auto",
+        }}>
+          {options.map((o) => (
+            <div
+              key={o.value}
+              onMouseDown={() => { onChange(String(o.value)); setOpen(false); }}
+              style={{
+                padding: "10px 14px",
+                fontSize: 14,
+                color: String(o.value) === String(value) ? "#fff" : "#bbb",
+                background: String(o.value) === String(value) ? "rgba(255,255,255,0.08)" : "transparent",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = String(o.value) === String(value) ? "rgba(255,255,255,0.08)" : "transparent"}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUS_STYLES = {
   pending:  { background: "rgba(251,191,36,0.12)",  color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)"  },
@@ -167,34 +235,26 @@ export default function RefundPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>Order</label>
-              <select
-                style={inputStyle}
+              <Dropdown
                 value={form.orderId}
-                onChange={(e) => setForm((prev) => ({ ...prev, orderId: e.target.value, productId: "" }))}
-                required
-              >
-                {orders.map((order) => (
-                  <option key={order.id} value={order.id}>
-                    #{order.id} — £{Number(order.total_price || 0).toFixed(2)}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((prev) => ({ ...prev, orderId: v, productId: "" }))}
+                options={orders.map((o) => ({ value: o.id, label: `#${o.id} — £${Number(o.total_price || 0).toFixed(2)}` }))}
+              />
             </div>
 
             <div>
               <label style={labelStyle}>Item (optional)</label>
-              <select
-                style={inputStyle}
+              <Dropdown
                 value={form.productId}
-                onChange={(e) => setForm((prev) => ({ ...prev, productId: e.target.value }))}
-              >
-                <option value="">Whole order</option>
-                {selectedOrderItems.map((item, idx) => (
-                  <option key={`${item.product_id}-${idx}`} value={item.product_id}>
-                    {item.name} (×{item.quantity})
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm((prev) => ({ ...prev, productId: v }))}
+                options={[
+                  { value: "", label: "Whole order" },
+                  ...selectedOrderItems.map((item) => ({
+                    value: item.product_id,
+                    label: `${item.name} (×${item.quantity})`,
+                  })),
+                ]}
+              />
             </div>
           </div>
 
@@ -329,5 +389,4 @@ const inputStyle = {
   outline: "none",
   fontFamily: "inherit",
   boxSizing: "border-box",
-  colorScheme: "dark",
 };
