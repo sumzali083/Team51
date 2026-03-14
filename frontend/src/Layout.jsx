@@ -128,113 +128,6 @@ export function Layout() {
                 </button>
               </form>
 
-              {user ? (
-                <div ref={profileRef} style={{ position: "relative" }}>
-                  {/* Profile trigger button */}
-                  <button
-                    className="osai-action-btn"
-                    onClick={() => setProfileOpen((v) => !v)}
-                    aria-label="Profile menu"
-                    title="Profile"
-                    style={{ background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
-                  >
-                    <i className="bi bi-person-circle" style={{ fontSize: 18 }} />
-                    <span style={{
-                      fontSize: 12,
-                      color: "rgba(255,255,255,0.75)",
-                      maxWidth: 80,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}>
-                      {user.name}
-                    </span>
-                    <i className="bi bi-chevron-down" style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", transition: "transform 0.2s", transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-                  </button>
-
-                  {/* Dropdown panel */}
-                  {profileOpen && (
-                    <div style={{
-                      position: "absolute",
-                      top: "calc(100% + 8px)",
-                      right: 0,
-                      minWidth: 200,
-                      background: "#111",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 8,
-                      zIndex: 1000,
-                      overflow: "hidden",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    }}>
-                      {/* Header */}
-                      <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{user.name}</div>
-                        <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{user.email || (user.is_admin ? "Administrator" : "Member")}</div>
-                      </div>
-
-                      {/* Menu items */}
-                      <div style={{ padding: "6px 0" }}>
-                        {user.is_admin && (
-                          <NavLink
-                            to="/admin"
-                            style={dropdownItemStyle}
-                            onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                          >
-                            <i className="bi bi-speedometer2" style={dropdownIconStyle} />
-                            Admin Dashboard
-                          </NavLink>
-                        )}
-                        <NavLink
-                          to="/orders"
-                          style={dropdownItemStyle}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                        >
-                          <i className="bi bi-receipt" style={dropdownIconStyle} />
-                          My Orders
-                        </NavLink>
-                        <NavLink
-                          to="/refunds"
-                          style={dropdownItemStyle}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                        >
-                          <i className="bi bi-arrow-counterclockwise" style={dropdownIconStyle} />
-                          Refund Requests
-                        </NavLink>
-                        <NavLink
-                          to="/account/change-password"
-                          style={dropdownItemStyle}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                        >
-                          <i className="bi bi-key" style={dropdownIconStyle} />
-                          Change Password
-                        </NavLink>
-
-                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "6px 0" }} />
-
-                        <button
-                          onClick={handleLogout}
-                          style={{ ...dropdownItemStyle, background: "transparent", border: "none", cursor: "pointer", width: "100%", textAlign: "left", color: "#f87171" }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(248,113,113,0.08)"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                        >
-                          <i className="bi bi-box-arrow-right" style={{ ...dropdownIconStyle, color: "#f87171" }} />
-                          Sign Out
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <NavLink to="/login" className="osai-action-btn">
-                  <i className="bi bi-person" />
-                  <span className="d-none d-xl-inline">Login</span>
-                </NavLink>
-              )}
-
               <NavLink
                 to="/wishlist"
                 className="osai-action-btn"
@@ -252,6 +145,87 @@ export function Layout() {
                 <i className="bi bi-bag" />
                 {totalItems > 0 && <span className="osai-badge">{totalItems}</span>}
               </NavLink>
+
+              {user ? (
+                <div ref={profileRef} style={{ position: "relative" }}>
+                  {/* Profile trigger */}
+                  <button
+                    className="osai-profile-trigger"
+                    onClick={() => setProfileOpen((v) => !v)}
+                    aria-label="Profile menu"
+                  >
+                    <div className="osai-profile-avatar">
+                      {user.name?.[0] || "?"}
+                    </div>
+                    <span style={{ fontSize: 12, maxWidth: 72, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {user.name}
+                    </span>
+                    <i className="bi bi-chevron-down" style={{ fontSize: 9, opacity: 0.5, transition: "transform 0.2s", transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                  </button>
+
+                  {/* Dropdown */}
+                  {profileOpen && (
+                    <div style={{
+                      position: "absolute",
+                      top: "calc(100% + 10px)",
+                      right: 0,
+                      minWidth: 220,
+                      background: "#0e0e0e",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 10,
+                      zIndex: 1000,
+                      overflow: "hidden",
+                      boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+                    }}>
+                      {/* User header */}
+                      <div style={{ padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 12 }}>
+                        <div className="osai-profile-avatar-lg">{user.name?.[0] || "?"}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
+                          <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+                            {user.email || (user.is_admin ? "Administrator" : "Member")}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Menu items */}
+                      <div style={{ padding: "6px 0" }}>
+                        {user.is_admin && (
+                          <NavLink to="/admin" className="osai-dropdown-item">
+                            <i className="bi bi-speedometer2" />
+                            Admin Dashboard
+                          </NavLink>
+                        )}
+                        <NavLink to="/orders" className="osai-dropdown-item">
+                          <i className="bi bi-receipt" />
+                          My Orders
+                        </NavLink>
+                        <NavLink to="/refunds" className="osai-dropdown-item">
+                          <i className="bi bi-arrow-counterclockwise" />
+                          Refund Requests
+                        </NavLink>
+                        <NavLink to="/account/change-password" className="osai-dropdown-item">
+                          <i className="bi bi-key" />
+                          Change Password
+                        </NavLink>
+
+                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "6px 0" }} />
+
+                        <button onClick={handleLogout} className="osai-dropdown-item danger">
+                          <i className="bi bi-box-arrow-right" />
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <NavLink to="/login" className="osai-action-btn">
+                  <i className="bi bi-person" />
+                  <span className="d-none d-xl-inline">Login</span>
+                </NavLink>
+              )}
+
             </div>
           </div>
         </nav>
@@ -307,21 +281,3 @@ export function Layout() {
   );
 }
 
-const dropdownItemStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "9px 16px",
-  fontSize: 13,
-  color: "#ccc",
-  textDecoration: "none",
-  background: "transparent",
-  transition: "background 0.15s",
-};
-
-const dropdownIconStyle = {
-  fontSize: 14,
-  color: "#888",
-  width: 16,
-  textAlign: "center",
-};
