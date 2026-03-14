@@ -126,50 +126,54 @@ export function Layout() {
                     </NavLink>
                   </li>
                 ))}
-                {/* Account links in mobile menu */}
+                {/* Account section */}
                 {user ? (
                   <>
                     <li style={{ listStyle: "none" }}>
-                      <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "8px 16px" }} />
+                      <span className="osai-mobile-section-label">
+                        {user.name}
+                      </span>
                     </li>
                     {user.is_admin && (
                       <li>
                         <NavLink className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`} to="/admin">
-                          <i className="bi bi-speedometer2" style={{ marginRight: 8, opacity: 0.6 }} />Admin Dashboard
+                          <i className="bi bi-speedometer2" style={{ marginRight: 10, opacity: 0.55 }} />Admin Dashboard
                         </NavLink>
                       </li>
                     )}
                     <li>
                       <NavLink className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`} to="/orders">
-                        <i className="bi bi-receipt" style={{ marginRight: 8, opacity: 0.6 }} />My Orders
+                        <i className="bi bi-receipt" style={{ marginRight: 10, opacity: 0.55 }} />My Orders
                       </NavLink>
                     </li>
                     <li>
                       <NavLink className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`} to="/refunds">
-                        <i className="bi bi-arrow-counterclockwise" style={{ marginRight: 8, opacity: 0.6 }} />Refund Requests
+                        <i className="bi bi-arrow-counterclockwise" style={{ marginRight: 10, opacity: 0.55 }} />Refund Requests
                       </NavLink>
                     </li>
                     <li>
                       <NavLink className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`} to="/account/change-password">
-                        <i className="bi bi-key" style={{ marginRight: 8, opacity: 0.6 }} />Change Password
+                        <i className="bi bi-key" style={{ marginRight: 10, opacity: 0.55 }} />Change Password
                       </NavLink>
                     </li>
                     <li>
-                      <button
-                        onClick={handleLogout}
-                        className="osai-mobile-link"
-                        style={{ background: "transparent", border: "none", cursor: "pointer", width: "100%", textAlign: "left", color: "#f87171" }}
-                      >
-                        <i className="bi bi-box-arrow-right" style={{ marginRight: 8, opacity: 0.8 }} />Sign Out
+                      <button onClick={handleLogout} className="osai-mobile-link danger"
+                        style={{ background: "transparent", border: "none", cursor: "pointer", width: "100%", textAlign: "left" }}>
+                        <i className="bi bi-box-arrow-right" style={{ marginRight: 10, opacity: 0.8 }} />Sign Out
                       </button>
                     </li>
                   </>
                 ) : (
-                  <li>
-                    <NavLink className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`} to="/login">
-                      <i className="bi bi-person" style={{ marginRight: 8, opacity: 0.6 }} />Login / Sign Up
-                    </NavLink>
-                  </li>
+                  <>
+                    <li style={{ listStyle: "none" }}>
+                      <span className="osai-mobile-section-label">Account</span>
+                    </li>
+                    <li>
+                      <NavLink className={({ isActive }) => `osai-mobile-link${isActive ? " active" : ""}`} to="/login">
+                        <i className="bi bi-person" style={{ marginRight: 10, opacity: 0.55 }} />Login / Sign Up
+                      </NavLink>
+                    </li>
+                  </>
                 )}
               </ul>
             )}
@@ -282,7 +286,7 @@ export function Layout() {
               ) : (
                 <NavLink to="/login" className="osai-action-btn">
                   <i className="bi bi-person" />
-                  <span className="d-none d-xl-inline">Login</span>
+                  <span className="osai-login-label d-none d-xl-inline">Login</span>
                 </NavLink>
               )}
 
