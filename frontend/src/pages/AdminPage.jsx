@@ -781,9 +781,12 @@ export default function AdminPage() {
                               placeholder={`Color ${idx + 1}`}
                               value={color}
                               onChange={(e) => {
-                                const next = [...productDraft.colors];
-                                next[idx] = e.target.value;
-                                setProductDraft((prev) => ({ ...prev, colors: next }));
+                                const val = e.target.value;
+                                setProductDraft((prev) => {
+                                  const next = [...(prev.colors || [])];
+                                  next[idx] = val;
+                                  return { ...prev, colors: next };
+                                });
                               }}
                             />
                           ))}
@@ -952,9 +955,12 @@ export default function AdminPage() {
                             <input key={idx} className="form-control form-control-sm" style={{ width: 140 }}
                               placeholder={`Color ${idx + 1}`} value={color}
                               onChange={(e) => {
-                                const next = [...editDraft.colors];
-                                next[idx] = e.target.value;
-                                setEditDraft((p) => ({ ...p, colors: next }));
+                                const val = e.target.value;
+                                setEditDraft((p) => {
+                                  const next = [...(p.colors || [])];
+                                  next[idx] = val;
+                                  return { ...p, colors: next };
+                                });
                               }} />
                           ))}
                           {(editDraft.colors || []).length < 6 && (
