@@ -94,9 +94,9 @@ export function AboutPage() {
         <h2 className="text-center mb-4">What Defines Us</h2>
         <div className="row gy-4">
           {[
-            { title: "Craftsmanship", description: "Every garment is carefully cut and stitched for comfort and durability." },
-            { title: "Authenticity", description: "We use premium textiles and honest construction from trusted mills." },
-            { title: "Timelessness", description: "Designed to outlast short trends and remain wearable every season." }
+            { title: "Craftsmanship", description: "Every garment is cut, stitched, and finished with meticulous attention to detail." },
+            { title: "Authenticity", description: "We use high-quality fabrics and dependable construction built for daily wear." },
+            { title: "Timelessness", description: "Designed to outlast short trends and remain a core part of your wardrobe." }
           ].map((item) => (
             <div key={item.title} className="col-md-4 text-center">
               <h3 className="h5 fw-light mb-2">{item.title}</h3>
