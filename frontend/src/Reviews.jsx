@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api";
+import api from "./api";
+import { AuthContext } from "./context/AuthContext";
 
 export default function Reviews({ productId }) {
   const [reviews, setReviews] = useState([]);
@@ -8,35 +9,51 @@ export default function Reviews({ productId }) {
   const [comment, setComment] = useState("");
   const [msg, setMsg] = useState("");
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
-  const token = localStorage.getItem("token");
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get(`/api/reviews/${productId}`)
+      .then((res) => {
+        if (!cancelled) {
+          setReviews(res.data || []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReviews([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
 
   async function loadReviews() {
     try {
-      const res = await api.get(`/api/products/${productId}/reviews`);
+      const res = await api.get(`/api/reviews/${productId}`);
       setReviews(res.data || []);
     } catch {
       setReviews([]);
     }
   }
 
-  useEffect(() => {
-    loadReviews();
-  }, [productId]);
-
   async function submitReview(e) {
     e.preventDefault();
 
-    if (!token) {
+    if (!user) {
       navigate("/login");
       return;
     }
 
     try {
-      await api.post(`/api/products/${productId}/reviews`, {
+      await api.post(`/api/reviews/${productId}`, {
         rating: Number(rating),
         comment,
-        user: "Demo User"
+        reviewer_name: user.name || "Customer",
       });
 
       setComment("");
@@ -68,15 +85,15 @@ export default function Reviews({ productId }) {
 
       {reviews.map((r, i) => (
         <div key={i} className="border-bottom mb-2 pb-2">
-          <strong>{r.user}</strong> — {"★".repeat(r.rating)}
-          {"☆".repeat(5 - r.rating)}
+          <strong>{r.reviewer_name || r.user_name || r.user || "Customer"}</strong> {"\u2014"} {"\u2605".repeat(r.rating)}
+          {"\u2606".repeat(5 - r.rating)}
           <div>{r.comment}</div>
         </div>
       ))}
 
       <hr />
 
-      {!token ? (
+      {!user ? (
         <button
           className="btn btn-dark"
           onClick={() => navigate("/login")}
