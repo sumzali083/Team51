@@ -16,6 +16,7 @@ const Chatbot = () => {
   const messagesEndRef = useRef(null);
 
   const quickQuestions = [
+    "what is on sale",
     "show mens under 40 in stock",
     "find black hoodie",
     "womens between 20 and 60",
