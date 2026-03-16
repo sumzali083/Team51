@@ -2,6 +2,30 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
 
+const INPUT = {
+  width: "100%",
+  display: "block",
+  background: "#1a1a1a",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 8,
+  padding: "13px 16px",
+  color: "#fff",
+  fontSize: 14,
+  outline: "none",
+  transition: "border-color 0.18s ease",
+  boxSizing: "border-box",
+};
+
+const LABEL = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  color: "#888",
+  marginBottom: 8,
+};
+
 export function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState(null);
@@ -41,80 +65,179 @@ export function ForgotPassword() {
   }
 
   return (
-    <div style={{ maxWidth: 520, margin: "40px auto" }}>
-      <div
+    <div
+      style={{
+        minHeight: "80vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "60px 24px 80px",
+      }}
+    >
+      {/* Page heading */}
+      <h1
         style={{
-          background: "#111",
-          borderRadius: 16,
-          padding: 24,
-          boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontSize: "clamp(56px, 11vw, 110px)",
+          fontWeight: 900,
+          textTransform: "uppercase",
+          letterSpacing: "-0.01em",
+          lineHeight: 0.92,
           color: "#fff",
+          marginBottom: 40,
+          textAlign: "center",
         }}
       >
-        <h2 style={{ color: "#ff5a00", fontWeight: 800, marginBottom: 8 }}>
+        Reset Password.
+      </h1>
+
+      {/* Card */}
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 480,
+          background: "#111",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 12,
+          padding: "32px 32px 28px",
+        }}
+      >
+        <h2
+          style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: 22,
+            fontWeight: 800,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            color: "#fff",
+            margin: "0 0 6px",
+          }}
+        >
           Forgot Password
         </h2>
-        <p style={{ color: "#bbb", marginBottom: 16 }}>
-          Enter your account email and we will generate a reset link.
+        <p style={{ color: "#888", fontSize: 13, marginBottom: 28 }}>
+          Enter your account email and we will send you a reset link.
         </p>
 
         {error && (
-          <div style={{ background: "#5c1a1a", padding: 10, marginBottom: 10 }}>
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              borderRadius: 6,
+              fontSize: 13,
+              background: "rgba(255,60,60,0.12)",
+              border: "1px solid rgba(255,60,60,0.25)",
+              color: "#f87171",
+            }}
+          >
             {error}
           </div>
         )}
+
         {message && (
-          <div style={{ background: "#1d3b21", padding: 10, marginBottom: 10 }}>
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              borderRadius: 6,
+              fontSize: 13,
+              background: "rgba(0,200,80,0.12)",
+              border: "1px solid rgba(0,200,80,0.25)",
+              color: "#4ade80",
+            }}
+          >
             {message}
           </div>
         )}
+
         {resetUrl && (
-          <div style={{ background: "#203549", padding: 10, marginBottom: 10 }}>
-            <div style={{ marginBottom: 6 }}>Reset link (demo):</div>
-            <a href={resetUrl} style={{ color: "#9ad0ff", wordBreak: "break-all" }}>
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              borderRadius: 6,
+              fontSize: 13,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#bbb",
+              wordBreak: "break-all",
+            }}
+          >
+            <div style={{ marginBottom: 6, color: "#888" }}>Reset link (demo):</div>
+            <a href={resetUrl} style={{ color: "#bbb" }}>
               {resetUrl}
             </a>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 12 }}>
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          style={{ display: "flex", flexDirection: "column", gap: 16 }}
+        >
+          <div>
+            <label style={LABEL} htmlFor="forgot-email">
+              Email
+            </label>
             <input
+              id="forgot-email"
               type="email"
-              placeholder="Your email"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 8,
-                border: "1px solid #333",
-                background: "#222",
-                color: "#fff",
-              }}
+              style={INPUT}
+              onFocus={(e) =>
+                (e.target.style.borderColor = "rgba(255,255,255,0.35)")
+              }
+              onBlur={(e) =>
+                (e.target.style.borderColor = "rgba(255,255,255,0.1)")
+              }
             />
           </div>
+
           <button
             type="submit"
             disabled={loading}
             style={{
-              background: loading ? "#aa4400" : "#ff5a00",
-              color: "#fff",
-              borderRadius: 8,
-              padding: "12px 18px",
-              fontWeight: 700,
+              width: "100%",
+              padding: "14px",
+              background: loading ? "#ccc" : "#fff",
+              color: "#000",
               border: "none",
+              borderRadius: 4,
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              cursor: loading ? "not-allowed" : "pointer",
+              marginTop: 8,
+              transition: "background 0.18s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) e.target.style.background = "#e0e0e0";
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) e.target.style.background = "#fff";
             }}
           >
-            {loading ? "Sending..." : "Send reset link"}
+            {loading ? "Sending..." : "Send Reset Link"}
           </button>
-        </form>
 
-        <div style={{ marginTop: 12 }}>
-          <Link to="/login" style={{ color: "#ff5a00", textDecoration: "none", fontWeight: 600 }}>
-            Back to Login
-          </Link>
-        </div>
+          <div style={{ marginTop: 4 }}>
+            <Link
+              to="/login"
+              style={{
+                color: "#888",
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              Back to Login
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -15,8 +15,16 @@ const reviewRoutes = require("./routes/reviews");
 const chatbotRoutes = require("./routes/chatbot");
 const adminRoutes = require("./routes/admin");
 const wishlistRoutes = require("./routes/wishlist");
+const refundRoutes = require("./routes/refunds");
+const { getOrderHistoryForUser } = require("./services/orderHistory");
 
 const app = express();
+const sessionSecret = process.env.SESSION_SECRET;
+
+if (!sessionSecret) {
+  console.error("SESSION_SECRET is required. Set it in your environment.");
+  process.exit(1);
+}
 
 // Required for HTTPS sessions on university VMs
 app.set("trust proxy", 1);
@@ -35,7 +43,7 @@ app.use(express.json());
 // Session config
 app.use(session({
   name: "team51.sid",
-  secret: process.env.SESSION_SECRET || "osai-fashion-secret-key-summer",
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -60,12 +68,30 @@ app.get("/api", (req, res) => {
       "POST /api/users/login",
       "GET /api/users/me",
       "POST /api/users/logout",
+      "GET /api/refunds/my",
+      "POST /api/refunds",
       "GET /api/reviews/:productId",
       "POST /api/reviews/:productId",
       "DELETE /api/reviews/:reviewId",
       "POST /api/chatbot"
     ]
   });
+});
+
+// Direct history endpoint fallback to avoid route-mount issues in some deploys.
+app.get("/api/orders/history", async (req, res) => {
+  const userId = req.session && req.session.userId;
+  if (!userId) {
+    return res.status(401).json({ message: "Please log in to view order history" });
+  }
+
+  try {
+    const orders = await getOrderHistoryForUser(userId);
+    return res.json(orders);
+  } catch (err) {
+    console.error("Order history error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
 });
 
 // API routes
@@ -79,6 +105,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/refunds", refundRoutes.router);
 
 // Serve uploaded product images
 const uploadsPath = path.join(__dirname, "uploads");

@@ -6,10 +6,8 @@ export function AboutPage() {
   
   // Create refs for each animated section
   const introRef = useRef(null);
-  const section1Ref = useRef(null);
   const image1Ref = useRef(null);
   const text1Ref = useRef(null);
-  const section2Ref = useRef(null);
   const image2Ref = useRef(null);
   const text2Ref = useRef(null);
   const definesUsRef = useRef(null);
@@ -96,9 +94,9 @@ export function AboutPage() {
         <h2 className="text-center mb-4">What Defines Us</h2>
         <div className="row gy-4">
           {[
-              { title: "Craftsmanship", description: "Every garment is cut, stitched, and finished with meticulous attention to detail." },
-              { title: "Authenticity", description: "We use high-quality fabrics and dependable construction built for daily wear." },
-              { title: "Timelessness", description: "Designed to outlast short trends and remain a core part of your wardrobe." }
+            { title: "Craftsmanship", description: "Every garment is cut, stitched, and finished with meticulous attention to detail." },
+            { title: "Authenticity", description: "We use high-quality fabrics and dependable construction built for daily wear." },
+            { title: "Timelessness", description: "Designed to outlast short trends and remain a core part of your wardrobe." }
           ].map((item) => (
             <div key={item.title} className="col-md-4 text-center">
               <h3 className="h5 fw-light mb-2">{item.title}</h3>

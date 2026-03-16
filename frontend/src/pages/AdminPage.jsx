@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -8,45 +9,67 @@ export default function AdminPage() {
   const [reports, setReports] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [refunds, setRefunds] = useState([]);
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [dashboardRange, setDashboardRange] = useState("30d");
   const [savingStockId, setSavingStockId] = useState(null);
   const [savingOrderId, setSavingOrderId] = useState(null);
+  const [savingRefundId, setSavingRefundId] = useState(null);
   const [stockDraft, setStockDraft] = useState({});
   const [orderStatusDraft, setOrderStatusDraft] = useState({});
+  const [refundStatusDraft, setRefundStatusDraft] = useState({});
+  const [refundAdminNoteDraft, setRefundAdminNoteDraft] = useState({});
+  const [refundInstructionLinkDraft, setRefundInstructionLinkDraft] = useState({});
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
-    sku: "", name: "", category_id: 11, price: "", stock: 0,
+    sku: "", name: "", category_id: 0, price: "", original_price: "", stock: 0,
     description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
   });
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [savingEditId, setSavingEditId] = useState(null);
+  const [categories, setCategories] = useState([]);
 
   const loadAll = async () => {
     setLoading(true);
     setError("");
     try {
-      const [reportsRes, productsRes, ordersRes, usersRes, messagesRes, reviewsRes] = await Promise.all([
+      const [reportsRes, productsRes, ordersRes, refundsRes, usersRes, messagesRes, reviewsRes, categoriesRes] = await Promise.all([
         api.get("/api/admin/reports"),
         api.get("/api/admin/products"),
         api.get("/api/admin/orders"),
+        api.get("/api/admin/refunds"),
         api.get("/api/admin/users"),
         api.get("/api/admin/messages"),
         api.get("/api/admin/reviews"),
+        api.get("/api/admin/categories").catch(() => ({ data: [] })),
       ]);
 
       setReports(reportsRes.data || null);
       setProducts(productsRes.data || []);
       setOrders(ordersRes.data || []);
+      setRefunds(refundsRes.data || []);
       setUsers(usersRes.data || []);
       setMessages(messagesRes.data || []);
       setReviews(reviewsRes.data || []);
+      const cats = categoriesRes.data || [];
+      setCategories(cats);
+      // Set default category_id to first real category
+      if (cats.length > 0) {
+        setProductDraft((prev) => ({ ...prev, category_id: cats[0].id }));
+      }
       setStockDraft(Object.fromEntries((productsRes.data || []).map((p) => [p.id, p.stock ?? 0])));
       setOrderStatusDraft(Object.fromEntries((ordersRes.data || []).map((o) => [o.id, o.status || "pending"])));
+      setRefundStatusDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.status || "pending"])));
+      setRefundAdminNoteDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.admin_note || ""])));
+      setRefundInstructionLinkDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.instruction_link || ""])));
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to fetch admin data");
     } finally {
@@ -86,6 +109,27 @@ export default function AdminPage() {
     }
   };
 
+  const updateRefundStatus = async (refundId) => {
+    const status = refundStatusDraft[refundId];
+    const adminNote = refundAdminNoteDraft[refundId] || "";
+    const instructionLink = refundInstructionLinkDraft[refundId] || "";
+    if (!status) return;
+
+    setSavingRefundId(refundId);
+    try {
+      await api.put(`/api/admin/refunds/${refundId}/status`, { status, adminNote, instructionLink });
+      setRefunds((prev) =>
+        prev.map((r) =>
+          r.id === refundId ? { ...r, status, admin_note: adminNote, instruction_link: instructionLink } : r
+        )
+      );
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update refund request");
+    } finally {
+      setSavingRefundId(null);
+    }
+  };
+
   const deleteMessage = async (id) => {
     if (!window.confirm("Delete this contact message?")) return;
     try {
@@ -117,6 +161,102 @@ export default function AdminPage() {
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (err) {
       alert(err?.response?.data?.message || "Failed to delete user");
+    }
+  };
+
+  const startEdit = (p) => {
+    setEditingProductId(p.id);
+    setEditDraft({
+      sku: p.sku || "",
+      name: p.name || "",
+      category_id: p.category_id || 11,
+      price: p.price != null ? String(p.price) : "",
+      original_price: p.original_price != null ? String(p.original_price) : "",
+      stock: p.stock != null ? String(p.stock) : "0",
+      description: p.description || "",
+      sizes: Array.isArray(p.sizes) ? [...p.sizes] : [],
+      colors: Array.isArray(p.colors) && p.colors.length ? [...p.colors] : ["", ""],
+      images: Array.isArray(p.images) ? [...p.images] : [],
+      newImageFiles: [null, null, null],
+    });
+    setShowAddProduct(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingProductId(null);
+    setEditDraft(null);
+  };
+
+  const toggleEditSize = (size) => {
+    setEditDraft((prev) => ({
+      ...prev,
+      sizes: prev.sizes.includes(size)
+        ? prev.sizes.filter((s) => s !== size)
+        : [...prev.sizes, size],
+    }));
+  };
+
+  const saveEdit = async () => {
+    if (!editDraft.name.trim() || !editDraft.price) {
+      alert("Name and Price are required.");
+      return;
+    }
+    setSavingEditId(editingProductId);
+    try {
+      // Upload any new image files
+      const uploadedUrls = [];
+      for (const file of (editDraft.newImageFiles || []).filter(Boolean)) {
+        const fd = new FormData();
+        fd.append("image", file);
+        const res = await api.post("/api/admin/upload-image", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        uploadedUrls.push(res.data.url);
+      }
+
+      // Merge: keep existing images that weren't removed, append newly uploaded ones
+      const finalImages = [...(editDraft.images || []), ...uploadedUrls];
+
+      const payload = {
+        sku: editDraft.sku.trim(),
+        name: editDraft.name.trim(),
+        category_id: Number(editDraft.category_id),
+        price: Number(editDraft.price),
+        original_price: editDraft.original_price ? Number(editDraft.original_price) : null,
+        stock: Number(editDraft.stock) || 0,
+        description: editDraft.description.trim(),
+        sizes: editDraft.sizes,
+        colors: (editDraft.colors || []).filter((c) => c.trim()),
+        images: finalImages,
+      };
+
+      await api.put(`/api/admin/products/${editingProductId}`, payload);
+
+      // Optimistically update local state immediately so UI reflects changes at once
+      const catName = categories.find((c) => c.id === payload.category_id)?.name || "";
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === editingProductId
+            ? { ...p, ...payload, category: catName }
+            : p
+        )
+      );
+      setStockDraft((prev) => ({ ...prev, [editingProductId]: payload.stock }));
+      cancelEdit();
+
+      // Background re-sync to catch any server-side transformations
+      api.get("/api/admin/products")
+        .then((res) => {
+          if (res.data) {
+            setProducts(res.data);
+            setStockDraft(Object.fromEntries(res.data.map((p) => [p.id, p.stock ?? 0])));
+          }
+        })
+        .catch(() => {});
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update product");
+    } finally {
+      setSavingEditId(null);
     }
   };
 
@@ -157,6 +297,7 @@ export default function AdminPage() {
         name: name.trim(),
         category_id: Number(category_id),
         price: Number(price),
+        original_price: productDraft.original_price ? Number(productDraft.original_price) : null,
         stock: Number(stock) || 0,
         description: description.trim(),
         sizes,
@@ -164,7 +305,7 @@ export default function AdminPage() {
         images: uploadedUrls,
       });
       setProductDraft({
-        sku: "", name: "", category_id: 11, price: "", stock: 0,
+        sku: "", name: "", category_id: categories[0]?.id || 0, price: "", original_price: "", stock: 0,
         description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
       });
       setShowAddProduct(false);
@@ -198,14 +339,16 @@ export default function AdminPage() {
 
   const kpis = useMemo(() => {
     return [
-      { label: "Products", value: reports?.totalProducts ?? products.length },
-      { label: "Orders", value: reports?.totalOrders ?? orders.length },
-      { label: "Revenue", value: `GBP ${Number(reports?.totalRevenue || 0).toFixed(2)}` },
-      { label: "Low Stock", value: reports?.lowStockCount ?? 0 },
-      { label: "Messages", value: messages.length },
-      { label: "Reviews", value: reviews.length },
+      { label: "Products", value: reports?.totalProducts ?? products.length, tab: "products" },
+      { label: "Orders", value: reports?.totalOrders ?? orders.length, tab: "orders" },
+      { label: "Refunds", value: reports?.totalRefundRequests ?? refunds.length, tab: "refunds" },
+      { label: "Revenue", value: `GBP ${Number(reports?.totalRevenue || 0).toFixed(2)}`, tab: "orders" },
+      { label: "Low Stock", value: reports?.lowStockCount ?? 0, tab: "stockAlerts" },
+      { label: "Pending Refunds", value: reports?.pendingRefundRequests ?? 0, tab: "refunds" },
+      { label: "Messages", value: messages.length, tab: "contacts" },
+      { label: "Reviews", value: reviews.length, tab: "reviews" },
     ];
-  }, [messages.length, orders.length, products.length, reports, reviews.length]);
+  }, [messages.length, orders.length, products.length, refunds.length, reports, reviews.length]);
 
   const outOfStockProducts = useMemo(
     () => products.filter((p) => Number(p.stock ?? 0) === 0),
@@ -221,12 +364,101 @@ export default function AdminPage() {
     [products, LOW_STOCK_LIMIT]
   );
 
+  const inRange = (dateValue, rangeKey) => {
+    if (!dateValue) return false;
+    if (rangeKey === "all") return true;
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return false;
+    const now = new Date();
+    const days = rangeKey === "7d" ? 7 : 30;
+    return now.getTime() - d.getTime() <= days * 24 * 60 * 60 * 1000;
+  };
+
+  const rangeOrders = useMemo(
+    () => orders.filter((o) => inRange(o.created_at, dashboardRange)),
+    [orders, dashboardRange]
+  );
+  const rangeRefunds = useMemo(
+    () => refunds.filter((r) => inRange(r.created_at, dashboardRange)),
+    [refunds, dashboardRange]
+  );
+  const rangeMessages = useMemo(
+    () => messages.filter((m) => inRange(m.created_at, dashboardRange)),
+    [messages, dashboardRange]
+  );
+
+  const rangeRevenue = useMemo(
+    () =>
+      rangeOrders.reduce(
+        (sum, o) => sum + Number(o.total_price || o.total || 0),
+        0
+      ),
+    [rangeOrders]
+  );
+
+  const needsActionItems = useMemo(() => {
+    const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
+    return [
+      {
+        label: "Out of stock products",
+        value: outOfStockProducts.length,
+        tab: "stockAlerts",
+        tone: outOfStockProducts.length > 0 ? "danger" : "secondary",
+      },
+      {
+        label: "Low stock products",
+        value: lowStockProducts.length,
+        tab: "stockAlerts",
+        tone: lowStockProducts.length > 0 ? "warning" : "secondary",
+      },
+      {
+        label: "Pending refunds",
+        value: pendingRefunds,
+        tab: "refunds",
+        tone: pendingRefunds > 0 ? "warning" : "secondary",
+      },
+      {
+        label: "Unread contact messages",
+        value: messages.length,
+        tab: "contacts",
+        tone: messages.length > 0 ? "info" : "secondary",
+      },
+    ];
+  }, [messages.length, outOfStockProducts.length, lowStockProducts.length, refunds]);
+
+  const recentActivity = useMemo(() => {
+    const orderItems = orders.map((o) => ({
+      key: `order-${o.id}`,
+      when: o.created_at,
+      text: `Order #${o.id} placed`,
+      tab: "orders",
+    }));
+    const refundItems = refunds.map((r) => ({
+      key: `refund-${r.id}`,
+      when: r.created_at,
+      text: `Refund #${r.id} is ${r.status || "pending"}`,
+      tab: "refunds",
+    }));
+    const messageItems = messages.map((m) => ({
+      key: `message-${m.id}`,
+      when: m.created_at,
+      text: `New contact message from ${m.name || m.email || "customer"}`,
+      tab: "contacts",
+    }));
+
+    return [...orderItems, ...refundItems, ...messageItems]
+      .filter((x) => x.when)
+      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
+      .slice(0, 8);
+  }, [orders, refunds, messages]);
+
   const tabs = [
     { key: "dashboard", label: "Dashboard",        icon: "bi-speedometer2" },
     { key: "products",  label: "Products",          icon: "bi-box-seam" },
     { key: "inventory", label: "Inventory",         icon: "bi-clipboard-data" },
     { key: "stockAlerts", label: "Stock Alerts",    icon: "bi-exclamation-triangle" },
     { key: "orders",    label: "Orders",            icon: "bi-bag-check" },
+    { key: "refunds",   label: "Refunds",           icon: "bi-arrow-counterclockwise" },
     { key: "reviews",   label: "Reviews",           icon: "bi-star" },
     { key: "contacts",  label: "Contact Messages",  icon: "bi-envelope" },
     { key: "users",     label: "Users",             icon: "bi-people" },
@@ -242,16 +474,16 @@ export default function AdminPage() {
 
   if (error) {
     return (
-      <div className="osai-admin page-container">
+      <div className="osai-admin page-container" style={{ paddingBottom: 160 }}>
         <div className="osai-alert osai-alert-error">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="osai-admin page-container">
-      <div className="row g-4">
-        <aside className="col-lg-2 col-md-3">
+    <div className="osai-admin page-container" style={{ paddingBottom: 160 }}>
+      <div className="row g-4" style={{ alignItems: "flex-start" }}>
+        <aside className="col-lg-2 col-md-3" style={{ alignSelf: "flex-start" }}>
           <div className="card border-0 shadow-sm" style={{ position: "sticky", top: 90 }}>
             <div className="card-body">
               <p className="osai-admin-sidebar-label">Navigation</p>
@@ -287,28 +519,123 @@ export default function AdminPage() {
           <div className="row g-3 mb-4">
             {kpis.map((kpi) => (
               <div key={kpi.label} className="col-xl-2 col-lg-4 col-md-6">
-                <div className="card border-0 shadow-sm h-100 kpi-card">
+                <button
+                  type="button"
+                  className="card border-0 shadow-sm h-100 kpi-card text-start w-100"
+                  onClick={() => setActiveTab(kpi.tab)}
+                  title={`Open ${kpi.label}`}
+                  style={{ cursor: "pointer", padding: 0, background: "none" }}
+                >
                   <div className="card-body" style={{ padding: "14px 16px" }}>
                     <div className="kpi-label">{kpi.label}</div>
                     <div className="kpi-value">{kpi.value}</div>
                   </div>
-                </div>
+                </button>
               </div>
             ))}
           </div>
 
           {activeTab === "dashboard" && (
-            <div className="card border-0 shadow-sm">
-              <div className="card-body">
-                <div className="osai-admin-tab-header">
-                  <h4 className="osai-admin-section-title">Overview</h4>
+            <div className="d-flex flex-column gap-3">
+              <div className="card border-0 shadow-sm">
+                <div className="card-body">
+                  <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <h4 className="osai-admin-section-title mb-0">Overview</h4>
+                    <div className="btn-group btn-group-sm" role="group" aria-label="Dashboard range">
+                      {[
+                        { key: "7d", label: "7D" },
+                        { key: "30d", label: "30D" },
+                        { key: "all", label: "All" },
+                      ].map((r) => (
+                        <button
+                          key={r.key}
+                          type="button"
+                          className={`btn ${dashboardRange === r.key ? "btn-dark" : "btn-outline-secondary"}`}
+                          onClick={() => setDashboardRange(r.key)}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="row g-2">
+                    <div className="col-md-4">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Orders</div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeOrders.length}</div>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Refund Requests</div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeRefunds.length}</div>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
+                        <div style={{ fontSize: 24, fontWeight: 700 }}>GBP {rangeRevenue.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2" style={{ color: "var(--sub)", fontSize: 12 }}>
+                    Contact messages in range: <strong>{rangeMessages.length}</strong>
+                  </div>
                 </div>
-                <p className="mb-1" style={{ color: "var(--sub)", fontSize: 14 }}>
-                  Use the sidebar to manage products, inventory, orders, reviews, contact messages, and users.
-                </p>
-                <p className="mb-0" style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>
-                  All actions on this panel are restricted to admin accounts only.
-                </p>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-lg-5">
+                  <div className="card border-0 shadow-sm h-100">
+                    <div className="card-body">
+                      <div className="osai-admin-tab-header">
+                        <h4 className="osai-admin-section-title">Needs Action</h4>
+                      </div>
+                      <div className="d-flex flex-column gap-2">
+                        {needsActionItems.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            className="btn btn-outline-secondary d-flex justify-content-between align-items-center"
+                            onClick={() => setActiveTab(item.tab)}
+                          >
+                            <span>{item.label}</span>
+                            <span className={`badge text-bg-${item.tone}`}>{item.value}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-lg-7">
+                  <div className="card border-0 shadow-sm h-100">
+                    <div className="card-body">
+                      <div className="osai-admin-tab-header">
+                        <h4 className="osai-admin-section-title">Recent Activity</h4>
+                      </div>
+                      {recentActivity.length === 0 ? (
+                        <p className="mb-0" style={{ color: "var(--sub)", fontSize: 13 }}>No recent activity yet.</p>
+                      ) : (
+                        <div className="d-flex flex-column gap-2">
+                          {recentActivity.map((a) => (
+                            <button
+                              key={a.key}
+                              type="button"
+                              className="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center"
+                              onClick={() => setActiveTab(a.tab)}
+                            >
+                              <span>{a.text}</span>
+                              <span style={{ color: "var(--sub)", fontSize: 12, whiteSpace: "nowrap" }}>
+                                {new Date(a.when).toLocaleDateString()}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -357,14 +684,12 @@ export default function AdminPage() {
                           value={productDraft.category_id}
                           onChange={(e) => setProductDraft((prev) => ({ ...prev, category_id: Number(e.target.value) }))}
                         >
-                          <option value={11}>Mens</option>
-                          <option value={12}>Womens</option>
-                          <option value={13}>Kids</option>
-                          <option value={14}>New Arrivals</option>
-                          <option value={15}>Sale</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
                         </select>
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
                         <label className="form-label">Price (GBP) *</label>
                         <input
                           type="number"
@@ -376,7 +701,19 @@ export default function AdminPage() {
                           onChange={(e) => setProductDraft((prev) => ({ ...prev, price: e.target.value }))}
                         />
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
+                        <label className="form-label">Original Price <small style={{ color: "var(--muted)" }}>(sale items)</small></label>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="form-control form-control-sm"
+                          placeholder="49.99"
+                          value={productDraft.original_price}
+                          onChange={(e) => setProductDraft((prev) => ({ ...prev, original_price: e.target.value }))}
+                        />
+                      </div>
+                      <div className="col-md-2">
                         <label className="form-label">Stock</label>
                         <input
                           type="number"
@@ -444,9 +781,12 @@ export default function AdminPage() {
                               placeholder={`Color ${idx + 1}`}
                               value={color}
                               onChange={(e) => {
-                                const next = [...productDraft.colors];
-                                next[idx] = e.target.value;
-                                setProductDraft((prev) => ({ ...prev, colors: next }));
+                                const val = e.target.value;
+                                setProductDraft((prev) => {
+                                  const next = [...(prev.colors || [])];
+                                  next[idx] = val;
+                                  return { ...prev, colors: next };
+                                });
                               }}
                             />
                           ))}
@@ -531,6 +871,150 @@ export default function AdminPage() {
                   </div>
                 )}
 
+                {/* ── Edit Product Form ── */}
+                {editingProductId && editDraft && (
+                  <div className="osai-admin-form-panel p-4 mb-4">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h5 className="mb-0">Edit Product #{editingProductId}</h5>
+                      <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit}>Cancel</button>
+                    </div>
+                    <div className="row g-3">
+                      <div className="col-md-4">
+                        <label className="form-label">SKU</label>
+                        <input className="form-control form-control-sm" value={editDraft.sku}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, sku: e.target.value }))} />
+                      </div>
+                      <div className="col-md-8">
+                        <label className="form-label">Name *</label>
+                        <input className="form-control form-control-sm" value={editDraft.name}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, name: e.target.value }))} />
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label">Category *</label>
+                        <select className="form-select form-select-sm" value={editDraft.category_id}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, category_id: Number(e.target.value) }))}>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Price (GBP) *</label>
+                        <input type="number" min="0.01" step="0.01" className="form-control form-control-sm"
+                          value={editDraft.price}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, price: e.target.value }))} />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">Original Price <small style={{ color: "var(--muted)" }}>(sale items)</small></label>
+                        <input type="number" min="0.01" step="0.01" className="form-control form-control-sm"
+                          placeholder="leave blank to remove sale"
+                          value={editDraft.original_price}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, original_price: e.target.value }))} />
+                      </div>
+                      <div className="col-md-2">
+                        <label className="form-label">Stock</label>
+                        <input type="number" min="0" className="form-control form-control-sm"
+                          value={editDraft.stock}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, stock: e.target.value }))} />
+                      </div>
+                      <div className="col-12">
+                        <label className="form-label">Description</label>
+                        <textarea className="form-control form-control-sm" rows={3}
+                          value={editDraft.description}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, description: e.target.value }))} />
+                      </div>
+                      <div className="col-12 osai-admin-form-section">
+                        <p className="osai-admin-form-section-label">Sizes</p>
+                        <div className="d-flex flex-wrap gap-2 mb-1">
+                          <small className="w-100" style={{ color: "var(--muted)", fontSize: 11 }}>Adult:</small>
+                          {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+                            <div key={size} className="form-check form-check-inline">
+                              <input type="checkbox" className="form-check-input" id={`edit-size-${size}`}
+                                checked={editDraft.sizes.includes(size)}
+                                onChange={() => toggleEditSize(size)} />
+                              <label className="form-check-label" htmlFor={`edit-size-${size}`}>{size}</label>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="d-flex flex-wrap gap-2 mt-2">
+                          <small className="w-100" style={{ color: "var(--muted)", fontSize: 11 }}>Kids:</small>
+                          {["5-6", "7-8", "9-10", "11-12"].map((size) => (
+                            <div key={size} className="form-check form-check-inline">
+                              <input type="checkbox" className="form-check-input" id={`edit-size-kids-${size}`}
+                                checked={editDraft.sizes.includes(size)}
+                                onChange={() => toggleEditSize(size)} />
+                              <label className="form-check-label" htmlFor={`edit-size-kids-${size}`}>{size}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-12 osai-admin-form-section">
+                        <label className="form-label">Colors</label>
+                        <div className="d-flex flex-wrap gap-2 align-items-center">
+                          {(editDraft.colors || []).map((color, idx) => (
+                            <input key={idx} className="form-control form-control-sm" style={{ width: 140 }}
+                              placeholder={`Color ${idx + 1}`} value={color}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditDraft((p) => {
+                                  const next = [...(p.colors || [])];
+                                  next[idx] = val;
+                                  return { ...p, colors: next };
+                                });
+                              }} />
+                          ))}
+                          {(editDraft.colors || []).length < 6 && (
+                            <button type="button" className="btn btn-outline-secondary btn-sm"
+                              onClick={() => setEditDraft((p) => ({ ...p, colors: [...(p.colors || []), ""] }))}>
+                              + Color
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="col-12 osai-admin-form-section">
+                        <label className="form-label">Current Images</label>
+                        <div className="d-flex flex-wrap gap-2 mb-2">
+                          {(editDraft.images || []).map((url, idx) => (
+                            <div key={idx} style={{ position: "relative" }}>
+                              <img src={url} alt={`img-${idx}`}
+                                style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 4, border: "1px solid var(--line)" }}
+                                onError={(e) => { e.target.style.display = "none"; }} />
+                              <button type="button"
+                                style={{ position: "absolute", top: -6, right: -6, background: "#e53935", border: "none", borderRadius: "50%", width: 18, height: 18, color: "#fff", fontSize: 10, lineHeight: "18px", padding: 0, cursor: "pointer" }}
+                                onClick={() => setEditDraft((p) => ({ ...p, images: p.images.filter((_, i) => i !== idx) }))}>
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {(editDraft.images || []).length === 0 && (
+                            <small style={{ color: "var(--muted)" }}>No images yet</small>
+                          )}
+                        </div>
+                        <label className="form-label">Upload New Images</label>
+                        <div className="d-flex flex-column gap-2">
+                          {(editDraft.newImageFiles || [null, null, null]).map((file, idx) => (
+                            <div key={idx} className="d-flex align-items-center gap-2">
+                              <input type="file" accept="image/*" className="form-control form-control-sm"
+                                onChange={(e) => {
+                                  const next = [...(editDraft.newImageFiles || [null, null, null])];
+                                  next[idx] = e.target.files[0] || null;
+                                  setEditDraft((p) => ({ ...p, newImageFiles: next }));
+                                }} />
+                              {file && <small style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>{file.name}</small>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <button className="btn btn-dark btn-sm me-2" onClick={saveEdit} disabled={savingEditId === editingProductId}>
+                          {savingEditId === editingProductId ? "Saving..." : "Save Changes"}
+                        </button>
+                        <button className="btn btn-outline-secondary btn-sm" onClick={cancelEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
@@ -540,33 +1024,58 @@ export default function AdminPage() {
                         <th>Name</th>
                         <th>Category</th>
                         <th>Price</th>
+                        <th>Sale Price</th>
                         <th>Stock</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {products.map((p) => (
-                        <tr key={p.id}>
+                        <tr key={p.id} style={editingProductId === p.id ? { background: "rgba(255,255,255,0.04)" } : {}}>
                           <td>{p.id}</td>
                           <td>{p.sku || "—"}</td>
-                          <td>{p.name}</td>
+                          <td>
+                            <Link
+                              to={`/product/${p.sku || p.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "var(--text)", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.2)", textUnderlineOffset: 3 }}
+                            >
+                              {p.name}
+                            </Link>
+                          </td>
                           <td>{p.category || "—"}</td>
-                          <td>£{Number(p.price || 0).toFixed(2)}</td>
+                          <td>
+                            {p.original_price
+                              ? <><span style={{ textDecoration: "line-through", color: "#888", fontSize: 12 }}>£{Number(p.original_price).toFixed(2)}</span>{" "}</>
+                              : null}
+                            £{Number(p.price || 0).toFixed(2)}
+                          </td>
+                          <td>{p.original_price ? `£${Number(p.price || 0).toFixed(2)}` : "—"}</td>
                           <td>{p.stock ?? 0}</td>
                           <td>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => deleteProduct(p.id)}
-                              disabled={deletingProductId === p.id}
-                            >
-                              {deletingProductId === p.id ? "Deleting..." : "Delete"}
-                            </button>
+                            <div className="d-flex gap-1">
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => startEdit(p)}
+                                disabled={deletingProductId === p.id}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => deleteProduct(p.id)}
+                                disabled={deletingProductId === p.id}
+                              >
+                                {deletingProductId === p.id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                       {products.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="text-center text-muted">No products found.</td>
+                          <td colSpan={8} className="text-center text-muted">No products found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -782,7 +1291,7 @@ export default function AdminPage() {
                         <th>Email</th>
                         <th>Total</th>
                         <th>Current Status</th>
-                        <th>Update Status</th>
+                        <th style={{ minWidth: 170 }}>Update Status</th>
                         <th>Date</th>
                         <th>Action</th>
                       </tr>
@@ -799,9 +1308,10 @@ export default function AdminPage() {
                               {orderStatusDraft[o.id] || "pending"}
                             </span>
                           </td>
-                          <td style={{ width: 150 }}>
+                          <td style={{ minWidth: 170 }}>
                             <select
                               className="form-select form-select-sm"
+                              style={{ minWidth: 160, color: "var(--text)", backgroundColor: "var(--bg-surface)" }}
                               value={orderStatusDraft[o.id] || "pending"}
                               onChange={(e) =>
                                 setOrderStatusDraft((prev) => ({ ...prev, [o.id]: e.target.value }))
@@ -830,6 +1340,108 @@ export default function AdminPage() {
                       ))}
                       {orders.length === 0 && (
                         <tr><td colSpan={8} className="text-center" style={{ color: "var(--sub)" }}>No orders yet.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "refunds" && (
+            <div className="card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Refund Requests</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{refunds.length} requests</span>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle">
+                    <thead className="table-light">
+                      <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Order</th>
+                        <th>Reason</th>
+                        <th style={{ minWidth: 170 }}>Status</th>
+                        <th>Admin Note</th>
+                        <th>Instructions Link / QR URL</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {refunds.map((r) => (
+                        <tr key={r.id}>
+                          <td>#{r.id}</td>
+                          <td>{r.user_name || "-"}</td>
+                          <td style={{ color: "var(--sub)" }}>{r.user_email || "-"}</td>
+                          <td>#{r.order_id}</td>
+                          <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.reason}
+                          </td>
+                          <td style={{ minWidth: 190 }}>
+                            <div className="d-flex flex-column gap-2">
+                              <span className={`osai-status osai-status-${refundStatusDraft[r.id] || "pending"}`}>
+                                {refundStatusDraft[r.id] || "pending"}
+                              </span>
+                              <select
+                                className="form-select form-select-sm"
+                                style={{ minWidth: 170, color: "var(--text)", backgroundColor: "var(--bg-surface)" }}
+                                value={refundStatusDraft[r.id] || "pending"}
+                                onChange={(e) =>
+                                  setRefundStatusDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                }
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="processing">Processing</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="refunded">Refunded</option>
+                              </select>
+                            </div>
+                          </td>
+                          <td style={{ minWidth: 220 }}>
+                            <input
+                              className="form-control form-control-sm"
+                              placeholder="Optional note for customer"
+                              value={refundAdminNoteDraft[r.id] || ""}
+                              onChange={(e) =>
+                                setRefundAdminNoteDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                              }
+                            />
+                          </td>
+                          <td style={{ minWidth: 220 }}>
+                            <input
+                              className="form-control form-control-sm"
+                              placeholder="https://... (return label/QR)"
+                              value={refundInstructionLinkDraft[r.id] || ""}
+                              onChange={(e) =>
+                                setRefundInstructionLinkDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                              }
+                            />
+                          </td>
+                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                            {r.created_at ? new Date(r.created_at).toLocaleDateString() : "-"}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-sm btn-dark"
+                              onClick={() => updateRefundStatus(r.id)}
+                              disabled={savingRefundId === r.id}
+                            >
+                              {savingRefundId === r.id ? "Saving..." : "Save"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {refunds.length === 0 && (
+                        <tr>
+                          <td colSpan={10} className="text-center" style={{ color: "var(--sub)" }}>
+                            No refund requests yet.
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>

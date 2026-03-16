@@ -33,6 +33,19 @@ body {
 }
 a { color: inherit; text-decoration: none }
 
+/* ─── MOBILE: PREVENT iOS AUTO-ZOOM ON INPUT FOCUS ──────────────────────── */
+/* iOS Safari zooms in when input font-size < 16px and never zooms back out.
+   Force 16px on mobile so this never triggers.                               */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+/* Prevent double-tap zoom delay on all tappable elements */
+a, button, [role="button"] {
+  touch-action: manipulation;
+}
+
 /* ─── NAVBAR ─────────────────────────────────────────────────────────────── */
 .osai-header {
   position: sticky;
@@ -137,6 +150,7 @@ a { color: inherit; text-decoration: none }
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Search form — pill style */
@@ -201,6 +215,88 @@ a { color: inherit; text-decoration: none }
 }
 .osai-action-btn i { font-size: 20px }
 
+/* ─── PROFILE DROPDOWN ───────────────────────────────────────────────────── */
+.osai-profile-trigger {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 4px;
+  transition: background 0.15s, border-color 0.15s;
+  color: rgba(255,255,255,0.75);
+  font-family: var(--font-body);
+}
+.osai-profile-trigger:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.22);
+}
+.osai-profile-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.osai-profile-avatar-lg {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.osai-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #bbb;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  font-family: var(--font-body);
+}
+.osai-dropdown-item:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+.osai-dropdown-item i {
+  font-size: 15px;
+  color: #555;
+  width: 17px;
+  text-align: center;
+  transition: color 0.12s;
+}
+.osai-dropdown-item:hover i {
+  color: #999;
+}
+.osai-dropdown-item.danger { color: #f87171 }
+.osai-dropdown-item.danger i { color: #ef4444 }
+.osai-dropdown-item.danger:hover { background: rgba(239,68,68,0.08); color: #f87171 }
+.osai-dropdown-item.danger:hover i { color: #f87171 }
+
 /* Cart / wishlist badge */
 .osai-badge {
   position: absolute;
@@ -233,7 +329,6 @@ a { color: inherit; text-decoration: none }
   cursor: pointer;
   padding: 6px;
   gap: 5px;
-  order: -1;
 }
 
 .osai-hamburger-icon,
@@ -299,6 +394,20 @@ a { color: inherit; text-decoration: none }
   background: rgba(255,255,255,0.07);
   color: #fff;
 }
+/* Section label inside mobile menu */
+.osai-mobile-section-label {
+  display: block;
+  padding: 16px 24px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #444;
+  font-family: var(--font-body);
+}
+/* Sign-out link uses red tint */
+.osai-mobile-link.danger { color: #f87171 }
+.osai-mobile-link.danger:hover { background: rgba(248,113,113,0.08); color: #f87171 }
 
 /* Mobile — hide nav links, show only icons + search */
 @media (max-width: 1024px) {
@@ -308,8 +417,101 @@ a { color: inherit; text-decoration: none }
 @media (max-width: 768px) {
   .osai-nav-links { display: none }
   .osai-hamburger { display: flex }
-  .osai-search { width: 160px }
-  .osai-search:focus-within { width: 200px }
+  .osai-nav-actions { gap: 4px; margin-left: auto }
+  .osai-search { width: 120px }
+  .osai-search:focus-within { width: 150px }
+  /* Profile pill: strip name + chevron, show just the avatar circle */
+  .osai-profile-trigger { border: none; padding: 4px; border-radius: 50%; gap: 0 }
+  .osai-profile-trigger-name,
+  .osai-profile-trigger-chevron { display: none }
+  /* Login: icon only */
+  .osai-login-label { display: none }
+}
+
+@media (max-width: 520px) {
+  .osai-nav-inner { padding: 0 12px !important }
+  .osai-nav-actions { gap: 2px }
+  .osai-search { width: 100px }
+  .osai-search:focus-within { width: 130px }
+  .osai-action-btn { padding: 6px 8px }
+  .osai-action-btn i { font-size: 20px }
+  .osai-profile-trigger { padding: 4px }
+  .osai-profile-avatar { width: 26px; height: 26px; font-size: 11px }
+  .osai-hamburger { width: 36px; height: 36px }
+  /* Profile dropdown: never overflow viewport */
+  .osai-profile-trigger + div,
+  [data-profile-dropdown] {
+    right: -8px;
+    left: auto;
+    max-width: calc(100vw - 24px);
+  }
+}
+
+/* ─── MOBILE SEARCH (inside mobile menu) ────────────────────────────────── */
+.osai-mobile-search-item { list-style: none; padding: 0 }
+.osai-mobile-search {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 12px 16px 4px;
+}
+.osai-mobile-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  font-family: var(--font-body);
+}
+.osai-mobile-search input::placeholder { color: #555 }
+.osai-mobile-search button {
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.osai-mobile-search button:hover { color: #fff }
+
+/* ─── GLOBAL PAGE PADDING ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .page-container { padding: 28px 16px 60px }
+  .container { padding: 0 16px !important }
+}
+@media (max-width: 480px) {
+  .page-container { padding: 20px 12px 60px }
+  .container { padding: 0 12px !important }
+}
+
+/* ─── TABLE HORIZONTAL SCROLL ON MOBILE ──────────────────────────────── */
+@media (max-width: 768px) {
+  .table-responsive, .table-responsive-osai {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+    width: 100%;
+  }
+  /* Wrap any Bootstrap table in scroll */
+  .osai-admin table,
+  .card table,
+  .table {
+    min-width: 600px;
+  }
+}
+
+/* ─── PRODUCT PAGE MOBILE ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .product { gap: 24px }
+}
+@media (max-width: 480px) {
+  /* Thumbnail strip wraps nicely */
+  .d-flex.gap-2 { flex-wrap: wrap }
 }
 
 /* ─── MAIN CONTENT ───────────────────────────────────────────────────────── */
@@ -865,6 +1067,7 @@ select:focus, .btn:focus { box-shadow: var(--focus) }
 /* ─── ADMIN THEME OVERRIDES ─────────────────────────────────────────────── */
 .osai-admin {
   min-height: 70vh;
+  padding-bottom: 120px;
 }
 .osai-admin-muted { color: var(--sub); font-size: 13px }
 
@@ -1142,6 +1345,9 @@ select:focus, .btn:focus { box-shadow: var(--focus) }
 .osai-status-shipped    { background: rgba(167,139,250,0.12); color: #a78bfa; border-color: rgba(167,139,250,0.3) }
 .osai-status-delivered  { background: rgba(74,222,128,0.12);  color: #4ade80; border-color: rgba(74,222,128,0.3) }
 .osai-status-cancelled  { background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.3) }
+.osai-status-approved   { background: rgba(74,222,128,0.12);  color: #4ade80; border-color: rgba(74,222,128,0.3) }
+.osai-status-rejected   { background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.3) }
+.osai-status-refunded   { background: rgba(167,139,250,0.12); color: #a78bfa; border-color: rgba(167,139,250,0.3) }
 
 /* Divider between tab header and content */
 .osai-admin-tab-header {
@@ -1255,6 +1461,30 @@ textarea.form-control { background-color: var(--bg-surface) !important; color: v
 .badge.bg-secondary { background: var(--bg-surface) !important; color: var(--sub) !important }
 span.badge:not(.osai-badge) { background: var(--bg-surface) !important; color: var(--sub) !important; border: 1px solid var(--line) }
 
+/* Stock visibility pills */
+.osai-stock-pill {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  line-height: 1;
+}
+.osai-stock-pill-soldout {
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.28);
+  border-color: rgba(248, 113, 113, 0.7);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2) inset;
+}
+.osai-stock-pill-low {
+  color: #fde68a;
+  background: rgba(180, 83, 9, 0.26);
+  border-color: rgba(251, 191, 36, 0.7);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.15) inset;
+}
 /* Quantity input in cart */
 input[type="number"] {
   background-color: var(--bg-surface) !important;

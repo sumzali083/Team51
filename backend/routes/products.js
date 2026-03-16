@@ -22,15 +22,29 @@ function catFromCategoryName(categoryName) {
   return s.replace(/\s+/g, "");
 }
 
-// This query assembles product into arrays via GROUP_CONCAT.
-// Works on most MySQL versions (no JSON_ARRAYAGG needed).
-const BASE_SELECT = `
+// Cache whether original_price column exists (checked once per process)
+let _hasOriginalPrice = null;
+async function hasOriginalPriceCol() {
+  if (_hasOriginalPrice !== null) return _hasOriginalPrice;
+  const [rows] = await db.query(
+    `SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'original_price' LIMIT 1`
+  );
+  _hasOriginalPrice = rows.length > 0;
+  return _hasOriginalPrice;
+}
+
+function buildBaseSelect(includeOriginalPrice) {
+  const opCol = includeOriginalPrice ? "p.original_price," : "NULL AS original_price,";
+  return `
   SELECT
     p.id AS db_id,
     p.sku AS id,
     c.name AS category_name,
     p.name,
     p.price,
+    p.stock,
+    ${opCol}
     p.description AS \`desc\`,
     GROUP_CONCAT(DISTINCT pi.url ORDER BY pi.sort_order SEPARATOR '||') AS images,
     GROUP_CONCAT(DISTINCT ps.size ORDER BY ps.size SEPARATOR '||') AS sizes,
@@ -41,6 +55,7 @@ const BASE_SELECT = `
   LEFT JOIN product_sizes  ps ON ps.product_id = p.id
   LEFT JOIN product_colors pc ON pc.product_id = p.id
 `;
+}
 
 function buildProductRow(r) {
   return {
@@ -49,6 +64,8 @@ function buildProductRow(r) {
     cat: catFromCategoryName(r.category_name),
     name: r.name,
     price: Number(r.price),
+    stock: Number(r.stock ?? 0),
+    originalPrice: r.original_price != null ? Number(r.original_price) : null,
     desc: r.desc,
     images: splitList(r.images),
     sizes: splitList(r.sizes),
@@ -70,16 +87,28 @@ router.get("/", async (req, res) => {
 
   const where = [];
   const params = [];
+  let orderBy = "ORDER BY p.id ASC";
+  let limitSql = "";
 
-  if (cat) {
+  if (cat === "sale") {
+    // If original_price column doesn't exist, return empty so frontend uses local fallback
+    const saleHasOP = await hasOriginalPriceCol();
+    if (!saleHasOP) return res.json([]);
+    // Only pull from real product categories, not the "Sale" DB category
+    where.push("p.original_price IS NOT NULL");
+    where.push("c.name IN ('Mens', 'Womens', 'Kids')");
+    limitSql = "LIMIT 6";
+  } else if (cat === "newarrivals") {
+    // 6 most recently added products from real categories only (not "New Arrivals" or "Sale" DB categories)
+    where.push("c.name IN ('Mens', 'Womens', 'Kids')");
+    orderBy = "ORDER BY p.id DESC";
+    limitSql = "LIMIT 6";
+  } else if (cat) {
     // map frontend cat to category names in DB
     if (cat === "men") where.push("c.name = 'Mens'");
     else if (cat === "women") where.push("c.name = 'Womens'");
     else if (cat === "kids") where.push("c.name = 'Kids'");
-    else if (cat === "newarrivals") where.push("c.name = 'New Arrivals'");
-    else if (cat === "sale") where.push("c.name = 'Sale'");
     else {
-      // fallback: try match category name directly
       where.push("LOWER(c.name) = ?");
       params.push(cat);
     }
@@ -95,11 +124,16 @@ router.get("/", async (req, res) => {
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  const hasOP = await hasOriginalPriceCol();
+  const BASE_SELECT = buildBaseSelect(hasOP);
+  const opGroup = hasOP ? "p.original_price," : "";
+
   const sql = `
     ${BASE_SELECT}
     ${whereSql}
-    GROUP BY p.id, p.sku, c.name, p.name, p.price, p.description
-    ORDER BY p.id ASC
+    GROUP BY p.id, p.sku, c.name, p.name, p.price, p.stock, ${opGroup} p.description
+    ${orderBy}
+    ${limitSql}
   `;
 
   try {
@@ -125,10 +159,14 @@ router.get("/:id", async (req, res) => {
   const where = isNumeric ? "p.id = ?" : "p.sku = ?";
   const param = isNumeric ? Number(raw) : raw;
 
+  const hasOP = await hasOriginalPriceCol();
+  const BASE_SELECT = buildBaseSelect(hasOP);
+  const opGroup = hasOP ? "p.original_price," : "";
+
   const sql = `
     ${BASE_SELECT}
     WHERE ${where}
-    GROUP BY p.id, p.sku, c.name, p.name, p.price, p.description
+    GROUP BY p.id, p.sku, c.name, p.name, p.price, p.stock, ${opGroup} p.description
     LIMIT 1
   `;
 

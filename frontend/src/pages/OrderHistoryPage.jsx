@@ -1,59 +1,137 @@
-import React, {useEffect, useState} from "react";
-export default function OrderHistory(){
-    var[orders, setOrders] = useState([]);
+import React, { useContext, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api";
+import { AuthContext } from "../context/AuthContext";
 
-    useEffect(function(){
-        fetch("/api/orders/history", {
-            credentials: "include"
-        })
-            .then(function(res){
-                return res.json();
-            })
+function refundBadgeClass(status) {
+  if (status === "refunded") return "text-bg-success";
+  if (status === "approved" || status === "processing") return "text-bg-info";
+  if (status === "rejected") return "text-bg-danger";
+  return "text-bg-secondary";
+}
 
-            .then(function(data){
-                setOrders(data);
-            })
+function refundButtonLabel(status) {
+  if (status === "pending") return "Refund requested";
+  if (status === "approved" || status === "processing") return "Refund in progress";
+  if (status === "refunded") return "Refund completed";
+  if (status === "rejected") return "Request again";
+  return "Request refund";
+}
 
-            .catch(function(err){
-                console.error(err);
-            })
-    }, []);
+export default function OrderHistoryPage() {
+  const { user, loading: authLoading } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    return(
-        <div className="container mt-4">
-            <h2 className="mb-4">Order History</h2>
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-            {orders.length===0 &&(
-                <div className="alert alert-info">You have placed no orders</div>
-            )}
+    async function fetchOrderHistory() {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await api.get("/api/orders/history");
+        setOrders(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
+        setError("Could not load order history right now.");
+      } finally {
+        setLoading(false);
+      }
+    }
 
-            {orders.map(function(order){
-                return (
-                    <div key={order.id} className="mb-5">
-                        <h5 className="mb-3">
-                            Order #{order.id} - £{Number(order.total_price).toFixed(2)}
-                        </h5>
+    fetchOrderHistory();
+  }, [authLoading, user, navigate]);
 
-                        <div className="row g-4">
-                            {order.items.map(function(item, index){
-                                const image =
-                                    item.image || (item.images && item.images[0]) || "/images/placeholder.jpg";
-                                        return(
-                                            <div key={index} className="col-md-4">
-                                                <div className="card h-100 shadow-sm">
-                                                    <img src={image} className="card-image-top" alt={item.name}/>
-                                                    <div className="card-body d-flex flex-column">
-                                                        <h5 className="card-title">{item.name}</h5>
-                                                        <p className="card-tect fw-bold">£{Number(item.price_each).toFixed(2)}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                            })}
-                        </div>
-                    </div>
-                );
-            })}
+  if (authLoading || loading) {
+    return <div className="container mt-4">Loading order history...</div>;
+  }
+
+  return (
+    <div className="container mt-4 mb-5">
+      <h2 className="mb-4">Order History</h2>
+
+      {error && <div className="alert alert-danger">{error}</div>}
+
+      {!error && orders.length === 0 && (
+        <div className="alert alert-info">
+          You have not placed any orders yet. <Link to="/mens">Start shopping</Link>.
         </div>
-    );
+      )}
+
+      {orders.map((order) => (
+        <div key={order.id} className="mb-5">
+          <div className="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <h5 className="mb-1">
+                Order #{order.id} - £{Number(order.total_price || 0).toFixed(2)}
+              </h5>
+              {order.refund && (
+                <span className={`badge ${refundBadgeClass(order.refund.status)}`}>
+                  Refund: {order.refund.status}
+                </span>
+              )}
+            </div>
+            <Link
+              to={`/refunds?orderId=${encodeURIComponent(order.id)}`}
+              className="btn btn-sm btn-outline-light"
+            >
+              {refundButtonLabel(order.refund?.status)}
+            </Link>
+          </div>
+
+          {order.refund && (
+            <div className="alert alert-secondary py-2 px-3 mb-3">
+              <div style={{ fontSize: 14 }}>
+                <strong>Refund update:</strong> {order.refund.admin_note || "No admin note yet."}
+              </div>
+              {order.refund.instruction_link && (
+                <a
+                  href={order.refund.instruction_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 13 }}
+                >
+                  Open return instructions / QR link
+                </a>
+              )}
+            </div>
+          )}
+
+          <div className="row g-4">
+            {(order.items || []).map((item, index) => {
+              const image =
+                item.image ||
+                (Array.isArray(item.images) ? item.images[0] : null) ||
+                "/images/placeholder.jpg";
+              return (
+                <div key={`${order.id}-${item.product_id}-${index}`} className="col-md-4">
+                  <div className="card h-100 shadow-sm">
+                    <img src={image} className="card-img-top" alt={item.name} />
+                    <div className="card-body d-flex flex-column">
+                      <h5 className="card-title">{item.name}</h5>
+                      <p className="card-text fw-bold">
+                        £{Number(item.price_each || 0).toFixed(2)}
+                      </p>
+                      <p className="mb-0 text-muted">Qty: {item.quantity}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

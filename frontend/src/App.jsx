@@ -27,6 +27,8 @@ import { ResetPassword } from "./components/ResetPassword";
 import { ChangePassword } from "./components/ChangePassword";
 import { RequireAdmin } from "./components/RequireAdmin";
 import AdminPage from "./pages/AdminPage";
+import OrderHistoryPage from "./pages/OrderHistoryPage";
+import RefundPage from "./pages/RefundPage";
 
 export default function App() {
   console.log("DEBUG: App.jsx is rendering");
@@ -51,6 +53,8 @@ export default function App() {
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/wishlist" element={<WishlistPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/orders" element={<OrderHistoryPage />} />
+                <Route path="/refunds" element={<RefundPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

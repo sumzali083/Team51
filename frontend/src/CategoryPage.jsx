@@ -39,10 +39,44 @@ export function CategoryPage({ cat, pageTitle }) {
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("featured");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [cartMsg, setCartMsg] = useState("");
+  const [cartMsgType, setCartMsgType] = useState("success");
+  const catMap = React.useMemo(
+    () => ({
+      Mens: "men",
+      Womens: "women",
+      Kids: "kids",
+      "New Arrivals": "newarrivals",
+      Sale: "sale",
+    }),
+    []
+  );
+  const catKey = (catMap[pageTitle] || cat || pageTitle.toLowerCase()).toLowerCase();
+  const normalizeName = React.useCallback(
+    (name) =>
+      String(name || "")
+        .toLowerCase()
+        .replace(/[\u2019']/g, "")
+        .replace(/\s*-\s*sale\s*$/i, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim(),
+    []
+  );
   const localById = React.useMemo(
     () => Object.fromEntries(PRODUCTS.map((p) => [String(p.id), p])),
     []
   );
+  const localByName = React.useMemo(
+    () => Object.fromEntries(PRODUCTS.map((p) => [normalizeName(p.name), p])),
+    [normalizeName]
+  );
+  const localProductsForCategory = React.useMemo(() => {
+    if (catKey === "sale")
+      return PRODUCTS.filter((p) => p.originalPrice).slice(0, 6);
+    if (catKey === "newarrivals")
+      return PRODUCTS.filter((p) => p.isNewArrival).slice(0, 6);
+    return PRODUCTS.filter((p) => p.cat === catKey);
+  }, [catKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,24 +87,23 @@ export function CategoryPage({ cat, pageTitle }) {
 
       try {
         // Try to fetch from backend API first
-        const res = await api.get("/api/products", {
-          params: { cat: cat || (pageTitle === "Mens" ? "men" : pageTitle === "Womens" ? "women" : pageTitle === "Kids" ? "kids" : pageTitle === "New Arrivals" ? "newarrivals" : pageTitle === "Sale" ? "sale" : pageTitle.toLowerCase()) },
-        });
+        const res = await api.get("/api/products", { params: { cat: catKey } });
 
         if (!cancelled) {
-          const apiProducts = (res.data || []).map((apiProduct) => {
+          const apiProducts = (res.data || []).map((apiProduct, index) => {
+            const fallbackByIndex =
+              localProductsForCategory[index % localProductsForCategory.length];
             const localMatch =
               localById[String(apiProduct.id)] ||
-              PRODUCTS.find((p) => p.name === apiProduct.name);
-
-            if (!localMatch) return apiProduct;
+              localByName[normalizeName(apiProduct.name)] ||
+              fallbackByIndex;
 
             const hasImage =
               apiProduct.image ||
               apiProduct.image_url ||
               (Array.isArray(apiProduct.images) && apiProduct.images.length > 0);
 
-            if (hasImage) return apiProduct;
+            if (hasImage || !localMatch) return apiProduct;
 
             // Backfill missing media fields from local dataset
             return {
@@ -83,42 +116,17 @@ export function CategoryPage({ cat, pageTitle }) {
           
           // If API returns empty array (DB not connected), use fallback
           if (apiProducts.length === 0) {
-            const catMap = { Mens: "men", Womens: "women", Kids: "kids", "New Arrivals": "newarrivals", Sale: "sale" };
-            const catKey = catMap[pageTitle] || cat || pageTitle.toLowerCase();
-            const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
-            console.log("API returned empty — using local PRODUCTS fallback:", localProducts.length);
+            const localProducts = localProductsForCategory;
             setProducts(localProducts);
           } else {
             setProducts(apiProducts);
           }
         }
       } catch (err) {
-        console.error("API failed — using local PRODUCTS fallback", err);
+        console.error("API failed - using local PRODUCTS fallback", err);
         // Fallback to local data if API fails
         if (!cancelled) {
-          const catMap = { Mens: "men", Womens: "women", Kids: "kids", "New Arrivals": "newarrivals", Sale: "sale" };
-          const catKey = catMap[pageTitle] || cat || pageTitle.toLowerCase();
-
-          if (catKey === "newarrivals" || catKey === "sale") {
-            const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-            const menProducts = shuffle(PRODUCTS.filter((p) => p.cat === "men"));
-            const womenProducts = shuffle(PRODUCTS.filter((p) => p.cat === "women"));
-            const kidsProducts = shuffle(PRODUCTS.filter((p) => p.cat === "kids"));
-
-            const mixed = [
-              womenProducts[0],
-              menProducts[0],
-              kidsProducts[0],
-              womenProducts[1],
-              kidsProducts[1],
-              menProducts[1],
-            ].filter(Boolean);
-
-            setProducts(mixed);
-          } else {
-            const localProducts = PRODUCTS.filter((p) => p.cat === catKey);
-            setProducts(localProducts);
-          }
+          setProducts(localProductsForCategory);
         }
       } finally {
         if (!cancelled) {
@@ -131,7 +139,7 @@ export function CategoryPage({ cat, pageTitle }) {
     return () => {
       cancelled = true;
     };
-  }, [cat, pageTitle]);
+  }, [catKey, localById, localByName, localProductsForCategory, normalizeName]);
 
   // Apply sorting when products or sortBy changes
   useEffect(() => {
@@ -142,9 +150,14 @@ export function CategoryPage({ cat, pageTitle }) {
     } else if (sortBy === "price-high-low") {
       sorted.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
     } else if (sortBy === "newest") {
+      const extractId = (value) => {
+        const s = String(value || "");
+        const numeric = s.match(/(\d+)(?!.*\d)/);
+        return numeric ? Number(numeric[1]) : 0;
+      };
       sorted.sort((a, b) => {
-        const aId = a.id ? String(a.id).charCodeAt(String(a.id).length - 1) : 0;
-        const bId = b.id ? String(b.id).charCodeAt(String(b.id).length - 1) : 0;
+        const aId = extractId(a.id);
+        const bId = extractId(b.id);
         return bId - aId;
       });
     }
@@ -155,6 +168,15 @@ export function CategoryPage({ cat, pageTitle }) {
   const handleSortSelect = (option) => {
     setSortBy(option);
     setIsDropdownOpen(false);
+  };
+
+  const handleAddToCart = async (product) => {
+    const result = await addToCart(product);
+    if (result && result.message) {
+      setCartMsg(result.message);
+      setCartMsgType(result.ok ? "success" : "danger");
+      setTimeout(() => setCartMsg(""), 3000);
+    }
   };
 
   if (loading) {
@@ -247,6 +269,12 @@ export function CategoryPage({ cat, pageTitle }) {
         </div>
       </div>
 
+      {cartMsg && (
+        <div className={`alert alert-${cartMsgType}`} role="alert">
+          {cartMsg}
+        </div>
+      )}
+
       <motion.div
         className="row g-4"
         variants={gridVariants}
@@ -258,6 +286,12 @@ export function CategoryPage({ cat, pageTitle }) {
           const hoverImg = (product.images && product.images[1]) || img;
           const isHovered = hoveredProductId === product.id;
           const price = Number(product.price || 0);
+          const originalPrice = product.originalPrice ? Number(product.originalPrice) : null;
+          const discountPct = originalPrice ? Math.round((1 - price / originalPrice) * 100) : null;
+          const stock = Number(product.stock);
+          const hasStockInfo = Number.isFinite(stock);
+          const isSoldOut = hasStockInfo && stock <= 0;
+          const isLowStock = hasStockInfo && stock > 0 && stock <= 5;
 
           return (
             <motion.div key={product.id} className="col-md-4" variants={cardVariants}>
@@ -302,15 +336,49 @@ export function CategoryPage({ cat, pageTitle }) {
                   <Link to={`/product/${product.id}`} className="text-decoration-none">
                     <h5 className="card-title">{product.name}</h5>
                   </Link>
-                  <p className="card-text fw-bold" style={{ color: '#fff' }}>
-                    £{price.toFixed(2)}
-                  </p>
+                  <div style={{ marginBottom: 8 }}>
+                    {originalPrice ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ color: '#888', fontSize: 13, textDecoration: 'line-through' }}>
+                          £{originalPrice.toFixed(2)}
+                        </span>
+                        <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>
+                          £{price.toFixed(2)}
+                        </span>
+                        <span style={{
+                          background: '#e53935',
+                          color: '#fff',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          padding: '2px 7px',
+                          borderRadius: 3,
+                        }}>
+                          -{discountPct}%
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="card-text fw-bold mb-0" style={{ color: '#fff' }}>
+                        £{price.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                  {hasStockInfo && (isSoldOut || isLowStock) && (
+                    <div className="mb-2">
+                      {isSoldOut ? (
+                        <span className="osai-stock-pill osai-stock-pill-soldout">Sold out</span>
+                      ) : isLowStock ? (
+                        <span className="osai-stock-pill osai-stock-pill-low">Low stock: {stock} left</span>
+                      ) : null}
+                    </div>
+                  )}
                   <div className="d-grid gap-2 mt-auto">
                     <button
                       className="btn btn-dark"
-                      onClick={() => addToCart(product)}
+                      onClick={() => handleAddToCart(product)}
+                      disabled={isSoldOut}
                     >
-                      Add to Basket
+                      {isSoldOut ? "Sold Out" : "Add to Basket"}
                     </button>
                     <button
                       className="btn btn-outline-danger"
@@ -332,3 +400,4 @@ export function CategoryPage({ cat, pageTitle }) {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { CartContext } from "./context/CartContext";
 import { AuthContext } from "./context/AuthContext";
@@ -8,12 +8,26 @@ import Chatbot from "./components/Chatbot";
 export function Layout() {
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     setMenuOpen(false);
+    setProfileOpen(false);
   }, [location.pathname]);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    function handleOutside(e) {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
   const { user, logout } = useContext(AuthContext);
 
   const handleLogout = async () => {
@@ -42,15 +56,6 @@ export function Layout() {
             <NavLink className="navbar-brand osai-brand" to="/">
               <img src="/images/logo.png" alt="OSAI" />
             </NavLink>
-
-            <button
-              className="osai-hamburger"
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((o) => !o)}
-            >
-              <span className={`osai-hamburger-icon${menuOpen ? " open" : ""}`} />
-            </button>
 
             <ul className="osai-nav-links">
               {[
@@ -114,52 +119,6 @@ export function Layout() {
                 </button>
               </form>
 
-              {user ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span
-                    onClick={user.is_admin ? () => navigate("/admin") : undefined}
-                    style={{
-                      fontSize: 13,
-                      color: "rgba(255,255,255,0.8)",
-                      fontFamily: "var(--font-body)",
-                      maxWidth: 100,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      cursor: user.is_admin ? "pointer" : "default",
-                    }}
-                  >
-                    {user.name}
-                  </span>
-                  {user.is_admin && (
-                    <NavLink to="/admin" className="osai-action-btn" title="Admin">
-                      <i className="bi bi-speedometer2" />
-                    </NavLink>
-                  )}
-                  <NavLink
-                    to="/account/change-password"
-                    className="osai-action-btn"
-                    title="Change password"
-                  >
-                    <i className="bi bi-key" />
-                  </NavLink>
-                  <button
-                    onClick={handleLogout}
-                    className="osai-action-btn"
-                    style={{ border: "none", cursor: "pointer", background: "transparent" }}
-                    aria-label="Logout"
-                    title="Logout"
-                  >
-                    <i className="bi bi-box-arrow-right" />
-                  </button>
-                </div>
-              ) : (
-                <NavLink to="/login" className="osai-action-btn">
-                  <i className="bi bi-person" />
-                  <span className="d-none d-xl-inline">Login</span>
-                </NavLink>
-              )}
-
               <NavLink
                 to="/wishlist"
                 className="osai-action-btn"
@@ -177,6 +136,96 @@ export function Layout() {
                 <i className="bi bi-bag" />
                 {totalItems > 0 && <span className="osai-badge">{totalItems}</span>}
               </NavLink>
+
+              {user ? (
+                <div ref={profileRef} style={{ position: "relative" }}>
+                  {/* Profile trigger */}
+                  <button
+                    className="osai-profile-trigger"
+                    onClick={() => setProfileOpen((v) => !v)}
+                    aria-label="Profile menu"
+                  >
+                    <div className="osai-profile-avatar">
+                      {user.name?.[0] || "?"}
+                    </div>
+                    <span className="osai-profile-trigger-name" style={{ fontSize: 12, maxWidth: 72, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {user.name}
+                    </span>
+                    <i className="bi bi-chevron-down osai-profile-trigger-chevron" style={{ fontSize: 9, opacity: 0.5, transition: "transform 0.2s", transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                  </button>
+
+                  {/* Dropdown */}
+                  {profileOpen && (
+                    <div style={{
+                      position: "absolute",
+                      top: "calc(100% + 10px)",
+                      right: 0,
+                      minWidth: 220,
+                      background: "#0e0e0e",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 10,
+                      zIndex: 1000,
+                      overflow: "hidden",
+                      boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+                    }}>
+                      {/* User header */}
+                      <div style={{ padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 12 }}>
+                        <div className="osai-profile-avatar-lg">{user.name?.[0] || "?"}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
+                          <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+                            {user.email || (user.is_admin ? "Administrator" : "Member")}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Menu items */}
+                      <div style={{ padding: "6px 0" }}>
+                        {user.is_admin && (
+                          <NavLink to="/admin" className="osai-dropdown-item">
+                            <i className="bi bi-speedometer2" />
+                            Admin Dashboard
+                          </NavLink>
+                        )}
+                        <NavLink to="/orders" className="osai-dropdown-item">
+                          <i className="bi bi-receipt" />
+                          My Orders
+                        </NavLink>
+                        <NavLink to="/refunds" className="osai-dropdown-item">
+                          <i className="bi bi-arrow-counterclockwise" />
+                          Refund Requests
+                        </NavLink>
+                        <NavLink to="/account/change-password" className="osai-dropdown-item">
+                          <i className="bi bi-key" />
+                          Change Password
+                        </NavLink>
+
+                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "6px 0" }} />
+
+                        <button onClick={handleLogout} className="osai-dropdown-item danger">
+                          <i className="bi bi-box-arrow-right" />
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <NavLink to="/login" className="osai-action-btn">
+                  <i className="bi bi-person" />
+                  <span className="osai-login-label d-none d-xl-inline">Login</span>
+                </NavLink>
+              )}
+
+              <button
+                className="osai-hamburger"
+                aria-label={menuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((o) => !o)}
+              >
+                <span className={`osai-hamburger-icon${menuOpen ? " open" : ""}`} />
+              </button>
+
             </div>
           </div>
         </nav>
@@ -231,3 +280,4 @@ export function Layout() {
     </>
   );
 }
+

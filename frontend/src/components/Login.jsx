@@ -79,22 +79,6 @@ export function Login({ initialEmail = "" }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <h1
-          style={{
-            fontWeight: 800,
-            fontSize: 26,
-            marginBottom: 6,
-            color: "#ff5a00",
-          }}
-        >
-          Login
-        </h1>
-        <p style={{ color: "#bbb", fontSize: 15 }}>
-          Please login to access our services!
-        </p>
-      </div>
-
       <h2
         style={{
           fontFamily: "'Barlow Condensed', sans-serif",
@@ -170,27 +154,7 @@ export function Login({ initialEmail = "" }) {
         </div>
 
         <div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
-            <span style={LABEL}>Password</span>
-            <Link
-              to="/forgot-password"
-              style={{
-                fontSize: 12,
-                color: "#888",
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
-              }}
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <label style={LABEL}>Password</label>
 
           <input
             id="login-password"
@@ -257,7 +221,7 @@ export function Login({ initialEmail = "" }) {
           <Link
             to="/forgot-password"
             style={{
-              color: "#ff5a00",
+              color: "#888",
               textDecoration: "none",
               fontWeight: 600,
               fontSize: 14,
@@ -268,7 +232,7 @@ export function Login({ initialEmail = "" }) {
           <Link
             to="/account/change-password"
             style={{
-              color: "#ff5a00",
+              color: "#888",
               textDecoration: "none",
               fontWeight: 600,
               fontSize: 14,

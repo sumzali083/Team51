@@ -1,5 +1,6 @@
 const express = require("express");
 const db = require("../config/db");
+const { getOrderHistoryForUser } = require("../services/orderHistory");
 const router = express.Router();
 
 /**
@@ -115,36 +116,7 @@ router.get("/history", async(req,res) =>{
   }
 
   try {
-    // Get orders for user
-
-    const result = await db.query(
-      `SELECT * FROM orders
-      WHERE user_id = ?
-      ORDER BY created_at DESC`,
-      [userId]
-    );
-
-    const orders = result[0];
-    //get items for each order
-    for (let i=0;i<orders.length;i++) {
-      const order = orders[i];
-
-      const itemResult = await db.query(
-        `SELECT
-          oi.product_id,
-          oi.quantity,
-          oi.price_each,
-          p.name
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?`,
-        [order.id]
-      );
-
-      const items = itemResult[0];
-      order.items = items;
-    }
-
+    const orders = await getOrderHistoryForUser(userId);
     res.json(orders);
 
   } catch (err) {
