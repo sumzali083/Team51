@@ -11,7 +11,10 @@ router.post("/", async (req, res) => {
   if (!name || !email || !message) {
     return res.status(400).json({ message: "All fields are required." });
   }
-
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ message: "Invalid email format." });
+  }
+  
   try {
     const sql =
       "INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)";
