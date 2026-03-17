@@ -12,6 +12,7 @@ export default function AdminPage() {
   const [refunds, setRefunds] = useState([]);
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [selectedMessage, setSelectedMessage] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -138,6 +139,14 @@ export default function AdminPage() {
     } catch (err) {
       alert(err?.response?.data?.message || "Failed to delete message");
     }
+  };
+
+  const openMessage = (message) => {
+    setSelectedMessage(message);
+  };
+
+  const closeMessageModal = () => {
+    setSelectedMessage(null);
   };
 
   const deleteReview = async (id) => {
@@ -1520,7 +1529,7 @@ export default function AdminPage() {
                         <th>Email</th>
                         <th>Message</th>
                         <th>Date</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1536,9 +1545,14 @@ export default function AdminPage() {
                             {m.created_at ? new Date(m.created_at).toLocaleDateString() : "—"}
                           </td>
                           <td>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(m.id)}>
-                              Delete
-                            </button>
+                            <div className="d-flex gap-2 flex-wrap">
+                              <button className="btn btn-sm btn-outline-light" onClick={() => openMessage(m)}>
+                                View
+                              </button>
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(m.id)}>
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1609,6 +1623,52 @@ export default function AdminPage() {
           )}
         </section>
       </div>
+
+      {selectedMessage && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.7)", zIndex: 2000 }}
+          onClick={closeMessageModal}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(720px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0 osai-admin-section-title">Message #{selectedMessage.id}</h5>
+                <button className="btn btn-sm btn-outline-secondary" onClick={closeMessageModal}>
+                  Close
+                </button>
+              </div>
+
+              <div className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>
+                <div><strong style={{ color: "var(--text)" }}>From:</strong> {selectedMessage.name || "-"}</div>
+                <div><strong style={{ color: "var(--text)" }}>Email:</strong> {selectedMessage.email || "-"}</div>
+                <div>
+                  <strong style={{ color: "var(--text)" }}>Date:</strong>{" "}
+                  {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : "-"}
+                </div>
+              </div>
+
+              <div
+                className="p-3 rounded-2"
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid var(--line)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  maxHeight: "45vh",
+                  overflowY: "auto",
+                }}
+              >
+                {selectedMessage.message || "(No message content)"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
