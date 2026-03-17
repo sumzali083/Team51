@@ -12,6 +12,10 @@ export default function AdminPage() {
   const [refunds, setRefunds] = useState([]);
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [messageSearch, setMessageSearch] = useState("");
+  const [messageStatusFilter, setMessageStatusFilter] = useState("all");
+  const [messagePage, setMessagePage] = useState(1);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -130,15 +134,53 @@ export default function AdminPage() {
     }
   };
 
-  const deleteMessage = async (id) => {
-    if (!window.confirm("Delete this contact message?")) return;
+  const deleteMessage = async (message) => {
+    const sender = message?.name || "this sender";
+    const email = message?.email || "unknown email";
+    if (!window.confirm(`Delete message from ${sender} (${email})? This cannot be undone.`)) return;
     try {
-      await api.delete(`/api/admin/messages/${id}`);
-      setMessages((prev) => prev.filter((m) => m.id !== id));
+      await api.delete(`/api/admin/messages/${message.id}`);
+      setMessages((prev) => prev.filter((m) => m.id !== message.id));
+      setSelectedMessage((prev) => (prev && prev.id === message.id ? null : prev));
     } catch (err) {
       alert(err?.response?.data?.message || "Failed to delete message");
     }
   };
+
+  const updateMessageStatus = async (id, status) => {
+    try {
+      await api.put(`/api/admin/messages/${id}/status`, { status });
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
+      setSelectedMessage((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update message status");
+    }
+  };
+
+  const openMessage = (message) => {
+    if ((message.status || "unread") === "unread") {
+      updateMessageStatus(message.id, "read");
+    }
+    setSelectedMessage(message);
+  };
+
+  const closeMessageModal = () => {
+    setSelectedMessage(null);
+  };
+
+  const replyToMessage = (message) => {
+    const email = String(message?.email || "").trim();
+    if (!email) {
+      alert("No email found for this message.");
+      return;
+    }
+    const subject = encodeURIComponent("Regarding your message to OSAI");
+    window.location.href = `mailto:${email}?subject=${subject}`;
+  };
+
+  useEffect(() => {
+    setMessagePage(1);
+  }, [messageSearch, messageStatusFilter]);
 
   const deleteReview = async (id) => {
     if (!window.confirm("Delete this review?")) return;
@@ -398,6 +440,7 @@ export default function AdminPage() {
 
   const needsActionItems = useMemo(() => {
     const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
+    const unreadMessages = messages.filter((m) => (m.status || "unread") === "unread").length;
     return [
       {
         label: "Out of stock products",
@@ -419,12 +462,12 @@ export default function AdminPage() {
       },
       {
         label: "Unread contact messages",
-        value: messages.length,
+        value: unreadMessages,
         tab: "contacts",
-        tone: messages.length > 0 ? "info" : "secondary",
+        tone: unreadMessages > 0 ? "info" : "secondary",
       },
     ];
-  }, [messages.length, outOfStockProducts.length, lowStockProducts.length, refunds]);
+  }, [messages, outOfStockProducts.length, lowStockProducts.length, refunds]);
 
   const recentActivity = useMemo(() => {
     const orderItems = orders.map((o) => ({
@@ -451,6 +494,29 @@ export default function AdminPage() {
       .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
       .slice(0, 8);
   }, [orders, refunds, messages]);
+
+  const filteredMessages = useMemo(() => {
+    const q = messageSearch.trim().toLowerCase();
+    return messages.filter((m) => {
+      const status = (m.status || "unread").toLowerCase();
+      if (messageStatusFilter !== "all" && status !== messageStatusFilter) return false;
+      if (!q) return true;
+
+      return (
+        String(m.name || "").toLowerCase().includes(q) ||
+        String(m.email || "").toLowerCase().includes(q) ||
+        String(m.message || "").toLowerCase().includes(q)
+      );
+    });
+  }, [messages, messageSearch, messageStatusFilter]);
+
+  const messagePageSize = 10;
+  const messageTotalPages = Math.max(1, Math.ceil(filteredMessages.length / messagePageSize));
+  const safeMessagePage = Math.min(messagePage, messageTotalPages);
+  const pagedMessages = useMemo(() => {
+    const start = (safeMessagePage - 1) * messagePageSize;
+    return filteredMessages.slice(start, start + messagePageSize);
+  }, [filteredMessages, safeMessagePage]);
 
   const tabs = [
     { key: "dashboard", label: "Dashboard",        icon: "bi-speedometer2" },
@@ -1509,7 +1575,27 @@ export default function AdminPage() {
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Contact Messages</h4>
-                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{messages.length} messages</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredMessages.length} messages</span>
+                </div>
+                <div className="d-flex gap-2 flex-wrap mb-3">
+                  <input
+                    className="form-control form-control-sm"
+                    style={{ maxWidth: 280 }}
+                    value={messageSearch}
+                    onChange={(e) => setMessageSearch(e.target.value)}
+                    placeholder="Search name, email, message"
+                  />
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ maxWidth: 180 }}
+                    value={messageStatusFilter}
+                    onChange={(e) => setMessageStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="unread">Unread</option>
+                    <option value="read">Read</option>
+                    <option value="archived">Archived</option>
+                  </select>
                 </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
@@ -1518,36 +1604,87 @@ export default function AdminPage() {
                         <th>ID</th>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Status</th>
                         <th>Message</th>
                         <th>Date</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {messages.map((m) => (
+                      {pagedMessages.map((m) => (
                         <tr key={m.id}>
                           <td>{m.id}</td>
                           <td>{m.name}</td>
                           <td style={{ color: "var(--sub)" }}>{m.email}</td>
-                          <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {m.message}
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span className={`osai-status osai-status-${m.status || "unread"}`}>
+                              {m.status || "unread"}
+                            </span>
+                          </td>
+                          <td
+                            style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            title={m.message || ""}
+                          >
+                            {String(m.message || "").length > 80
+                              ? `${String(m.message || "").slice(0, 80)}...`
+                              : m.message}
                           </td>
                           <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
                             {m.created_at ? new Date(m.created_at).toLocaleDateString() : "—"}
                           </td>
                           <td>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(m.id)}>
-                              Delete
-                            </button>
+                            <div className="d-flex gap-2 flex-wrap">
+                              <button className="btn btn-sm btn-outline-light" onClick={() => openMessage(m)}>
+                                View
+                              </button>
+                              {(m.status || "unread") !== "archived" ? (
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => updateMessageStatus(m.id, "archived")}>
+                                  Archive
+                                </button>
+                              ) : (
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => updateMessageStatus(m.id, "unread")}>
+                                  Unarchive
+                                </button>
+                              )}
+                              <button className="btn btn-sm btn-outline-info" onClick={() => replyToMessage(m)}>
+                                Reply
+                              </button>
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(m)}>
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
-                      {messages.length === 0 && (
-                        <tr><td colSpan={6} className="text-center" style={{ color: "var(--sub)" }}>No messages yet.</td></tr>
+                      {pagedMessages.length === 0 && (
+                        <tr><td colSpan={7} className="text-center" style={{ color: "var(--sub)" }}>No messages yet.</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
+                {filteredMessages.length > 0 && (
+                  <div className="d-flex justify-content-between align-items-center mt-3">
+                    <span style={{ color: "var(--sub)", fontSize: 12 }}>
+                      Page {safeMessagePage} of {messageTotalPages}
+                    </span>
+                    <div className="d-flex gap-2">
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={safeMessagePage <= 1}
+                        onClick={() => setMessagePage((p) => Math.max(1, p - 1))}
+                      >
+                        Prev
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={safeMessagePage >= messageTotalPages}
+                        onClick={() => setMessagePage((p) => Math.min(messageTotalPages, p + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1609,6 +1746,82 @@ export default function AdminPage() {
           )}
         </section>
       </div>
+
+      {selectedMessage && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.7)", zIndex: 2000 }}
+          onClick={closeMessageModal}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(720px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0 osai-admin-section-title">Message #{selectedMessage.id}</h5>
+                <button className="btn btn-sm btn-outline-secondary" onClick={closeMessageModal}>
+                  Close
+                </button>
+              </div>
+
+              <div className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>
+                <div><strong style={{ color: "var(--text)" }}>From:</strong> {selectedMessage.name || "-"}</div>
+                <div><strong style={{ color: "var(--text)" }}>Email:</strong> {selectedMessage.email || "-"}</div>
+                <div>
+                  <strong style={{ color: "var(--text)" }}>Status:</strong>{" "}
+                  <span className={`osai-status osai-status-${selectedMessage.status || "unread"}`}>
+                    {selectedMessage.status || "unread"}
+                  </span>
+                </div>
+                <div>
+                  <strong style={{ color: "var(--text)" }}>Date:</strong>{" "}
+                  {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : "-"}
+                </div>
+              </div>
+
+              <div
+                className="p-3 rounded-2"
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid var(--line)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  maxHeight: "45vh",
+                  overflowY: "auto",
+                }}
+              >
+                {selectedMessage.message || "(No message content)"}
+              </div>
+
+              <div className="d-flex gap-2 mt-3 flex-wrap">
+                <button className="btn btn-sm btn-outline-info" onClick={() => replyToMessage(selectedMessage)}>
+                  Reply via Email
+                </button>
+                {(selectedMessage.status || "unread") !== "archived" ? (
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => updateMessageStatus(selectedMessage.id, "archived")}
+                  >
+                    Archive
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => updateMessageStatus(selectedMessage.id, "unread")}
+                  >
+                    Unarchive
+                  </button>
+                )}
+                <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(selectedMessage)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
