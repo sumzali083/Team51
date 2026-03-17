@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [savingOrderId, setSavingOrderId] = useState(null);
   const [savingRefundId, setSavingRefundId] = useState(null);
   const [savingUserId, setSavingUserId] = useState(null);
+  const [savingUserRoleId, setSavingUserRoleId] = useState(null);
   const [runningBulkUsersAction, setRunningBulkUsersAction] = useState(false);
   const [stockDraft, setStockDraft] = useState({});
   const [orderStatusDraft, setOrderStatusDraft] = useState({});
@@ -290,6 +291,26 @@ export default function AdminPage() {
       alert(err?.response?.data?.message || "Failed to update user suspension");
     } finally {
       setSavingUserId(null);
+    }
+  };
+
+  const updateUserRole = async (targetUser, makeAdmin) => {
+    const actionText = makeAdmin ? "promote to admin" : "remove admin access";
+    const typed = window.prompt(`Type ADMIN to confirm you want to ${actionText} for ${targetUser?.email || "this user"}.`, "");
+    if (typed !== "ADMIN") return;
+
+    setSavingUserRoleId(targetUser.id);
+    try {
+      await api.put(`/api/admin/users/${targetUser.id}/role`, { isAdmin: makeAdmin });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, is_admin: makeAdmin ? 1 : 0 } : u))
+      );
+      const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
+      setUserAuditLog(auditRes.data || []);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update user role");
+    } finally {
+      setSavingUserRoleId(null);
     }
   };
 
@@ -2053,6 +2074,17 @@ export default function AdminPage() {
                                 onClick={() => openUserSummary(u)}
                               >
                                 View
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-info"
+                                onClick={() => updateUserRole(u, Number(u.is_admin) !== 1)}
+                                disabled={savingUserRoleId === u.id}
+                              >
+                                {savingUserRoleId === u.id
+                                  ? "Saving..."
+                                  : Number(u.is_admin) === 1
+                                    ? "Remove Admin"
+                                    : "Make Admin"}
                               </button>
                               <button
                                 className="btn btn-sm btn-outline-warning"

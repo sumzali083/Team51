@@ -273,6 +273,56 @@ router.put("/users/:id/suspend", adminMiddleware, async (req, res) => {
   }
 });
 
+router.put("/users/:id/role", adminMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const { isAdmin } = req.body || {};
+    if (typeof isAdmin !== "boolean") {
+      return res.status(400).json({ message: "isAdmin must be true or false" });
+    }
+
+    const [[target]] = await db.query(
+      "SELECT id, is_admin FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    if (!target) return res.status(404).json({ message: "User not found" });
+
+    const nextRole = isAdmin ? 1 : 0;
+    if (Number(target.is_admin) === nextRole) {
+      return res.json({ message: "Role unchanged" });
+    }
+
+    if (Number(target.is_admin) === 1 && nextRole === 0) {
+      const [[adminsCountRow]] = await db.query(
+        "SELECT COUNT(*) AS admins_count FROM users WHERE is_admin = 1"
+      );
+      const adminsCount = Number(adminsCountRow?.admins_count || 0);
+      if (adminsCount <= 1) {
+        return res.status(400).json({ message: "Cannot remove the last admin account." });
+      }
+    }
+
+    const [result] = await db.query(
+      "UPDATE users SET is_admin = ? WHERE id = ?",
+      [nextRole, userId]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: "User not found" });
+
+    await appendAdminAuditLog({
+      adminId: req.session.userId,
+      action: nextRole === 1 ? "user_role_promote_admin" : "user_role_demote_admin",
+      targetType: "user",
+      targetId: userId,
+      details: JSON.stringify({ from: Number(target.is_admin) === 1 ? "admin" : "customer", to: nextRole === 1 ? "admin" : "customer" }),
+    });
+
+    return res.json({ message: nextRole === 1 ? "User promoted to admin" : "User changed to customer" });
+  } catch (err) {
+    console.error("Admin user role update error:", err);
+    return res.status(500).json({ message: "Failed to update user role" });
+  }
+});
+
 router.post("/users/bulk-action", adminMiddleware, async (req, res) => {
   try {
     await ensureUserManagementColumns();
