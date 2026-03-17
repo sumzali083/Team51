@@ -52,6 +52,63 @@ async function ensureContactMessageStatusColumn() {
   _colCache["contact_messages.status"] = true;
 }
 
+async function ensureAdminAuditTable() {
+  await db.query(
+    `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id INT NOT NULL AUTO_INCREMENT,
+      admin_id INT NOT NULL,
+      action VARCHAR(60) NOT NULL,
+      target_type VARCHAR(40) NOT NULL,
+      target_id INT NULL,
+      details TEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_admin_audit_created (created_at),
+      KEY idx_admin_audit_admin (admin_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`
+  );
+}
+
+async function appendAdminAuditLog({
+  adminId,
+  action,
+  targetType,
+  targetId = null,
+  details = null,
+}) {
+  await ensureAdminAuditTable();
+  await db.query(
+    `INSERT INTO admin_audit_log
+      (admin_id, action, target_type, target_id, details)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      Number(adminId),
+      String(action || "").slice(0, 60),
+      String(targetType || "").slice(0, 40),
+      targetId == null ? null : Number(targetId),
+      details ? String(details).slice(0, 4000) : null,
+    ]
+  );
+}
+
+async function ensureUserManagementColumns() {
+  const hasSuspended = await columnExists("users", "is_suspended");
+  if (!hasSuspended) {
+    await db.query("ALTER TABLE users ADD COLUMN is_suspended TINYINT(1) NOT NULL DEFAULT 0");
+    _colCache["users.is_suspended"] = true;
+  }
+  const hasSuspendedAt = await columnExists("users", "suspended_at");
+  if (!hasSuspendedAt) {
+    await db.query("ALTER TABLE users ADD COLUMN suspended_at DATETIME NULL");
+    _colCache["users.suspended_at"] = true;
+  }
+  const hasSuspensionReason = await columnExists("users", "suspension_reason");
+  if (!hasSuspensionReason) {
+    await db.query("ALTER TABLE users ADD COLUMN suspension_reason VARCHAR(255) NULL");
+    _colCache["users.suspension_reason"] = true;
+  }
+}
+
 /* ======================================================
    USER MANAGEMENT
 ====================================================== */
@@ -59,8 +116,15 @@ async function ensureContactMessageStatusColumn() {
 // GET all users
 router.get("/users", adminMiddleware, async (req, res) => {
   try {
+    await ensureUserManagementColumns();
     const [rows] = await db.query(
-      "SELECT id, name, email, is_admin, created_at FROM users ORDER BY id DESC"
+      `SELECT
+        u.id, u.name, u.email, u.is_admin, u.created_at, u.is_suspended, u.suspended_at, u.suspension_reason,
+        (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count,
+        (SELECT COUNT(*) FROM refund_requests rr WHERE rr.user_id = u.id) AS refund_count,
+        (SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = u.id) AS last_order_at
+      FROM users u
+      ORDER BY u.id DESC`
     );
 
     res.json(rows);
@@ -74,20 +138,206 @@ router.get("/users", adminMiddleware, async (req, res) => {
 router.delete("/users/:id", adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    const targetId = Number(id);
+    if (targetId === Number(req.session?.userId)) {
+      return res.status(400).json({ message: "You cannot delete your own account." });
+    }
 
     const [result] = await db.query(
       "DELETE FROM users WHERE id = ?",
-      [id]
+      [targetId]
     );
 
     if (!result.affectedRows) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    await appendAdminAuditLog({
+      adminId: req.session.userId,
+      action: "user_delete",
+      targetType: "user",
+      targetId,
+    });
+
     res.json({ message: "User deleted" });
   } catch (err) {
     console.error("Admin delete user error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/users/:id/summary", adminMiddleware, async (req, res) => {
+  try {
+    await ensureUserManagementColumns();
+    const userId = Number(req.params.id);
+    const [[userRow]] = await db.query(
+      `SELECT id, name, email, is_admin, is_suspended, suspended_at, suspension_reason, created_at
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [userId]
+    );
+    if (!userRow) return res.status(404).json({ message: "User not found" });
+
+    const [[ordersStats]] = await db.query(
+      `SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_price), 0) AS total_spend, MAX(created_at) AS last_order_at
+       FROM orders
+       WHERE user_id = ?`,
+      [userId]
+    );
+
+    let refundStats = { total_refunds: 0, refunded_count: 0, pending_refunds: 0, last_refund_at: null };
+    try {
+      await ensureRefundsTable();
+      const [[rr]] = await db.query(
+        `SELECT
+          COUNT(*) AS total_refunds,
+          SUM(CASE WHEN status = 'refunded' THEN 1 ELSE 0 END) AS refunded_count,
+          SUM(CASE WHEN status IN ('pending','approved','processing') THEN 1 ELSE 0 END) AS pending_refunds,
+          MAX(created_at) AS last_refund_at
+        FROM refund_requests
+        WHERE user_id = ?`,
+        [userId]
+      );
+      refundStats = {
+        total_refunds: Number(rr.total_refunds || 0),
+        refunded_count: Number(rr.refunded_count || 0),
+        pending_refunds: Number(rr.pending_refunds || 0),
+        last_refund_at: rr.last_refund_at || null,
+      };
+    } catch (_) {}
+
+    let messageStats = { total_messages: 0, last_message_at: null };
+    try {
+      const [[msg]] = await db.query(
+        `SELECT COUNT(*) AS total_messages, MAX(created_at) AS last_message_at
+         FROM contact_messages
+         WHERE email = ?`,
+        [userRow.email]
+      );
+      messageStats = {
+        total_messages: Number(msg.total_messages || 0),
+        last_message_at: msg.last_message_at || null,
+      };
+    } catch (_) {}
+
+    return res.json({
+      user: userRow,
+      orders: ordersStats,
+      refunds: refundStats,
+      messages: messageStats,
+    });
+  } catch (err) {
+    console.error("Admin user summary error:", err);
+    return res.status(500).json({ message: "Failed to fetch user summary" });
+  }
+});
+
+router.put("/users/:id/suspend", adminMiddleware, async (req, res) => {
+  try {
+    await ensureUserManagementColumns();
+    const userId = Number(req.params.id);
+    const { suspended, reason } = req.body || {};
+    if (typeof suspended !== "boolean") {
+      return res.status(400).json({ message: "suspended must be true or false" });
+    }
+    if (userId === Number(req.session?.userId)) {
+      return res.status(400).json({ message: "You cannot suspend your own account." });
+    }
+
+    const [result] = await db.query(
+      `UPDATE users
+       SET is_suspended = ?, suspended_at = ?, suspension_reason = ?
+       WHERE id = ?`,
+      [
+        suspended ? 1 : 0,
+        suspended ? new Date() : null,
+        suspended ? (reason ? String(reason).slice(0, 255) : "Suspended by admin") : null,
+        userId,
+      ]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: "User not found" });
+
+    await appendAdminAuditLog({
+      adminId: req.session.userId,
+      action: suspended ? "user_suspend" : "user_unsuspend",
+      targetType: "user",
+      targetId: userId,
+      details: suspended ? String(reason || "Suspended by admin") : "Unsuspended",
+    });
+
+    return res.json({ message: suspended ? "User suspended" : "User unsuspended" });
+  } catch (err) {
+    console.error("Admin suspend user error:", err);
+    return res.status(500).json({ message: "Failed to update user status" });
+  }
+});
+
+router.post("/users/bulk-action", adminMiddleware, async (req, res) => {
+  try {
+    await ensureUserManagementColumns();
+    const { userIds, action, reason } = req.body || {};
+    if (!Array.isArray(userIds) || !userIds.length) {
+      return res.status(400).json({ message: "userIds is required" });
+    }
+    if (!["delete", "suspend", "unsuspend"].includes(action)) {
+      return res.status(400).json({ message: "Invalid action" });
+    }
+
+    const normalizedIds = [...new Set(userIds.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
+    const filteredIds = normalizedIds.filter((id) => id !== Number(req.session?.userId));
+    if (!filteredIds.length) {
+      return res.status(400).json({ message: "No valid target users" });
+    }
+
+    let affectedRows = 0;
+    if (action === "delete") {
+      const [result] = await db.query("DELETE FROM users WHERE id IN (?)", [filteredIds]);
+      affectedRows = result.affectedRows || 0;
+    } else if (action === "suspend") {
+      const [result] = await db.query(
+        "UPDATE users SET is_suspended = 1, suspended_at = ?, suspension_reason = ? WHERE id IN (?)",
+        [new Date(), reason ? String(reason).slice(0, 255) : "Suspended by admin", filteredIds]
+      );
+      affectedRows = result.affectedRows || 0;
+    } else {
+      const [result] = await db.query(
+        "UPDATE users SET is_suspended = 0, suspended_at = NULL, suspension_reason = NULL WHERE id IN (?)",
+        [filteredIds]
+      );
+      affectedRows = result.affectedRows || 0;
+    }
+
+    await appendAdminAuditLog({
+      adminId: req.session.userId,
+      action: `users_bulk_${action}`,
+      targetType: "users",
+      details: JSON.stringify({ count: filteredIds.length, reason: reason || null }),
+    });
+
+    return res.json({ message: `Bulk ${action} completed`, affectedRows });
+  } catch (err) {
+    console.error("Admin bulk user action error:", err);
+    return res.status(500).json({ message: "Failed to apply bulk action" });
+  }
+});
+
+router.get("/users/audit-log", adminMiddleware, async (req, res) => {
+  try {
+    await ensureAdminAuditTable();
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit || 20)));
+    const [rows] = await db.query(
+      `SELECT l.id, l.action, l.target_type, l.target_id, l.details, l.created_at, u.name AS admin_name
+       FROM admin_audit_log l
+       LEFT JOIN users u ON u.id = l.admin_id
+       ORDER BY l.created_at DESC
+       LIMIT ?`,
+      [limit]
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error("Admin audit log error:", err);
+    return res.status(500).json({ message: "Failed to fetch audit log" });
   }
 });
 
