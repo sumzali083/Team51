@@ -217,19 +217,7 @@ export default function Contact() {
             </div>
           )}
 
-          <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2428.6848396569256!2d-1.8945!3d52.5077!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x48709b4b4b7b7b7b%3A0x7b7b7b7b7b7b7b7b!2s134a%20Aston%20Rd%2C%20Birmingham%20B6%204BY!5e0!3m2!1sen!2suk!4v1234567890"
-            width="100%"
-            height="100%"
-            style={{
-              border: "none",
-              borderRadius: 12,
-              pointerEvents: mapInteractive ? "auto" : "none",
-            }}
-            loading="lazy"
-            title="Map"
-          />
-        </div>
+
 
         <p style={{
           color: "#888",
