@@ -13,6 +13,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [messageSearch, setMessageSearch] = useState("");
+  const [messageStatusFilter, setMessageStatusFilter] = useState("all");
+  const [messagePage, setMessagePage] = useState(1);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -161,6 +164,10 @@ export default function AdminPage() {
   const closeMessageModal = () => {
     setSelectedMessage(null);
   };
+
+  useEffect(() => {
+    setMessagePage(1);
+  }, [messageSearch, messageStatusFilter]);
 
   const deleteReview = async (id) => {
     if (!window.confirm("Delete this review?")) return;
@@ -474,6 +481,29 @@ export default function AdminPage() {
       .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
       .slice(0, 8);
   }, [orders, refunds, messages]);
+
+  const filteredMessages = useMemo(() => {
+    const q = messageSearch.trim().toLowerCase();
+    return messages.filter((m) => {
+      const status = (m.status || "unread").toLowerCase();
+      if (messageStatusFilter !== "all" && status !== messageStatusFilter) return false;
+      if (!q) return true;
+
+      return (
+        String(m.name || "").toLowerCase().includes(q) ||
+        String(m.email || "").toLowerCase().includes(q) ||
+        String(m.message || "").toLowerCase().includes(q)
+      );
+    });
+  }, [messages, messageSearch, messageStatusFilter]);
+
+  const messagePageSize = 10;
+  const messageTotalPages = Math.max(1, Math.ceil(filteredMessages.length / messagePageSize));
+  const safeMessagePage = Math.min(messagePage, messageTotalPages);
+  const pagedMessages = useMemo(() => {
+    const start = (safeMessagePage - 1) * messagePageSize;
+    return filteredMessages.slice(start, start + messagePageSize);
+  }, [filteredMessages, safeMessagePage]);
 
   const tabs = [
     { key: "dashboard", label: "Dashboard",        icon: "bi-speedometer2" },
@@ -1532,7 +1562,27 @@ export default function AdminPage() {
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Contact Messages</h4>
-                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{messages.length} messages</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredMessages.length} messages</span>
+                </div>
+                <div className="d-flex gap-2 flex-wrap mb-3">
+                  <input
+                    className="form-control form-control-sm"
+                    style={{ maxWidth: 280 }}
+                    value={messageSearch}
+                    onChange={(e) => setMessageSearch(e.target.value)}
+                    placeholder="Search name, email, message"
+                  />
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ maxWidth: 180 }}
+                    value={messageStatusFilter}
+                    onChange={(e) => setMessageStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="unread">Unread</option>
+                    <option value="read">Read</option>
+                    <option value="archived">Archived</option>
+                  </select>
                 </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
@@ -1548,7 +1598,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {messages.map((m) => (
+                      {pagedMessages.map((m) => (
                         <tr key={m.id}>
                           <td>{m.id}</td>
                           <td>{m.name}</td>
@@ -1585,12 +1635,35 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ))}
-                      {messages.length === 0 && (
+                      {pagedMessages.length === 0 && (
                         <tr><td colSpan={7} className="text-center" style={{ color: "var(--sub)" }}>No messages yet.</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
+                {filteredMessages.length > 0 && (
+                  <div className="d-flex justify-content-between align-items-center mt-3">
+                    <span style={{ color: "var(--sub)", fontSize: 12 }}>
+                      Page {safeMessagePage} of {messageTotalPages}
+                    </span>
+                    <div className="d-flex gap-2">
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={safeMessagePage <= 1}
+                        onClick={() => setMessagePage((p) => Math.max(1, p - 1))}
+                      >
+                        Prev
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={safeMessagePage >= messageTotalPages}
+                        onClick={() => setMessagePage((p) => Math.min(messageTotalPages, p + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
