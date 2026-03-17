@@ -438,6 +438,73 @@ router.put("/orders/:id/status", adminMiddleware, async (req, res) => {
   }
 });
 
+router.post("/orders/bulk-status", adminMiddleware, async (req, res) => {
+  try {
+    const { orderIds, status } = req.body || {};
+    if (!Array.isArray(orderIds) || !orderIds.length) {
+      return res.status(400).json({ message: "orderIds is required" });
+    }
+    if (!["pending", "processing", "shipped", "delivered", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+    const ids = [...new Set(orderIds.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
+    if (!ids.length) return res.status(400).json({ message: "No valid order ids" });
+
+    const [result] = await db.query(
+      "UPDATE orders SET status = ? WHERE id IN (?)",
+      [status, ids]
+    );
+
+    await appendAdminAuditLog({
+      adminId: req.session.userId,
+      action: "orders_bulk_status",
+      targetType: "orders",
+      details: JSON.stringify({ count: ids.length, status }),
+    });
+
+    return res.json({ message: "Bulk order status updated", affectedRows: result.affectedRows || 0 });
+  } catch (err) {
+    console.error("Admin bulk order status error:", err);
+    return res.status(500).json({ message: "Failed to bulk update orders" });
+  }
+});
+
+router.get("/orders/:id/details", adminMiddleware, async (req, res) => {
+  try {
+    const orderId = Number(req.params.id);
+    const [[order]] = await db.query(
+      `SELECT o.id, o.user_id, o.total_price, o.status, o.created_at, u.name, u.email
+       FROM orders o
+       JOIN users u ON u.id = o.user_id
+       WHERE o.id = ?
+       LIMIT 1`,
+      [orderId]
+    );
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    const [items] = await db.query(
+      `SELECT
+        oi.id,
+        oi.product_id,
+        oi.quantity,
+        oi.price_each,
+        p.name AS product_name,
+        p.sku,
+        (SELECT pi.url FROM product_images pi WHERE pi.product_id = oi.product_id ORDER BY pi.sort_order ASC LIMIT 1) AS product_image
+      FROM order_items oi
+      LEFT JOIN products p ON p.id = oi.product_id
+      WHERE oi.order_id = ?
+      ORDER BY oi.id ASC`,
+      [orderId]
+    );
+
+    return res.json({ order, items: items || [] });
+  } catch (err) {
+    console.error("Admin order details error:", err);
+    return res.status(500).json({ message: "Failed to load order details" });
+  }
+});
+
 /* ======================================================
    INVENTORY
 ====================================================== */
