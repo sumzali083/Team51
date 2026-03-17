@@ -61,7 +61,12 @@ export default function Contact() {
 
   const validate = () => {
     if (!form.name.trim()) return "Name is required";
-    if (!form.email.includes("@")) return "Valid email is required";
+
+    // FIXED (only change)
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      return "Valid email is required";
+    }
+
     if (!form.message.trim()) return "Message is required";
     return null;
   };
