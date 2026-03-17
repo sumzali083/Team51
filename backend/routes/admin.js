@@ -27,6 +27,21 @@ async function tableExists(tableName) {
   return rows.length > 0;
 }
 
+async function ensureProductSizeStockColumn() {
+  if (!(await tableExists("product_sizes"))) return;
+  const hasStock = await columnExists("product_sizes", "stock");
+  if (!hasStock) {
+    await db.query("ALTER TABLE product_sizes ADD COLUMN stock INT NOT NULL DEFAULT 0");
+    _colCache["product_sizes.stock"] = true;
+    await db.query(
+      `UPDATE product_sizes ps
+       JOIN products p ON p.id = ps.product_id
+       SET ps.stock = COALESCE(p.stock, 0)
+       WHERE ps.stock IS NULL OR ps.stock = 0`
+    );
+  }
+}
+
 // Cache column existence checks so we only query INFORMATION_SCHEMA once per process
 const _colCache = {};
 async function columnExists(table, column) {
@@ -699,6 +714,7 @@ router.get("/categories", adminMiddleware, async (_req, res) => {
 
 router.get("/products", adminMiddleware, async (_req, res) => {
   try {
+    await ensureProductSizeStockColumn();
     const hasOriginalPrice = await columnExists("products", "original_price");
     const opSelect = hasOriginalPrice ? "p.original_price," : "NULL AS original_price,";
     const opGroup  = hasOriginalPrice ? "p.original_price," : "";
@@ -717,6 +733,7 @@ router.get("/products", adminMiddleware, async (_req, res) => {
         p.created_at,
         GROUP_CONCAT(DISTINCT pi.url ORDER BY pi.sort_order SEPARATOR '||') AS images,
         GROUP_CONCAT(DISTINCT ps.size ORDER BY ps.size SEPARATOR '||') AS sizes,
+        GROUP_CONCAT(DISTINCT CONCAT(ps.size, ':', COALESCE(ps.stock, 0)) ORDER BY ps.size SEPARATOR '||') AS size_stocks,
         (SELECT GROUP_CONCAT(color SEPARATOR '||') FROM product_colors WHERE product_id = p.id) AS colors
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
@@ -729,6 +746,18 @@ router.get("/products", adminMiddleware, async (_req, res) => {
       ...r,
       images: r.images ? r.images.split("||").filter(Boolean) : [],
       sizes:  r.sizes  ? r.sizes.split("||").filter(Boolean)  : [],
+      sizeStocks: r.size_stocks
+        ? r.size_stocks
+            .split("||")
+            .map((entry) => {
+              const idx = entry.lastIndexOf(":");
+              if (idx <= 0) return null;
+              const size = entry.slice(0, idx);
+              const stock = Number(entry.slice(idx + 1));
+              return { size, stock: Number.isFinite(stock) ? stock : 0 };
+            })
+            .filter(Boolean)
+        : [],
       colors: r.colors ? r.colors.split("||").filter(Boolean) : [],
     })));
   } catch (err) {
@@ -765,6 +794,7 @@ router.post("/products", adminMiddleware, async (req, res) => {
     stock = 0,
     description = "",
     sizes = [],
+    sizeStocks = {},
     colors = [],
     images = [],
   } = req.body || {};
@@ -790,9 +820,16 @@ router.post("/products", adminMiddleware, async (req, res) => {
     );
     const productId = ins.insertId;
 
+    await ensureProductSizeStockColumn();
     if ((await tableExists("product_sizes")) && Array.isArray(sizes) && sizes.length) {
       for (const s of sizes) {
-        await conn.query("INSERT INTO product_sizes (product_id, size) VALUES (?, ?)", [productId, String(s)]);
+        const sizeKey = String(s);
+        const sizeStockRaw = sizeStocks && typeof sizeStocks === "object" ? sizeStocks[sizeKey] : null;
+        const parsedSizeStock = Number(sizeStockRaw);
+        const sizeStock = Number.isFinite(parsedSizeStock) && parsedSizeStock >= 0
+          ? Math.floor(parsedSizeStock)
+          : Number(stock) || 0;
+        await conn.query("INSERT INTO product_sizes (product_id, size, stock) VALUES (?, ?, ?)", [productId, sizeKey, sizeStock]);
       }
     }
 
@@ -835,7 +872,7 @@ router.put("/products/:id", adminMiddleware, async (req, res) => {
   const { id } = req.params;
   const {
     sku, name, category_id, price, original_price = null,
-    stock = 0, description = "", sizes = [], colors = [], images,
+    stock = 0, description = "", sizes = [], sizeStocks = {}, colors = [], images,
   } = req.body || {};
 
   if (!name || !price) {
@@ -856,11 +893,18 @@ router.put("/products/:id", adminMiddleware, async (req, res) => {
       [String(sku || "").trim(), String(name).trim(), Number(category_id), Number(price), ...opValues, Number(stock) || 0, String(description).trim(), id]
     );
 
+    await ensureProductSizeStockColumn();
     if (await tableExists("product_sizes")) {
       await conn.query("DELETE FROM product_sizes WHERE product_id=?", [id]);
       for (const s of (sizes || [])) {
         if (String(s).trim()) {
-          await conn.query("INSERT INTO product_sizes (product_id, size) VALUES (?,?)", [id, String(s).trim()]);
+          const sizeKey = String(s).trim();
+          const sizeStockRaw = sizeStocks && typeof sizeStocks === "object" ? sizeStocks[sizeKey] : null;
+          const parsedSizeStock = Number(sizeStockRaw);
+          const sizeStock = Number.isFinite(parsedSizeStock) && parsedSizeStock >= 0
+            ? Math.floor(parsedSizeStock)
+            : Number(stock) || 0;
+          await conn.query("INSERT INTO product_sizes (product_id, size, stock) VALUES (?,?,?)", [id, sizeKey, sizeStock]);
         }
       }
     }
@@ -909,6 +953,47 @@ router.put("/products/:id/stock", adminMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Admin update stock error:", err);
     return res.status(500).json({ message: "Failed to update stock" });
+  }
+});
+
+router.put("/products/:id/size-stock", adminMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { size, stock } = req.body || {};
+  const n = Number(stock);
+  if (!size || !String(size).trim()) {
+    return res.status(400).json({ message: "size is required" });
+  }
+  if (!Number.isInteger(n) || n < 0) {
+    return res.status(400).json({ message: "stock must be a non-negative integer" });
+  }
+  try {
+    await ensureProductSizeStockColumn();
+    const [result] = await db.query(
+      "UPDATE product_sizes SET stock = ? WHERE product_id = ? AND size = ?",
+      [n, id, String(size).trim()]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Size record not found for this product" });
+    }
+
+    // Keep product stock aligned to sum of size-level stock where size records exist.
+    await db.query(
+      `UPDATE products p
+       JOIN (
+         SELECT product_id, COALESCE(SUM(stock), 0) AS total_size_stock
+         FROM product_sizes
+         WHERE product_id = ?
+         GROUP BY product_id
+       ) s ON s.product_id = p.id
+       SET p.stock = s.total_size_stock
+       WHERE p.id = ?`,
+      [id, id]
+    );
+
+    return res.json({ message: "Size stock updated" });
+  } catch (err) {
+    console.error("Admin update size stock error:", err);
+    return res.status(500).json({ message: "Failed to update size stock" });
   }
 });
 

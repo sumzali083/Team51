@@ -77,7 +77,7 @@ export default function AdminPage() {
   const [deletingProductId, setDeletingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
     sku: "", name: "", category_id: 0, price: "", original_price: "", stock: 0,
-    description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
+    description: "", sizes: [], sizeStocks: {}, colors: ["", ""], imageFiles: [null, null, null],
   });
   const [editingProductId, setEditingProductId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
@@ -517,6 +517,9 @@ export default function AdminPage() {
       stock: p.stock != null ? String(p.stock) : "0",
       description: p.description || "",
       sizes: Array.isArray(p.sizes) ? [...p.sizes] : [],
+      sizeStocks: Object.fromEntries(
+        (Array.isArray(p.sizeStocks) ? p.sizeStocks : []).map((x) => [x.size, String(x.stock ?? 0)])
+      ),
       colors: Array.isArray(p.colors) && p.colors.length ? [...p.colors] : ["", ""],
       images: Array.isArray(p.images) ? [...p.images] : [],
       newImageFiles: [null, null, null],
@@ -535,6 +538,9 @@ export default function AdminPage() {
       sizes: prev.sizes.includes(size)
         ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size],
+      sizeStocks: prev.sizes.includes(size)
+        ? Object.fromEntries(Object.entries(prev.sizeStocks || {}).filter(([k]) => k !== size))
+        : { ...(prev.sizeStocks || {}), [size]: String(prev.stock || "0") },
     }));
   };
 
@@ -568,6 +574,7 @@ export default function AdminPage() {
         stock: Number(editDraft.stock) || 0,
         description: editDraft.description.trim(),
         sizes: editDraft.sizes,
+        sizeStocks: editDraft.sizeStocks || {},
         colors: (editDraft.colors || []).filter((c) => c.trim()),
         images: finalImages,
       };
@@ -608,11 +615,14 @@ export default function AdminPage() {
       sizes: prev.sizes.includes(size)
         ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size],
+      sizeStocks: prev.sizes.includes(size)
+        ? Object.fromEntries(Object.entries(prev.sizeStocks || {}).filter(([k]) => k !== size))
+        : { ...(prev.sizeStocks || {}), [size]: String(prev.stock || "0") },
     }));
   };
 
   const addProduct = async () => {
-    const { sku, name, category_id, price, stock, description, sizes, colors, imageFiles } = productDraft;
+    const { sku, name, category_id, price, stock, description, sizes, sizeStocks, colors, imageFiles } = productDraft;
     if (!sku.trim() || !name.trim() || !price) {
       alert("SKU, Name, and Price are required.");
       return;
@@ -643,12 +653,13 @@ export default function AdminPage() {
         stock: Number(stock) || 0,
         description: description.trim(),
         sizes,
+        sizeStocks: sizeStocks || {},
         colors: colors.filter((c) => c.trim()),
         images: uploadedUrls,
       });
       setProductDraft({
         sku: "", name: "", category_id: categories[0]?.id || 0, price: "", original_price: "", stock: 0,
-        description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
+        description: "", sizes: [], sizeStocks: {}, colors: ["", ""], imageFiles: [null, null, null],
       });
       setShowAddProduct(false);
       const res = await api.get("/api/admin/products");
@@ -1264,6 +1275,30 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </div>
+                      {productDraft.sizes.length > 0 && (
+                        <div className="col-12">
+                          <label className="form-label">Size-level stock</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            {productDraft.sizes.map((size) => (
+                              <div key={`new-size-stock-${size}`} style={{ width: 120 }}>
+                                <small style={{ color: "var(--muted)" }}>{size}</small>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="form-control form-control-sm"
+                                  value={productDraft.sizeStocks?.[size] ?? productDraft.stock ?? 0}
+                                  onChange={(e) =>
+                                    setProductDraft((prev) => ({
+                                      ...prev,
+                                      sizeStocks: { ...(prev.sizeStocks || {}), [size]: e.target.value },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="col-12 osai-admin-form-section">
                         <label className="form-label">Colors</label>
@@ -1443,6 +1478,30 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </div>
+                      {editDraft.sizes.length > 0 && (
+                        <div className="col-12">
+                          <label className="form-label">Size-level stock</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            {editDraft.sizes.map((size) => (
+                              <div key={`edit-size-stock-${size}`} style={{ width: 120 }}>
+                                <small style={{ color: "var(--muted)" }}>{size}</small>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="form-control form-control-sm"
+                                  value={editDraft.sizeStocks?.[size] ?? editDraft.stock ?? 0}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      sizeStocks: { ...(prev.sizeStocks || {}), [size]: e.target.value },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="col-12 osai-admin-form-section">
                         <label className="form-label">Colors</label>
                         <div className="d-flex flex-wrap gap-2 align-items-center">
