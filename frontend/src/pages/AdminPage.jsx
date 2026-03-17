@@ -34,6 +34,9 @@ export default function AdminPage() {
   const [messageSearch, setMessageSearch] = useState("");
   const [messageStatusFilter, setMessageStatusFilter] = useState("all");
   const [messagePage, setMessagePage] = useState(1);
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewRatingFilter, setReviewRatingFilter] = useState("all");
+  const [reviewDateFilter, setReviewDateFilter] = useState("all");
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -732,6 +735,31 @@ export default function AdminPage() {
   }, [products]);
 
   const getReviewProduct = (review) => productLookup.get(String(review?.product_id)) || null;
+
+  const filteredReviews = useMemo(() => {
+    const q = reviewSearch.trim().toLowerCase();
+    const now = Date.now();
+    return reviews.filter((r) => {
+      if (reviewRatingFilter !== "all" && Number(r.rating) !== Number(reviewRatingFilter)) return false;
+
+      if (reviewDateFilter !== "all") {
+        const created = r.created_at ? new Date(r.created_at).getTime() : NaN;
+        if (!Number.isFinite(created)) return false;
+        const days = reviewDateFilter === "7d" ? 7 : reviewDateFilter === "30d" ? 30 : 90;
+        if (now - created > days * 24 * 60 * 60 * 1000) return false;
+      }
+
+      if (!q) return true;
+      const product = getReviewProduct(r);
+      return (
+        String(r.reviewer_name || "").toLowerCase().includes(q) ||
+        String(r.comment || "").toLowerCase().includes(q) ||
+        String(r.product_id || "").toLowerCase().includes(q) ||
+        String(product?.name || "").toLowerCase().includes(q) ||
+        String(product?.sku || "").toLowerCase().includes(q)
+      );
+    });
+  }, [reviews, reviewSearch, reviewRatingFilter, reviewDateFilter, productLookup]);
 
   const tabs = [
     { key: "dashboard", label: "Dashboard",        icon: "bi-speedometer2" },
@@ -1800,7 +1828,40 @@ export default function AdminPage() {
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Customer Reviews</h4>
-                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{reviews.length} reviews</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredReviews.length} reviews</span>
+                </div>
+                <div className="d-flex gap-2 flex-wrap mb-3">
+                  <input
+                    className="form-control form-control-sm"
+                    style={{ maxWidth: 280 }}
+                    value={reviewSearch}
+                    onChange={(e) => setReviewSearch(e.target.value)}
+                    placeholder="Search reviewer, product, comment"
+                  />
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ maxWidth: 160 }}
+                    value={reviewRatingFilter}
+                    onChange={(e) => setReviewRatingFilter(e.target.value)}
+                  >
+                    <option value="all">All ratings</option>
+                    <option value="5">5 stars</option>
+                    <option value="4">4 stars</option>
+                    <option value="3">3 stars</option>
+                    <option value="2">2 stars</option>
+                    <option value="1">1 star</option>
+                  </select>
+                  <select
+                    className="form-select form-select-sm"
+                    style={{ maxWidth: 170 }}
+                    value={reviewDateFilter}
+                    onChange={(e) => setReviewDateFilter(e.target.value)}
+                  >
+                    <option value="all">All time</option>
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d">Last 30 days</option>
+                    <option value="90d">Last 90 days</option>
+                  </select>
                 </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
@@ -1816,7 +1877,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reviews.map((r) => (
+                      {filteredReviews.map((r) => (
                         <tr key={r.id}>
                           <td>{r.id}</td>
                           <td>
@@ -1873,7 +1934,7 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ))}
-                      {reviews.length === 0 && (
+                      {filteredReviews.length === 0 && (
                         <tr><td colSpan={7} className="text-center" style={{ color: "var(--sub)" }}>No reviews yet.</td></tr>
                       )}
                     </tbody>
