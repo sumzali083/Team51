@@ -2,7 +2,13 @@
 const express = require("express");
 const db = require("../config/db");
 const adminMiddleware = require("../middleware/adminMiddleware");
-const { ensureRefundsTable, ALLOWED_STATUSES, getRefundColumns } = require("./refunds");
+const {
+  ensureRefundsTable,
+  ALLOWED_STATUSES,
+  getRefundColumns,
+  canTransitionRefundStatus,
+  appendRefundEvent,
+} = require("./refunds");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -496,6 +502,15 @@ router.get("/refunds", adminMiddleware, async (req, res) => {
     const instructionExpr = cols.has("instruction_link")
       ? "rr.instruction_link"
       : "NULL AS instruction_link";
+    const amountExpr = cols.has("refund_amount")
+      ? "rr.refund_amount"
+      : "NULL AS refund_amount";
+    const referenceExpr = cols.has("refund_reference")
+      ? "rr.refund_reference"
+      : "NULL AS refund_reference";
+    const resolvedAtExpr = cols.has("resolved_at")
+      ? "rr.resolved_at"
+      : "NULL AS resolved_at";
     const [rows] = await db.query(
       `SELECT
         rr.id,
@@ -507,8 +522,11 @@ router.get("/refunds", adminMiddleware, async (req, res) => {
         rr.status,
         rr.admin_note,
         ${instructionExpr},
+        ${amountExpr},
+        ${referenceExpr},
         rr.created_at,
         rr.updated_at,
+        ${resolvedAtExpr},
         u.name AS user_name,
         u.email AS user_email
       FROM refund_requests rr
@@ -529,40 +547,90 @@ router.put("/refunds/:id/status", adminMiddleware, async (req, res) => {
     const cols = await getRefundColumns();
     if (!cols) return res.status(503).json({ message: "Refund system is not initialized on server yet" });
     const { id } = req.params;
-    const { status, adminNote, instructionLink } = req.body || {};
+    const { status, adminNote, instructionLink, refundAmount, refundReference } = req.body || {};
 
     if (!ALLOWED_STATUSES.has(status)) {
       return res.status(400).json({ message: "Invalid refund status" });
     }
 
-    let result;
-    if (cols.has("instruction_link")) {
-      [result] = await db.query(
-        `UPDATE refund_requests
-         SET status = ?, admin_note = ?, instruction_link = ?
-         WHERE id = ?`,
-        [
-          status,
-          adminNote ? String(adminNote).slice(0, 4000) : null,
-          instructionLink ? String(instructionLink).slice(0, 1000) : null,
-          id,
-        ]
-      );
-    } else {
-      [result] = await db.query(
-        `UPDATE refund_requests
-         SET status = ?, admin_note = ?
-         WHERE id = ?`,
-        [
-          status,
-          adminNote ? String(adminNote).slice(0, 4000) : null,
-          id,
-        ]
-      );
+    const [existingRows] = await db.query(
+      "SELECT id, status FROM refund_requests WHERE id = ? LIMIT 1",
+      [id]
+    );
+    if (!existingRows.length) {
+      return res.status(404).json({ message: "Refund request not found" });
     }
+
+    const existing = existingRows[0];
+    if (!canTransitionRefundStatus(existing.status, status)) {
+      return res.status(400).json({
+        message: `Invalid transition from ${existing.status} to ${status}`,
+      });
+    }
+
+    const normalizedAdminNote = adminNote ? String(adminNote).slice(0, 4000) : null;
+    const normalizedInstructionLink = instructionLink ? String(instructionLink).slice(0, 1000) : null;
+    const normalizedReference = refundReference ? String(refundReference).slice(0, 120) : null;
+    const parsedAmount = refundAmount == null || refundAmount === ""
+      ? null
+      : Number(refundAmount);
+
+    if (status === "refunded") {
+      if (parsedAmount == null || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ message: "A valid refund amount is required when marking refunded" });
+      }
+      if (!normalizedReference) {
+        return res.status(400).json({ message: "Refund reference is required when marking refunded" });
+      }
+    }
+
+    const resolvedAtValue = status === "refunded" || status === "rejected"
+      ? "CURRENT_TIMESTAMP"
+      : "NULL";
+
+    let result;
+    const assignments = ["status = ?", "admin_note = ?"];
+    const values = [status, normalizedAdminNote];
+
+    if (cols.has("instruction_link")) {
+      assignments.push("instruction_link = ?");
+      values.push(normalizedInstructionLink);
+    }
+    if (cols.has("refund_amount")) {
+      assignments.push("refund_amount = ?");
+      values.push(status === "refunded" ? Number(parsedAmount) : null);
+    }
+    if (cols.has("refund_reference")) {
+      assignments.push("refund_reference = ?");
+      values.push(status === "refunded" ? normalizedReference : null);
+    }
+    if (cols.has("resolved_at")) {
+      assignments.push(`resolved_at = ${resolvedAtValue}`);
+    }
+
+    values.push(id);
+
+    [result] = await db.query(
+      `UPDATE refund_requests
+       SET ${assignments.join(", ")}
+       WHERE id = ?`,
+      values
+    );
 
     if (!result.affectedRows) {
       return res.status(404).json({ message: "Refund request not found" });
+    }
+
+    if (existing.status !== status) {
+      await appendRefundEvent({
+        refundRequestId: Number(id),
+        actorRole: "admin",
+        actorId: req.session?.userId ?? null,
+        eventType: "status_changed",
+        fromStatus: existing.status,
+        toStatus: status,
+        note: normalizedAdminNote || null,
+      });
     }
 
     res.json({ message: "Refund request updated" });
