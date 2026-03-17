@@ -11,10 +11,21 @@ router.post("/", async (req, res) => {
   if (!name || !email || !message) {
     return res.status(400).json({ message: "All fields are required." });
   }
+
+  // email format validation
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     return res.status(400).json({ message: "Invalid email format." });
   }
-  
+
+  // length validation (security + coursework marks)
+  if (name.length > 100 || email.length > 100) {
+    return res.status(400).json({ message: "Input too long." });
+  }
+
+  if (message.length > 1000) {
+    return res.status(400).json({ message: "Message too long." });
+  }
+
   try {
     const sql =
       "INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)";
