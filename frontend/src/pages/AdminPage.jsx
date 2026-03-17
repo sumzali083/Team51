@@ -141,7 +141,20 @@ export default function AdminPage() {
     }
   };
 
+  const updateMessageStatus = async (id, status) => {
+    try {
+      await api.put(`/api/admin/messages/${id}/status`, { status });
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
+      setSelectedMessage((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update message status");
+    }
+  };
+
   const openMessage = (message) => {
+    if ((message.status || "unread") === "unread") {
+      updateMessageStatus(message.id, "read");
+    }
     setSelectedMessage(message);
   };
 
@@ -407,6 +420,7 @@ export default function AdminPage() {
 
   const needsActionItems = useMemo(() => {
     const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
+    const unreadMessages = messages.filter((m) => (m.status || "unread") === "unread").length;
     return [
       {
         label: "Out of stock products",
@@ -428,12 +442,12 @@ export default function AdminPage() {
       },
       {
         label: "Unread contact messages",
-        value: messages.length,
+        value: unreadMessages,
         tab: "contacts",
-        tone: messages.length > 0 ? "info" : "secondary",
+        tone: unreadMessages > 0 ? "info" : "secondary",
       },
     ];
-  }, [messages.length, outOfStockProducts.length, lowStockProducts.length, refunds]);
+  }, [messages, outOfStockProducts.length, lowStockProducts.length, refunds]);
 
   const recentActivity = useMemo(() => {
     const orderItems = orders.map((o) => ({
@@ -1527,6 +1541,7 @@ export default function AdminPage() {
                         <th>ID</th>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Status</th>
                         <th>Message</th>
                         <th>Date</th>
                         <th>Actions</th>
@@ -1538,6 +1553,11 @@ export default function AdminPage() {
                           <td>{m.id}</td>
                           <td>{m.name}</td>
                           <td style={{ color: "var(--sub)" }}>{m.email}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span className={`osai-status osai-status-${m.status || "unread"}`}>
+                              {m.status || "unread"}
+                            </span>
+                          </td>
                           <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {m.message}
                           </td>
@@ -1549,6 +1569,15 @@ export default function AdminPage() {
                               <button className="btn btn-sm btn-outline-light" onClick={() => openMessage(m)}>
                                 View
                               </button>
+                              {(m.status || "unread") !== "archived" ? (
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => updateMessageStatus(m.id, "archived")}>
+                                  Archive
+                                </button>
+                              ) : (
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => updateMessageStatus(m.id, "unread")}>
+                                  Unarchive
+                                </button>
+                              )}
                               <button className="btn btn-sm btn-outline-danger" onClick={() => deleteMessage(m.id)}>
                                 Delete
                               </button>
@@ -1557,7 +1586,7 @@ export default function AdminPage() {
                         </tr>
                       ))}
                       {messages.length === 0 && (
-                        <tr><td colSpan={6} className="text-center" style={{ color: "var(--sub)" }}>No messages yet.</td></tr>
+                        <tr><td colSpan={7} className="text-center" style={{ color: "var(--sub)" }}>No messages yet.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1646,6 +1675,12 @@ export default function AdminPage() {
               <div className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>
                 <div><strong style={{ color: "var(--text)" }}>From:</strong> {selectedMessage.name || "-"}</div>
                 <div><strong style={{ color: "var(--text)" }}>Email:</strong> {selectedMessage.email || "-"}</div>
+                <div>
+                  <strong style={{ color: "var(--text)" }}>Status:</strong>{" "}
+                  <span className={`osai-status osai-status-${selectedMessage.status || "unread"}`}>
+                    {selectedMessage.status || "unread"}
+                  </span>
+                </div>
                 <div>
                   <strong style={{ color: "var(--text)" }}>Date:</strong>{" "}
                   {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : "-"}
