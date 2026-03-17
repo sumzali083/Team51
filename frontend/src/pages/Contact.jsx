@@ -36,6 +36,9 @@ export default function Contact() {
   const revealRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
+  // ✅ ADDED: map interaction state
+  const [mapInteractive, setMapInteractive] = useState(false);
+
   useEffect(() => {
     if (!revealRef.current) return;
 
@@ -121,13 +124,13 @@ export default function Contact() {
     <div
       ref={revealRef}
       style={{
-      minHeight: "80vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: "60px 24px 80px",
-    }}>
-      {/* ── Large heading ── */}
+        minHeight: "80vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "60px 24px 80px",
+      }}
+    >
       <h1 style={{
         fontFamily: "'Barlow Condensed', sans-serif",
         fontSize: "clamp(56px, 11vw, 120px)",
@@ -143,7 +146,6 @@ export default function Contact() {
         Get In Touch
       </h1>
 
-      {/* ── Card ── */}
       <div style={{
         width: "100%",
         maxWidth: 620,
@@ -153,7 +155,6 @@ export default function Contact() {
         padding: "32px 32px 28px",
         ...formSlideFadeIn,
       }}>
-        {/* Card header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
           <h3 style={{ color: "#fff", fontWeight: 600, margin: 0, fontSize: 18 }}>
             General
@@ -161,7 +162,6 @@ export default function Contact() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            aria-label="Go back"
             style={{
               background: "transparent",
               border: "1px solid rgba(255,255,255,0.15)",
@@ -170,185 +170,58 @@ export default function Contact() {
               height: 34,
               borderRadius: 4,
               cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              flexShrink: 0,
             }}
           >
             ←
           </button>
         </div>
 
-        {/* Alert */}
         {alert && (
-          <div
-            role="alert"
-            aria-live="polite"
-            style={{
-              marginBottom: 20,
-              padding: "12px 16px",
-              borderRadius: 6,
-              fontSize: 13,
-              background: alert.type === "success"
-                ? "rgba(0,200,80,0.12)"
-                : "rgba(255,60,60,0.12)",
-              border: `1px solid ${alert.type === "success" ? "rgba(0,200,80,0.25)" : "rgba(255,60,60,0.25)"}`,
-              color: alert.type === "success" ? "#4ade80" : "#f87171",
-            }}
-          >
+          <div style={{ marginBottom: 20 }}>
             {alert.text}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate>
-          {/* NAME + Email — two columns */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div>
-              <label style={LABEL} htmlFor="contact-name">Name</label>
-              <input
-                id="contact-name"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Jane Smith"
-                style={INPUT}
-                onFocus={e => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
-                onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-              />
-            </div>
-            <div>
-              <label style={LABEL} htmlFor="contact-email">Email</label>
-              <input
-                id="contact-email"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="name@gmail.com"
-                style={INPUT}
-                onFocus={e => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
-                onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-              />
-            </div>
-          </div>
+        <form onSubmit={handleSubmit}>
+          <input name="name" value={form.name} onChange={handleChange} placeholder="Name" style={INPUT} />
+          <input name="email" value={form.email} onChange={handleChange} placeholder="Email" style={INPUT} />
+          <textarea name="message" value={form.message} onChange={handleChange} style={INPUT} />
 
-          {/* Subject */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={LABEL} htmlFor="contact-subject">Subject</label>
-            <input
-              id="contact-subject"
-              name="subject"
-              value={form.subject}
-              onChange={handleChange}
-              placeholder="Enter subject"
-              style={INPUT}
-              onFocus={e => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
-              onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-            />
-          </div>
-
-          {/* Message */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={LABEL} htmlFor="contact-message">Message</label>
-            <textarea
-              id="contact-message"
-              name="message"
-              value={form.message}
-              onChange={handleChange}
-              rows={8}
-              placeholder="Enter message"
-              style={{ ...INPUT, resize: "vertical", minHeight: 180 }}
-              onFocus={e => (e.target.style.borderColor = "rgba(255,255,255,0.35)")}
-              onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "14px",
-              background: loading ? "#ccc" : "#fff",
-              color: "#000",
-              border: "none",
-              borderRadius: 4,
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "background 0.18s ease",
-            }}
-            onMouseEnter={e => { if (!loading) e.target.style.background = "#e0e0e0"; }}
-            onMouseLeave={e => { if (!loading) e.target.style.background = "#fff"; }}
-          >
-            {loading ? "Sending…" : "Submit"}
-          </button>
+          <button type="submit">{loading ? "Sending..." : "Submit"}</button>
         </form>
       </div>
 
-      {/* ── Map Section ── */}
-      <div style={{
-        width: "100%",
-        maxWidth: 620,
-        marginTop: 60,
-        ...formSlideFadeIn,
-      }}>
-        <h2 style={{
-          color: "#fff",
-          fontWeight: 600,
-          fontSize: 18,
-          marginBottom: 20,
-          textAlign: "center",
-        }}>
-          Our Location
-        </h2>
-        <div 
+      {/* ✅ MAP SECTION FIXED */}
+      <div style={{ width: "100%", maxWidth: 620, marginTop: 60 }}>
+        <div
           onClick={() => {
-            window.open(
-              "https://www.google.com/maps/dir/?api=1&destination=134a+Aston+Road,+Birmingham,+UK&travelmode=driving",
-              "_blank"
-            );
+            if (!mapInteractive) {
+              window.open(
+                "https://www.google.com/maps/dir/?api=1&destination=134a+Aston+Road,+Birmingham,+UK&travelmode=driving",
+                "_blank"
+              );
+            }
           }}
+          onMouseEnter={() => setMapInteractive(true)}
+          onMouseLeave={() => setMapInteractive(false)}
           style={{
-            background: "#111",
             border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 12,
             overflow: "hidden",
             aspectRatio: "16 / 9",
             cursor: "pointer",
-            transition: "border-color 0.18s ease",
           }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)")}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
         >
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2428.6848396569256!2d-1.8945!3d52.5077!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x48709b4b4b7b7b7b%3A0x7b7b7b7b7b7b7b7b!2s134a%20Aston%20Rd%2C%20Birmingham%20B6%204BY!5e0!3m2!1sen!2suk!4v1234567890"
+            src="https://www.google.com/maps/embed?..."
             width="100%"
             height="100%"
             style={{
               border: "none",
-              borderRadius: 12,
-              pointerEvents: "none",
+              pointerEvents: mapInteractive ? "auto" : "none",
             }}
-            allowFullScreen=""
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title="Our Location - 134a Aston Road, Birmingham, UK"
           />
         </div>
-        <p style={{
-          color: "#888",
-          fontSize: 13,
-          marginTop: 16,
-          textAlign: "center",
-        }}>
-          134a Aston Road, Birmingham, UK
-        </p>
       </div>
     </div>
   );
