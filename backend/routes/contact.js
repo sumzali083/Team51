@@ -17,7 +17,7 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ message: "Invalid email format." });
   }
 
-  // length validation (security + coursework marks)
+  // length validation (security )
   if (name.length > 100 || email.length > 100) {
     return res.status(400).json({ message: "Input too long." });
   }
