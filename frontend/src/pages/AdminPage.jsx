@@ -1844,7 +1844,14 @@ export default function AdminPage() {
                                   }}
                                 />
                               )}
-                              <span style={{ color: "var(--sub)" }}>#{r.product_id}</span>
+                              <a
+                                href={`/product/${encodeURIComponent(r.product_id)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: "#fff", textDecoration: "underline", textUnderlineOffset: 3 }}
+                              >
+                                #{r.product_id}
+                              </a>
                             </div>
                           </td>
                           <td>{r.reviewer_name}</td>
