@@ -45,6 +45,7 @@ export default function AdminPage() {
   const [savingUserId, setSavingUserId] = useState(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState(null);
   const [runningBulkUsersAction, setRunningBulkUsersAction] = useState(false);
+  const [actionMenuUserId, setActionMenuUserId] = useState(null);
   const [stockDraft, setStockDraft] = useState({});
   const [orderStatusDraft, setOrderStatusDraft] = useState({});
   const [refundStatusDraft, setRefundStatusDraft] = useState({});
@@ -2068,38 +2069,77 @@ export default function AdminPage() {
                             {u.created_at ? new Date(u.created_at).toLocaleDateString() : "-"}
                           </td>
                           <td>
-                            <div className="d-flex gap-2 flex-wrap">
+                            <div className="d-flex gap-2 align-items-center">
                               <button
                                 className="btn btn-sm btn-outline-light"
                                 onClick={() => openUserSummary(u)}
                               >
                                 View
                               </button>
-                              <button
-                                className="btn btn-sm btn-outline-info"
-                                onClick={() => updateUserRole(u, Number(u.is_admin) !== 1)}
-                                disabled={savingUserRoleId === u.id}
-                              >
-                                {savingUserRoleId === u.id
-                                  ? "Saving..."
-                                  : Number(u.is_admin) === 1
-                                    ? "Remove Admin"
-                                    : "Make Admin"}
-                              </button>
-                              <button
-                                className="btn btn-sm btn-outline-warning"
-                                onClick={() => updateUserSuspension(u, Number(u.is_suspended) !== 1)}
-                                disabled={Number(u.id) === Number(user?.id) || savingUserId === u.id}
-                              >
-                                {savingUserId === u.id ? "Saving..." : Number(u.is_suspended) === 1 ? "Unsuspend" : "Suspend"}
-                              </button>
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => deleteUser(u.id)}
-                                disabled={Number(u.id) === Number(user?.id)}
-                              >
-                                Delete
-                              </button>
+                              <div style={{ position: "relative" }}>
+                                <button
+                                  className="btn btn-sm btn-outline-secondary"
+                                  onClick={() =>
+                                    setActionMenuUserId((prev) => (prev === u.id ? null : u.id))
+                                  }
+                                >
+                                  Actions
+                                </button>
+                                {actionMenuUserId === u.id && (
+                                  <div
+                                    className="p-2 rounded-2"
+                                    style={{
+                                      position: "absolute",
+                                      top: "calc(100% + 6px)",
+                                      right: 0,
+                                      zIndex: 20,
+                                      minWidth: 180,
+                                      background: "var(--bg-surface)",
+                                      border: "1px solid var(--line)",
+                                      boxShadow: "0 10px 25px rgba(0,0,0,0.35)",
+                                    }}
+                                  >
+                                    <button
+                                      className="btn btn-sm btn-outline-info w-100 mb-2"
+                                      onClick={() => {
+                                        updateUserRole(u, Number(u.is_admin) !== 1);
+                                        setActionMenuUserId(null);
+                                      }}
+                                      disabled={savingUserRoleId === u.id}
+                                    >
+                                      {savingUserRoleId === u.id
+                                        ? "Saving..."
+                                        : Number(u.is_admin) === 1
+                                          ? "Remove Admin"
+                                          : "Make Admin"}
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline-warning w-100 mb-2"
+                                      onClick={() => {
+                                        updateUserSuspension(u, Number(u.is_suspended) !== 1);
+                                        setActionMenuUserId(null);
+                                      }}
+                                      disabled={Number(u.id) === Number(user?.id) || savingUserId === u.id}
+                                    >
+                                      {savingUserId === u.id
+                                        ? "Saving..."
+                                        : Number(u.is_suspended) === 1
+                                          ? "Unsuspend"
+                                          : "Suspend"}
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline-danger w-100"
+                                      onClick={() => {
+                                        deleteUser(u.id);
+                                        setActionMenuUserId(null);
+                                      }}
+                                      disabled={Number(u.id) === Number(user?.id)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
