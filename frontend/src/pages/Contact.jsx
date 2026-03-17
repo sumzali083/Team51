@@ -20,7 +20,7 @@ const INPUT = {
 const LABEL = {
   display: "block",
   fontSize: 11,
-  fontWeight: 600,
+  fontWeight: 550,
   letterSpacing: "0.14em",
   textTransform: "uppercase",
   color: "#888",
