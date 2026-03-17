@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [refundInstructionLinkDraft, setRefundInstructionLinkDraft] = useState({});
   const [refundAmountDraft, setRefundAmountDraft] = useState({});
   const [refundReferenceDraft, setRefundReferenceDraft] = useState({});
+  const [expandedRefunds, setExpandedRefunds] = useState({});
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState(null);
@@ -165,6 +166,9 @@ export default function AdminPage() {
 
   const getAllowedRefundStatuses = (currentStatus) => {
     return REFUND_TRANSITIONS[currentStatus || "pending"] || REFUND_TRANSITIONS.pending;
+  };
+  const toggleRefundExpanded = (refundId) => {
+    setExpandedRefunds((prev) => ({ ...prev, [refundId]: !prev[refundId] }));
   };
 
   const deleteMessage = async (message) => {
@@ -1454,119 +1458,154 @@ export default function AdminPage() {
                   <h4 className="osai-admin-section-title">Refund Requests</h4>
                   <span style={{ color: "var(--sub)", fontSize: 12 }}>{refunds.length} requests</span>
                 </div>
-                <div className="table-responsive">
+                <div>
                   <table className="table table-sm align-middle">
                     <thead className="table-light">
                       <tr>
                         <th>ID</th>
                         <th>User</th>
-                        <th>Email</th>
                         <th>Order</th>
                         <th>Reason</th>
-                        <th style={{ minWidth: 170 }}>Status</th>
-                        <th>Admin Note</th>
-                        <th>Instructions Link / QR URL</th>
-                        <th>Refund Amount</th>
-                        <th>Refund Reference</th>
+                        <th style={{ minWidth: 180 }}>Status</th>
                         <th>Date</th>
+                        <th>Details</th>
                         <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {refunds.map((r) => (
-                        <tr key={r.id}>
-                          <td>#{r.id}</td>
-                          <td>{r.user_name || "-"}</td>
-                          <td style={{ color: "var(--sub)" }}>{r.user_email || "-"}</td>
-                          <td>#{r.order_id}</td>
-                          <td style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {r.reason}
-                          </td>
-                          <td style={{ minWidth: 190 }}>
-                            <div className="d-flex flex-column gap-2">
+                      {refunds.flatMap((r) => {
+                        const isOpen = !!expandedRefunds[r.id];
+                        return [
+                          <tr key={`refund-row-${r.id}`}>
+                            <td>#{r.id}</td>
+                            <td>
+                              <div style={{ lineHeight: 1.2 }}>
+                                <div>{r.user_name || "-"}</div>
+                                <small style={{ color: "var(--sub)" }}>{r.user_email || "-"}</small>
+                              </div>
+                            </td>
+                            <td>#{r.order_id}</td>
+                            <td style={{ maxWidth: 260 }}>
+                              <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.reason || ""}>
+                                {r.reason || "-"}
+                              </div>
+                            </td>
+                            <td style={{ minWidth: 180 }}>
                               <span className={`osai-status osai-status-${refundStatusDraft[r.id] || "pending"}`}>
                                 {refundStatusDraft[r.id] || "pending"}
                               </span>
-                              <select
-                                className="form-select form-select-sm"
-                                style={{ minWidth: 170, color: "var(--text)", backgroundColor: "var(--bg-surface)" }}
-                                value={refundStatusDraft[r.id] || "pending"}
-                                onChange={(e) =>
-                                  setRefundStatusDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
-                                }
+                            </td>
+                            <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                              {r.created_at ? new Date(r.created_at).toLocaleDateString() : "-"}
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-outline-light"
+                                onClick={() => toggleRefundExpanded(r.id)}
                               >
-                                {["pending", "approved", "processing", "rejected", "refunded"].map((nextStatus) => (
-                                  <option
-                                    key={nextStatus}
-                                    value={nextStatus}
-                                    disabled={!getAllowedRefundStatuses(r.status || "pending").has(nextStatus)}
-                                  >
-                                    {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </td>
-                          <td style={{ minWidth: 220 }}>
-                            <input
-                              className="form-control form-control-sm"
-                              placeholder="Optional note for customer"
-                              value={refundAdminNoteDraft[r.id] || ""}
-                              onChange={(e) =>
-                                setRefundAdminNoteDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
-                              }
-                            />
-                          </td>
-                          <td style={{ minWidth: 220 }}>
-                            <input
-                              className="form-control form-control-sm"
-                              placeholder="https://... (return label/QR)"
-                              value={refundInstructionLinkDraft[r.id] || ""}
-                              onChange={(e) =>
-                                setRefundInstructionLinkDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
-                              }
-                            />
-                          </td>
-                          <td style={{ minWidth: 140 }}>
-                            <input
-                              className="form-control form-control-sm"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={refundAmountDraft[r.id] || ""}
-                              onChange={(e) =>
-                                setRefundAmountDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
-                              }
-                            />
-                          </td>
-                          <td style={{ minWidth: 170 }}>
-                            <input
-                              className="form-control form-control-sm"
-                              placeholder="Payment ref/txn id"
-                              value={refundReferenceDraft[r.id] || ""}
-                              onChange={(e) =>
-                                setRefundReferenceDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
-                              }
-                            />
-                          </td>
-                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
-                            {r.created_at ? new Date(r.created_at).toLocaleDateString() : "-"}
-                          </td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-dark"
-                              onClick={() => updateRefundStatus(r.id)}
-                              disabled={savingRefundId === r.id}
-                            >
-                              {savingRefundId === r.id ? "Saving..." : "Save"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                                {isOpen ? "Hide" : "View"}
+                              </button>
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-dark"
+                                onClick={() => updateRefundStatus(r.id)}
+                                disabled={savingRefundId === r.id}
+                              >
+                                {savingRefundId === r.id ? "Saving..." : "Save"}
+                              </button>
+                            </td>
+                          </tr>,
+                          isOpen ? (
+                            <tr key={`refund-expand-${r.id}`}>
+                              <td colSpan={8}>
+                                <div
+                                  className="p-3 rounded-2"
+                                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--line)" }}
+                                >
+                                  <div className="row g-3">
+                                    <div className="col-12">
+                                      <label style={{ color: "var(--sub)", fontSize: 12 }}>Reason</label>
+                                      <div style={{ color: "var(--text)", fontSize: 14 }}>{r.reason || "-"}</div>
+                                    </div>
+                                    <div className="col-12 col-md-6 col-xl-3">
+                                      <label style={{ color: "var(--sub)", fontSize: 12 }}>Status</label>
+                                      <select
+                                        className="form-select form-select-sm"
+                                        style={{ color: "var(--text)", backgroundColor: "var(--bg-surface)" }}
+                                        value={refundStatusDraft[r.id] || "pending"}
+                                        onChange={(e) =>
+                                          setRefundStatusDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                        }
+                                      >
+                                        {["pending", "approved", "processing", "rejected", "refunded"].map((nextStatus) => (
+                                          <option
+                                            key={nextStatus}
+                                            value={nextStatus}
+                                            disabled={!getAllowedRefundStatuses(r.status || "pending").has(nextStatus)}
+                                          >
+                                            {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div className="col-12 col-md-6 col-xl-3">
+                                      <label style={{ color: "var(--sub)", fontSize: 12 }}>Refund Amount</label>
+                                      <input
+                                        className="form-control form-control-sm"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={refundAmountDraft[r.id] || ""}
+                                        onChange={(e) =>
+                                          setRefundAmountDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                        }
+                                      />
+                                    </div>
+                                    <div className="col-12 col-md-6 col-xl-3">
+                                      <label style={{ color: "var(--sub)", fontSize: 12 }}>Refund Reference</label>
+                                      <input
+                                        className="form-control form-control-sm"
+                                        placeholder="Payment ref/txn id"
+                                        value={refundReferenceDraft[r.id] || ""}
+                                        onChange={(e) =>
+                                          setRefundReferenceDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                        }
+                                      />
+                                    </div>
+                                    <div className="col-12 col-md-6 col-xl-3">
+                                      <label style={{ color: "var(--sub)", fontSize: 12 }}>Instructions Link / URL</label>
+                                      <input
+                                        className="form-control form-control-sm"
+                                        placeholder="https://... (return label/QR)"
+                                        value={refundInstructionLinkDraft[r.id] || ""}
+                                        onChange={(e) =>
+                                          setRefundInstructionLinkDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                        }
+                                      />
+                                    </div>
+                                    <div className="col-12">
+                                      <label style={{ color: "var(--sub)", fontSize: 12 }}>Admin Note</label>
+                                      <input
+                                        className="form-control form-control-sm"
+                                        placeholder="Optional note for customer"
+                                        value={refundAdminNoteDraft[r.id] || ""}
+                                        onChange={(e) =>
+                                          setRefundAdminNoteDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null,
+                        ];
+                      })}
                       {refunds.length === 0 && (
                         <tr>
-                          <td colSpan={12} className="text-center" style={{ color: "var(--sub)" }}>
+                          <td colSpan={8} className="text-center" style={{ color: "var(--sub)" }}>
                             No refund requests yet.
                           </td>
                         </tr>
