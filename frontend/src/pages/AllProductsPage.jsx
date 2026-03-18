@@ -10,6 +10,7 @@ const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const GENDER_OPTIONS = [
   { label: "Male",   value: "Mens" },
   { label: "Female", value: "Womens" },
+  { label: "Kids",   value: "Kids" },
 ];
 
 const COLOR_CSS = {
@@ -284,7 +285,7 @@ export function AllProductsPage() {
       </div>
 
       {/* Gender */}
-      <AccordionSection title="Gender" badge={selectedGenders.length || null} defaultOpen>
+      <AccordionSection title="Category" badge={selectedGenders.length || null} defaultOpen>
         <div style={{ display: "flex", gap: 8 }}>
           {GENDER_OPTIONS.map(({ label, value }) => {
             const active = selectedGenders.includes(value);
