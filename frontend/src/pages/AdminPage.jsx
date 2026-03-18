@@ -49,6 +49,7 @@ export default function AdminPage() {
   const [feedbackSearch, setFeedbackSearch] = useState("");
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [selectedReview, setSelectedReview] = useState(null);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [messageSearch, setMessageSearch] = useState("");
   const [messageStatusFilter, setMessageStatusFilter] = useState("all");
   const [messagePage, setMessagePage] = useState(1);
@@ -329,6 +330,16 @@ export default function AdminPage() {
     }
   };
 
+  const deleteFeedback = async (id) => {
+    if (!window.confirm("Delete this feedback entry?")) return;
+    try {
+      await api.delete(`/api/admin/feedback/${id}`);
+      setFeedback((prev) => prev.filter((f) => f.id !== id));
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to delete feedback");
+    }
+  };
+
   const deleteUser = async (id) => {
     if (Number(id) === Number(user?.id)) {
       alert("You cannot delete your own account.");
@@ -465,6 +476,8 @@ export default function AdminPage() {
 
   const openReviewModal = (review) => setSelectedReview(review);
   const closeReviewModal = () => setSelectedReview(null);
+  const openFeedbackModal = (feedbackItem) => setSelectedFeedback(feedbackItem);
+  const closeFeedbackModal = () => setSelectedFeedback(null);
 
   const toggleUserSelection = (targetId) => {
     setSelectedUsers((prev) => ({ ...prev, [targetId]: !prev[targetId] }));
@@ -790,6 +803,7 @@ export default function AdminPage() {
       { label: "Low Stock", value: reports?.lowStockCount ?? 0, tab: "stockAlerts" },
       { label: "Pending Refunds", value: reports?.pendingRefundRequests ?? 0, tab: "refunds" },
       { label: "Messages", value: messages.length, tab: "contacts" },
+      { label: "Feedback", value: feedback.length, tab: "feedback" },
       { label: "Reviews", value: reviews.length, tab: "reviews" },
     ];
   }, [messages.length, orders.length, products.length, refunds.length, reports, reviews.length]);
@@ -1066,8 +1080,9 @@ export default function AdminPage() {
     { key: "orders",    label: "Orders",            icon: "bi-bag-check" },
     { key: "refunds",   label: "Refunds",           icon: "bi-arrow-counterclockwise" },
     { key: "reviews",   label: "Reviews",           icon: "bi-star" },
+    { key: "feedback",  label: "Feedback",          icon: "bi-chat-left-text" },
     { key: "contacts",  label: "Contact Messages",  icon: "bi-envelope" },
-    { key: "users",     label: "Users",             icon: "bi-people" },
+    { key: "users",     label: "Users",             icon: "bi-people" }
   ];
 
   const overviewCardStyle = {
@@ -2608,6 +2623,96 @@ export default function AdminPage() {
             </div>
           )}
 
+          {activeTab === "feedback" && (
+            <div className="card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Feedback</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>
+                    {filteredFeedback.length} entries
+                  </span>
+                </div>
+
+                <div className="d-flex gap-2 flex-wrap mb-3">
+                  <input
+                    className="form-control form-control-sm"
+                    style={{ maxWidth: 280 }}
+                    value={feedbackSearch}
+                    onChange={(e) => setFeedbackSearch(e.target.value)}
+                    placeholder="Search name, email, comment"
+                  />
+                </div>
+
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle">
+                    <thead className="table-light">
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Rating</th>
+                        <th>Comment</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredFeedback.map((f) => (
+                        <tr key={f.id}>
+                          <td>{f.id}</td>
+                          <td>{f.name}</td>
+                          <td style={{ color: "var(--sub)" }}>{f.email}</td>
+                          <td>
+                            <span
+                              style={{
+                                color: "#fbbf24",
+                                fontFamily: "var(--font-display)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                            </span>
+                          </td>
+                          <td
+                            style={{
+                              maxWidth: 260,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={f.comments || ""}
+                          >
+                            {f.comments}
+                          </td>
+                          <td style={{ color: "var(--sub)", whiteSpace: "nowrap" }}>
+                            {f.created_at ? new Date(f.created_at).toLocaleDateString() : "—"}
+                          </td>
+                          <td>
+                            <div className="d-flex gap-2 flex-wrap">
+                              <button className="btn btn-sm btn-outline-light" onClick={() => openFeedbackModal(f)}>
+                                View
+                              </button>
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => deleteFeedback(f.id)}>
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredFeedback.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center" style={{ color: "var(--sub)" }}>
+                            No feedback yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === "contacts" && (
             <div className="card border-0 shadow-sm">
               <div className="card-body">
@@ -3404,6 +3509,53 @@ export default function AdminPage() {
                 }}
               >
                 {selectedReview.comment || "(No comment content)"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedFeedback && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.7)", zIndex: 2000 }}
+          onClick={closeFeedbackModal}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(720px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0 osai-admin-section-title">Feedback #{selectedFeedback.id}</h5>
+                <button className="btn btn-sm btn-outline-secondary" onClick={closeFeedbackModal}>Close</button>
+              </div>
+              <div className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>
+                <div><strong style={{ color: "var(--text)" }}>Name:</strong> {selectedFeedback.name || "-"}</div>
+                <div><strong style={{ color: "var(--text)" }}>Email:</strong> {selectedFeedback.email || "-"}</div>
+                <div><strong style={{ color: "var(--text)" }}>Rating:</strong>{" "}
+                  <span style={{ color: "#fbbf24" }}>
+                    {"★".repeat(Number(selectedFeedback.rating || 0))}
+                    {"☆".repeat(Math.max(0, 5 - Number(selectedFeedback.rating || 0)))}
+                  </span>
+                </div>
+                <div><strong style={{ color: "var(--text)" }}>Date:</strong>{" "}
+                  {selectedFeedback.created_at ? new Date(selectedFeedback.created_at).toLocaleString() : "-"}
+                </div>
+              </div>
+              <div
+                className="p-3 rounded-2"
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid var(--line)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  maxHeight: "45vh",
+                  overflowY: "auto",
+                }}
+              >
+                {selectedFeedback.comments || "(No comment content)"}
               </div>
             </div>
           </div>

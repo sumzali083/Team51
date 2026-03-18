@@ -10,6 +10,7 @@ const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const GENDER_OPTIONS = [
   { label: "Male",   value: "Mens" },
   { label: "Female", value: "Womens" },
+  { label: "Kids",   value: "Kids" },
 ];
 
 const COLOR_CSS = {
@@ -35,24 +36,32 @@ function AccordionSection({ title, badge, children, defaultOpen = false }) {
         onClick={() => setOpen(o => !o)}
         style={{
           width: "100%", display: "flex", justifyContent: "space-between",
-          alignItems: "center", padding: "13px 0", background: "none",
+          alignItems: "center", padding: "15px 0", background: "none",
           border: "none", cursor: "pointer", color: "#fff",
-          fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+          fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
         }}
       >
-        <span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {title}
-          {badge ? <span style={{ marginLeft: 6, color: "#aaa", fontWeight: 400 }}>({badge})</span> : null}
+          {badge ? (
+            <span style={{
+              background: "#fff", color: "#000", borderRadius: "50%",
+              width: 18, height: 18, display: "inline-flex", alignItems: "center",
+              justifyContent: "center", fontSize: 10, fontWeight: 700,
+            }}>{badge}</span>
+          ) : null}
         </span>
-        <i className={`bi bi-chevron-${open ? "up" : "down"}`} style={{ fontSize: 11, color: "#666" }} />
+        <i className={`bi bi-chevron-${open ? "up" : "down"}`} style={{ fontSize: 11, color: "#555" }} />
       </button>
-      {open && <div style={{ paddingBottom: 14 }}>{children}</div>}
+      {open && <div style={{ paddingBottom: 16 }}>{children}</div>}
     </div>
   );
 }
 
+
 function DualRangeSlider({ min, max, minVal, maxVal, onMinChange, onMaxChange }) {
   const fillRef = useRef(null);
+
   useEffect(() => {
     if (!fillRef.current || max === min) return;
     const lo = ((minVal - min) / (max - min)) * 100;
@@ -61,44 +70,57 @@ function DualRangeSlider({ min, max, minVal, maxVal, onMinChange, onMaxChange })
     fillRef.current.style.width = `${hi - lo}%`;
   }, [min, max, minVal, maxVal]);
 
-  const thumbStyle = {
-    position: "absolute", top: 0, left: 0, width: "100%",
-    WebkitAppearance: "none", appearance: "none",
-    background: "transparent", pointerEvents: "none",
-    height: 2, margin: 0, padding: 0, outline: "none", border: "none",
-  };
-
   return (
-    <div style={{ paddingTop: 6 }}>
+    <div style={{ paddingTop: 4 }}>
       <style>{`
-        .osai-thumb::-webkit-slider-thumb {
+        .osai-range-slider {
           -webkit-appearance: none; appearance: none;
-          width: 14px; height: 14px; border-radius: 2px;
-          background: #0d0d0d; border: 2px solid #fff;
+          position: absolute; left: 0; top: 50%;
+          transform: translateY(-50%);
+          width: 100%; height: 0;
+          background: transparent; pointer-events: none;
+          outline: none; margin: 0;
+        }
+        .osai-range-slider::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 16px; height: 16px; border-radius: 3px;
+          background: #111; border: 2px solid #fff;
           cursor: pointer; pointer-events: all;
         }
-        .osai-thumb::-moz-range-thumb {
-          width: 14px; height: 14px; border-radius: 2px;
-          background: #0d0d0d; border: 2px solid #fff;
-          cursor: pointer; pointer-events: all; border: none;
+        .osai-range-slider::-moz-range-thumb {
+          width: 16px; height: 16px; border-radius: 3px;
+          background: #111; border: 2px solid #fff;
+          cursor: pointer; pointer-events: all; box-sizing: border-box;
         }
       `}</style>
-      <div style={{ position: "relative", height: 2, background: "rgba(255,255,255,0.12)", borderRadius: 1, margin: "16px 0 8px" }}>
-        <div ref={fillRef} style={{ position: "absolute", height: "100%", background: "#fff", borderRadius: 1 }} />
+
+      {/* Track */}
+      <div style={{ position: "relative", height: 24, margin: "8px 0" }}>
+        <div style={{
+          position: "absolute", top: "50%", left: 0, right: 0,
+          height: 2, background: "rgba(255,255,255,0.15)",
+          transform: "translateY(-50%)", borderRadius: 1,
+        }} />
+        <div ref={fillRef} style={{
+          position: "absolute", top: "50%", height: 2,
+          background: "#fff", transform: "translateY(-50%)", borderRadius: 1,
+        }} />
         <input
-          type="range" min={min} max={max} value={minVal}
-          className="osai-thumb"
+          type="range" className="osai-range-slider"
+          min={min} max={max} value={minVal}
+          style={{ zIndex: minVal > max * 0.9 ? 5 : 3 }}
           onChange={e => onMinChange(Math.min(Number(e.target.value), maxVal - 1))}
-          style={{ ...thumbStyle, zIndex: minVal > max - (max * 0.1) ? 5 : 3 }}
         />
         <input
-          type="range" min={min} max={max} value={maxVal}
-          className="osai-thumb"
+          type="range" className="osai-range-slider"
+          min={min} max={max} value={maxVal}
+          style={{ zIndex: 4 }}
           onChange={e => onMaxChange(Math.max(Number(e.target.value), minVal + 1))}
-          style={{ ...thumbStyle, zIndex: 4 }}
         />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888", marginTop: 10 }}>
+
+      {/* Value labels */}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#aaa", marginTop: 4 }}>
         <span>£{minVal}</span>
         <span>£{maxVal}</span>
       </div>
@@ -115,7 +137,7 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-export function AllProductsPage() {
+export function FilteredProductPage({ cat = "all", pageTitle = "All Products", showCategory = true, showSale = true }) {
   const { addToCart } = useContext(CartContext);
   const { addToWishlist } = useContext(WishlistContext);
 
@@ -138,11 +160,17 @@ export function AllProductsPage() {
   const [minRating, setMinRating] = useState(0);
   const [sortBy, setSortBy]       = useState("featured");
 
+  // Lock body scroll when mobile filter sheet is open
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [sidebarOpen]);
+
   // ── Fetch ─────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.get("/api/products", { params: { cat: "all" } })
+    api.get("/api/products", { params: { cat } })
       .then(res => { if (!cancelled) setProducts(res.data || []); })
       .catch(() => { if (!cancelled) setProducts(PRODUCTS); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -262,24 +290,30 @@ export function AllProductsPage() {
         )}
       </div>
 
-      {/* Gender */}
-      <AccordionSection title="Gender" badge={selectedGenders.length || null} defaultOpen>
-        {GENDER_OPTIONS.map(({ label, value }) => (
-          <label key={value} style={{
-            display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
-            cursor: "pointer", fontSize: 13,
-            color: selectedGenders.includes(value) ? "#fff" : "#888",
-          }}>
-            <input
-              type="checkbox"
-              checked={selectedGenders.includes(value)}
-              onChange={() => toggle(setSelectedGenders, value)}
-              style={{ width: 15, height: 15, accentColor: "#fff", cursor: "pointer", flexShrink: 0 }}
-            />
-            {label}
-          </label>
-        ))}
-      </AccordionSection>
+      {/* Category — hidden on single-category pages like Mens */}
+      {showCategory && <AccordionSection title="Category" badge={selectedGenders.length || null} defaultOpen>
+        <div style={{ display: "flex", gap: 8 }}>
+          {GENDER_OPTIONS.map(({ label, value }) => {
+            const active = selectedGenders.includes(value);
+            return (
+              <button
+                key={value}
+                onClick={() => toggle(setSelectedGenders, value)}
+                style={{
+                  flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 600,
+                  letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer",
+                  border: `1px solid ${active ? "#fff" : "rgba(255,255,255,0.15)"}`,
+                  background: active ? "#fff" : "transparent",
+                  color: active ? "#000" : "#777",
+                  borderRadius: 3, transition: "all 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </AccordionSection>}
 
       {/* Price Range */}
       <AccordionSection title="Shop By Price" badge={(sliderMin > 0 || sliderMax < sliderBound) ? 1 : null}>
@@ -291,22 +325,24 @@ export function AllProductsPage() {
       </AccordionSection>
 
       {/* Sale */}
-      <AccordionSection title="Sale & Offers" badge={saleOnly ? 1 : null}>
-        <label style={{
-          display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-          fontSize: 13, color: saleOnly ? "#fff" : "#888",
-        }}>
-          <input
-            type="checkbox" checked={saleOnly} onChange={e => setSaleOnly(e.target.checked)}
-            style={{ width: 15, height: 15, accentColor: "#fff", cursor: "pointer", flexShrink: 0 }}
-          />
-          On Sale Only
+      {showSale && <AccordionSection title="Sale & Offers" badge={saleOnly ? 1 : null}>
+        <button
+          onClick={() => setSaleOnly(o => !o)}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 12px", cursor: "pointer", borderRadius: 3,
+            border: `1px solid ${saleOnly ? "#e53935" : "rgba(255,255,255,0.12)"}`,
+            background: saleOnly ? "rgba(229,57,53,0.12)" : "transparent",
+            color: saleOnly ? "#fff" : "#888",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: saleOnly ? 600 : 400 }}>On Sale Only</span>
           <span style={{
-            marginLeft: 4, background: "#e53935", color: "#fff",
-            fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 2, letterSpacing: "0.06em",
+            background: "#e53935", color: "#fff",
+            fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 2, letterSpacing: "0.08em",
           }}>SALE</span>
-        </label>
-      </AccordionSection>
+        </button>
+      </AccordionSection>}
 
       {/* Size */}
       <AccordionSection title="Size" badge={selectedSizes.length || null}>
@@ -335,22 +371,27 @@ export function AllProductsPage() {
 
       {/* Rating */}
       <AccordionSection title="Rating" badge={minRating > 0 ? 1 : null}>
-        {[4, 3, 2, 1].map(r => (
-          <label key={r} style={{
-            display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
-            cursor: "pointer", fontSize: 13, color: minRating === r ? "#fff" : "#888",
-          }}>
-            <input
-              type="radio" name="rating"
-              checked={minRating === r}
-              onChange={() => setMinRating(minRating === r ? 0 : r)}
-              style={{ accentColor: "#fff", cursor: "pointer", flexShrink: 0 }}
-            />
-            <span style={{ color: "#f9a825", letterSpacing: 1 }}>{"★".repeat(r)}</span>
-            <span style={{ color: "#444", letterSpacing: 1 }}>{"★".repeat(4 - r)}</span>
-            <span style={{ color: "#666", fontSize: 11 }}>&amp; up</span>
-          </label>
-        ))}
+        {[4, 3, 2, 1].map(r => {
+          const active = minRating === r;
+          return (
+            <button
+              key={r}
+              onClick={() => setMinRating(active ? 0 : r)}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", marginBottom: 6, padding: "7px 10px",
+                background: active ? "rgba(255,255,255,0.07)" : "transparent",
+                border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "transparent"}`,
+                borderRadius: 3, cursor: "pointer",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              <span style={{ color: "#f9a825", letterSpacing: 2, fontSize: 13 }}>{"★".repeat(r)}</span>
+              <span style={{ color: "#333", letterSpacing: 2, fontSize: 13 }}>{"★".repeat(4 - r)}</span>
+              <span style={{ color: active ? "#aaa" : "#555", fontSize: 11, fontFamily: "var(--font-body)" }}>&amp; up</span>
+            </button>
+          );
+        })}
       </AccordionSection>
 
       {/* Colour */}
@@ -409,7 +450,7 @@ export function AllProductsPage() {
 
       {/* Page heading */}
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>All Products</h2>
+        <h2 style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>{pageTitle}</h2>
         {!loading && (
           <p style={{ color: "#666", fontSize: 13, margin: 0 }}>
             {filtered.length} {filtered.length === 1 ? "product" : "products"}
@@ -422,78 +463,139 @@ export function AllProductsPage() {
         <div className={`alert alert-${cartMsgType} mb-3`} role="alert">{cartMsg}</div>
       )}
 
-      {/* Mobile filter toggle bar */}
-      <div className="d-flex justify-content-between align-items-center mb-3 d-lg-none">
+      {/* Mobile filter/sort bar */}
+      <div className="d-lg-none" style={{
+        display: "flex", gap: 8, marginBottom: 16,
+      }}>
         <button
-          onClick={() => setSidebarOpen(o => !o)}
+          onClick={() => setSidebarOpen(true)}
           style={{
-            background: "none", border: "1px solid rgba(255,255,255,0.15)",
-            color: "#fff", padding: "7px 14px", borderRadius: 3, fontSize: 12,
-            fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8,
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            minHeight: 44, background: activeFilters > 0 ? "#fff" : "transparent",
+            border: `1px solid ${activeFilters > 0 ? "#fff" : "rgba(255,255,255,0.2)"}`,
+            color: activeFilters > 0 ? "#000" : "#fff",
+            borderRadius: 4, fontFamily: "var(--font-display)", fontSize: 14,
+            fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
           }}
         >
           <i className="bi bi-sliders" />
           Filters {activeFilters > 0 && `(${activeFilters})`}
         </button>
 
-        {/* Sort — mobile */}
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", flex: 1 }}>
           <button
             onClick={() => setSortOpen(o => !o)}
             style={{
-              background: "none", border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff", padding: "7px 14px", borderRadius: 3, fontSize: 12,
-              fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 8,
+              width: "100%", minHeight: 44, display: "flex", alignItems: "center",
+              justifyContent: "center", gap: 8,
+              background: "transparent", border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff", borderRadius: 4, fontFamily: "var(--font-display)", fontSize: 14,
+              fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
             }}
           >
-            Sort <i className={`bi bi-chevron-${sortOpen ? "up" : "down"}`} style={{ fontSize: 11 }} />
+            <i className="bi bi-arrow-down-up" style={{ fontSize: 12 }} />
+            Sort
           </button>
           {sortOpen && (
             <div style={{
-              position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 200,
+              position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 200,
               background: "#111", border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 4, minWidth: 180, padding: "6px 0",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+              borderRadius: 4, padding: "4px 0", boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
             }}>
               {SORT_OPTIONS.map(({ value, label }) => (
                 <button key={value} onClick={() => { setSortBy(value); setSortOpen(false); }}
                   style={{
-                    width: "100%", textAlign: "left", background: sortBy === value ? "rgba(255,255,255,0.08)" : "transparent",
-                    border: "none", padding: "9px 16px", cursor: "pointer",
-                    color: sortBy === value ? "#fff" : "#888", fontWeight: sortBy === value ? 600 : 400,
-                    fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase",
+                    width: "100%", textAlign: "left", minHeight: 44,
+                    background: sortBy === value ? "rgba(255,255,255,0.08)" : "transparent",
+                    border: "none", padding: "12px 16px", cursor: "pointer",
+                    color: sortBy === value ? "#fff" : "#888",
+                    fontFamily: "var(--font-body)", fontSize: 13,
+                    fontWeight: sortBy === value ? 600 : 400,
+                    display: "flex", alignItems: "center", gap: 8,
                   }}
-                >{label}</button>
+                >
+                  {sortBy === value && <span style={{ width: 3, height: 12, background: "#fff", borderRadius: 2, display: "inline-block", flexShrink: 0 }} />}
+                  {label}
+                </button>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile filter bottom sheet */}
       {sidebarOpen && (
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 300,
-            background: "rgba(0,0,0,0.7)", display: "flex",
+            position: "fixed", inset: 0, zIndex: 400,
+            background: "rgba(0,0,0,0.65)",
+            WebkitBackdropFilter: "blur(2px)", backdropFilter: "blur(2px)",
           }}
           onClick={() => setSidebarOpen(false)}
         >
           <div
             style={{
-              width: 290, height: "100%", overflowY: "auto",
-              background: "#0d0d0d", padding: "20px 18px",
-              boxShadow: "4px 0 24px rgba(0,0,0,0.8)",
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              maxHeight: "85dvh", background: "#0d0d0d",
+              borderRadius: "16px 16px 0 0",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.8)",
+              display: "flex", flexDirection: "column",
+              overflowY: "auto",
+              WebkitOverflowScrolling: "touch",
             }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#fff" }}>Filters</span>
-              <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+            {/* Sheet handle */}
+            <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px", flexShrink: 0 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
             </div>
-            {sidebarContent}
+
+            {/* Sheet header */}
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "8px 20px 12px", flexShrink: 0,
+              borderBottom: "1px solid rgba(255,255,255,0.07)",
+            }}>
+              <span style={{
+                fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700,
+                letterSpacing: "0.1em", textTransform: "uppercase", color: "#fff",
+              }}>
+                Filters {activeFilters > 0 && <span style={{ color: "#888" }}>({activeFilters})</span>}
+              </span>
+              {activeFilters > 0 && (
+                <button onClick={clearAll} style={{
+                  background: "none", border: "none", color: "#888",
+                  fontFamily: "var(--font-body)", fontSize: 12, cursor: "pointer",
+                  padding: "8px 0", letterSpacing: "0.06em",
+                }}>
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Filter content — scrollable */}
+            <div style={{ padding: "0 20px", overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>
+              {sidebarContent}
+            </div>
+
+            {/* Sticky apply button */}
+            <div style={{
+              padding: "12px 20px", flexShrink: 0,
+              borderTop: "1px solid rgba(255,255,255,0.07)",
+              background: "#0d0d0d",
+            }}>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={{
+                  width: "100%", minHeight: 48, background: "#fff", color: "#000",
+                  border: "none", borderRadius: 4, cursor: "pointer",
+                  fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700,
+                  letterSpacing: "0.1em", textTransform: "uppercase",
+                }}
+              >
+                View {filtered.length} {filtered.length === 1 ? "Product" : "Products"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -659,3 +761,5 @@ export function AllProductsPage() {
     </div>
   );
 }
+
+export function AllProductsPage() { return <FilteredProductPage cat="all" pageTitle="All Products" showCategory />; }
