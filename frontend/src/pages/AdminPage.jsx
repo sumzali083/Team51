@@ -2414,6 +2414,8 @@ export default function AdminPage() {
             </div>
             </>
           )}
+
+          {activeTab === "stockAlerts" && (
             <div className="d-flex flex-column gap-3">
               <div className="card border-0 shadow-sm">
                 <div className="card-body">
