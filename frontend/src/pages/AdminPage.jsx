@@ -463,6 +463,29 @@ export default function AdminPage() {
     }
   };
 
+  const getApiErrorMessage = async (err, fallbackMessage) => {
+    const data = err?.response?.data;
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text();
+        const parsed = JSON.parse(text);
+        if (parsed?.message) return String(parsed.message);
+        return text || fallbackMessage;
+      } catch (_) {
+        return fallbackMessage;
+      }
+    }
+    if (typeof data === "string") {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed?.message) return String(parsed.message);
+      } catch (_) {}
+      return data || fallbackMessage;
+    }
+    if (data?.message) return String(data.message);
+    return err?.message || fallbackMessage;
+  };
+
   const exportOrdersCsv = async () => {
     setExportingOrdersCsv(true);
     try {
@@ -491,17 +514,17 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to export orders CSV");
+      alert(await getApiErrorMessage(err, "Failed to export orders CSV"));
     } finally {
       setExportingOrdersCsv(false);
     }
   };
 
-  const exportDashboardOrdersCsv = () => {
+  const exportDashboardOrdersCsv = async () => {
     const date = dashboardRange === "7d" ? "7d" : dashboardRange === "30d" ? "30d" : "all";
     setExportingOrdersCsv(true);
-    api
-      .get("/api/admin/orders/export.csv", {
+    try {
+      const res = await api.get("/api/admin/orders/export.csv", {
         responseType: "blob",
         params: {
           q: "",
@@ -509,25 +532,23 @@ export default function AdminPage() {
           date,
           sort: "newest",
         },
-      })
-      .then((res) => {
-        const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
-        const href = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = href;
-        const stamp = new Date().toISOString().slice(0, 10);
-        a.download = `dashboard-orders-${date}-${stamp}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(href);
-      })
-      .catch((err) => {
-        alert(err?.response?.data?.message || "Failed to export orders CSV");
-      })
-      .finally(() => {
-        setExportingOrdersCsv(false);
       });
+
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.download = `dashboard-orders-${date}-${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      alert(await getApiErrorMessage(err, "Failed to export orders CSV"));
+    } finally {
+      setExportingOrdersCsv(false);
+    }
   };
 
   const exportUsersCsv = async () => {
@@ -557,7 +578,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to export users CSV");
+      alert(await getApiErrorMessage(err, "Failed to export users CSV"));
     } finally {
       setExportingUsersCsv(false);
     }
@@ -585,7 +606,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to export products CSV");
+      alert(await getApiErrorMessage(err, "Failed to export products CSV"));
     } finally {
       setExportingProductsCsv(false);
     }
