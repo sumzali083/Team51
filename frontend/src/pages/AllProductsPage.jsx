@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useContext, useRef } from "react";
+import { useEffect, useState, useMemo, useContext } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CartContext } from "../context/CartContext";
@@ -35,76 +35,28 @@ function AccordionSection({ title, badge, children, defaultOpen = false }) {
         onClick={() => setOpen(o => !o)}
         style={{
           width: "100%", display: "flex", justifyContent: "space-between",
-          alignItems: "center", padding: "13px 0", background: "none",
+          alignItems: "center", padding: "15px 0", background: "none",
           border: "none", cursor: "pointer", color: "#fff",
-          fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
         }}
       >
-        <span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {title}
-          {badge ? <span style={{ marginLeft: 6, color: "#aaa", fontWeight: 400 }}>({badge})</span> : null}
+          {badge ? (
+            <span style={{
+              background: "#fff", color: "#000", borderRadius: "50%",
+              width: 18, height: 18, display: "inline-flex", alignItems: "center",
+              justifyContent: "center", fontSize: 10, fontWeight: 700,
+            }}>{badge}</span>
+          ) : null}
         </span>
-        <i className={`bi bi-chevron-${open ? "up" : "down"}`} style={{ fontSize: 11, color: "#666" }} />
+        <i className={`bi bi-chevron-${open ? "up" : "down"}`} style={{ fontSize: 11, color: "#555" }} />
       </button>
-      {open && <div style={{ paddingBottom: 14 }}>{children}</div>}
+      {open && <div style={{ paddingBottom: 16 }}>{children}</div>}
     </div>
   );
 }
 
-function DualRangeSlider({ min, max, minVal, maxVal, onMinChange, onMaxChange }) {
-  const fillRef = useRef(null);
-  useEffect(() => {
-    if (!fillRef.current || max === min) return;
-    const lo = ((minVal - min) / (max - min)) * 100;
-    const hi = ((maxVal - min) / (max - min)) * 100;
-    fillRef.current.style.left  = `${lo}%`;
-    fillRef.current.style.width = `${hi - lo}%`;
-  }, [min, max, minVal, maxVal]);
-
-  const thumbStyle = {
-    position: "absolute", top: 0, left: 0, width: "100%",
-    WebkitAppearance: "none", appearance: "none",
-    background: "transparent", pointerEvents: "none",
-    height: 2, margin: 0, padding: 0, outline: "none", border: "none",
-  };
-
-  return (
-    <div style={{ paddingTop: 6 }}>
-      <style>{`
-        .osai-thumb::-webkit-slider-thumb {
-          -webkit-appearance: none; appearance: none;
-          width: 14px; height: 14px; border-radius: 2px;
-          background: #0d0d0d; border: 2px solid #fff;
-          cursor: pointer; pointer-events: all;
-        }
-        .osai-thumb::-moz-range-thumb {
-          width: 14px; height: 14px; border-radius: 2px;
-          background: #0d0d0d; border: 2px solid #fff;
-          cursor: pointer; pointer-events: all; border: none;
-        }
-      `}</style>
-      <div style={{ position: "relative", height: 2, background: "rgba(255,255,255,0.12)", borderRadius: 1, margin: "16px 0 8px" }}>
-        <div ref={fillRef} style={{ position: "absolute", height: "100%", background: "#fff", borderRadius: 1 }} />
-        <input
-          type="range" min={min} max={max} value={minVal}
-          className="osai-thumb"
-          onChange={e => onMinChange(Math.min(Number(e.target.value), maxVal - 1))}
-          style={{ ...thumbStyle, zIndex: minVal > max - (max * 0.1) ? 5 : 3 }}
-        />
-        <input
-          type="range" min={min} max={max} value={maxVal}
-          className="osai-thumb"
-          onChange={e => onMaxChange(Math.max(Number(e.target.value), minVal + 1))}
-          style={{ ...thumbStyle, zIndex: 4 }}
-        />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888", marginTop: 10 }}>
-        <span>£{minVal}</span>
-        <span>£{maxVal}</span>
-      </div>
-    </div>
-  );
-}
 
 const gridVariants = {
   hidden: { opacity: 0 },
@@ -264,48 +216,78 @@ export function AllProductsPage() {
 
       {/* Gender */}
       <AccordionSection title="Gender" badge={selectedGenders.length || null} defaultOpen>
-        {GENDER_OPTIONS.map(({ label, value }) => (
-          <label key={value} style={{
-            display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
-            cursor: "pointer", fontSize: 13,
-            color: selectedGenders.includes(value) ? "#fff" : "#888",
-          }}>
-            <input
-              type="checkbox"
-              checked={selectedGenders.includes(value)}
-              onChange={() => toggle(setSelectedGenders, value)}
-              style={{ width: 15, height: 15, accentColor: "#fff", cursor: "pointer", flexShrink: 0 }}
-            />
-            {label}
-          </label>
-        ))}
+        <div style={{ display: "flex", gap: 8 }}>
+          {GENDER_OPTIONS.map(({ label, value }) => {
+            const active = selectedGenders.includes(value);
+            return (
+              <button
+                key={value}
+                onClick={() => toggle(setSelectedGenders, value)}
+                style={{
+                  flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 600,
+                  letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer",
+                  border: `1px solid ${active ? "#fff" : "rgba(255,255,255,0.15)"}`,
+                  background: active ? "#fff" : "transparent",
+                  color: active ? "#000" : "#777",
+                  borderRadius: 3, transition: "all 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </AccordionSection>
 
       {/* Price Range */}
       <AccordionSection title="Shop By Price" badge={(sliderMin > 0 || sliderMax < sliderBound) ? 1 : null}>
-        <DualRangeSlider
-          min={0} max={sliderBound || 500}
-          minVal={sliderMin} maxVal={sliderMax}
-          onMinChange={setSliderMin} onMaxChange={setSliderMax}
-        />
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>From</div>
+            <div style={{ display: "flex", alignItems: "center", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, overflow: "hidden" }}>
+              <span style={{ padding: "0 8px", color: "#555", fontSize: 13, borderRight: "1px solid rgba(255,255,255,0.08)" }}>£</span>
+              <input
+                type="number" min={0} value={sliderMin || ""}
+                placeholder="0"
+                onChange={e => setSliderMin(e.target.value === "" ? 0 : Number(e.target.value))}
+                style={{ width: "100%", background: "transparent", border: "none", color: "#fff", padding: "8px 10px", fontSize: 13, outline: "none" }}
+              />
+            </div>
+          </div>
+          <div style={{ color: "#444", paddingTop: 20, fontSize: 12 }}>—</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>To</div>
+            <div style={{ display: "flex", alignItems: "center", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, overflow: "hidden" }}>
+              <span style={{ padding: "0 8px", color: "#555", fontSize: 13, borderRight: "1px solid rgba(255,255,255,0.08)" }}>£</span>
+              <input
+                type="number" min={0} value={sliderMax >= sliderBound ? "" : sliderMax}
+                placeholder={sliderBound ? String(sliderBound) : "Any"}
+                onChange={e => setSliderMax(e.target.value === "" ? sliderBound : Number(e.target.value))}
+                style={{ width: "100%", background: "transparent", border: "none", color: "#fff", padding: "8px 10px", fontSize: 13, outline: "none" }}
+              />
+            </div>
+          </div>
+        </div>
       </AccordionSection>
 
       {/* Sale */}
       <AccordionSection title="Sale & Offers" badge={saleOnly ? 1 : null}>
-        <label style={{
-          display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-          fontSize: 13, color: saleOnly ? "#fff" : "#888",
-        }}>
-          <input
-            type="checkbox" checked={saleOnly} onChange={e => setSaleOnly(e.target.checked)}
-            style={{ width: 15, height: 15, accentColor: "#fff", cursor: "pointer", flexShrink: 0 }}
-          />
-          On Sale Only
+        <button
+          onClick={() => setSaleOnly(o => !o)}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 12px", cursor: "pointer", borderRadius: 3,
+            border: `1px solid ${saleOnly ? "#e53935" : "rgba(255,255,255,0.12)"}`,
+            background: saleOnly ? "rgba(229,57,53,0.12)" : "transparent",
+            color: saleOnly ? "#fff" : "#888",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: saleOnly ? 600 : 400 }}>On Sale Only</span>
           <span style={{
-            marginLeft: 4, background: "#e53935", color: "#fff",
-            fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 2, letterSpacing: "0.06em",
+            background: "#e53935", color: "#fff",
+            fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 2, letterSpacing: "0.08em",
           }}>SALE</span>
-        </label>
+        </button>
       </AccordionSection>
 
       {/* Size */}
