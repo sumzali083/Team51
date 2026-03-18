@@ -674,6 +674,21 @@ router.post("/users/bulk-action", adminMiddleware, async (req, res) => {
 
     let affectedRows = 0;
     if (action === "delete") {
+      const [[adminsCountRow]] = await db.query(
+        "SELECT COUNT(*) AS admins_count FROM users WHERE is_admin = 1"
+      );
+      const totalAdmins = Number(adminsCountRow?.admins_count || 0);
+
+      const [[targetAdminsRow]] = await db.query(
+        "SELECT COUNT(*) AS target_admins_count FROM users WHERE is_admin = 1 AND id IN (?)",
+        [filteredIds]
+      );
+      const targetAdmins = Number(targetAdminsRow?.target_admins_count || 0);
+
+      if (totalAdmins > 0 && targetAdmins >= totalAdmins) {
+        return res.status(400).json({ message: "Cannot delete all admin accounts." });
+      }
+
       const [result] = await db.query("DELETE FROM users WHERE id IN (?)", [filteredIds]);
       affectedRows = result.affectedRows || 0;
     } else if (action === "suspend") {
