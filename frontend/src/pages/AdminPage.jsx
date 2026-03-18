@@ -1,4 +1,171 @@
+import { useContext, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import api from "../api";
+import { AuthContext } from "../context/AuthContext";
 
+const REFUND_TRANSITIONS = {
+  pending: new Set(["pending", "approved", "rejected"]),
+  approved: new Set(["approved", "processing", "rejected"]),
+  processing: new Set(["processing", "refunded", "rejected"]),
+  rejected: new Set(["rejected"]),
+  refunded: new Set(["refunded"]),
+};
+
+export default function AdminPage() {
+  const LOW_STOCK_LIMIT = 5;
+  const { user } = useContext(AuthContext);
+
+  const [reports, setReports] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [orderDateFilter, setOrderDateFilter] = useState("all");
+  const [orderSortBy, setOrderSortBy] = useState("newest");
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [selectedOrders, setSelectedOrders] = useState({});
+  const [bulkOrderStatus, setBulkOrderStatus] = useState("processing");
+  const [runningBulkOrderAction, setRunningBulkOrderAction] = useState(false);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+  const [refunds, setRefunds] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [userAuditLog, setUserAuditLog] = useState([]);
+  const [usersSearch, setUsersSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+  const [usersPage, setUsersPage] = useState(1);
+  const [selectedUsers, setSelectedUsers] = useState({});
+  const [bulkUserAction, setBulkUserAction] = useState("suspend");
+  const [bulkUserReason, setBulkUserReason] = useState("");
+  const [userSummary, setUserSummary] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserDraft, setEditUserDraft] = useState(null);
+  const [loadingUserSummary, setLoadingUserSummary] = useState(false);
+  const [messages, setMessages] = useState([]);
+  //  ADDED FEEDBACK STATE
+  const [feedback, setFeedback] = useState([]);
+  const [feedbackSearch, setFeedbackSearch] = useState("");
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [selectedReview, setSelectedReview] = useState(null);
+  const [messageSearch, setMessageSearch] = useState("");
+  const [messageStatusFilter, setMessageStatusFilter] = useState("all");
+  const [messagePage, setMessagePage] = useState(1);
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewRatingFilter, setReviewRatingFilter] = useState("all");
+  const [reviewDateFilter, setReviewDateFilter] = useState("all");
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [dashboardRange, setDashboardRange] = useState("30d");
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [savingStockId, setSavingStockId] = useState(null);
+  const [savingOrderId, setSavingOrderId] = useState(null);
+  const [savingRefundId, setSavingRefundId] = useState(null);
+  const [savingUserId, setSavingUserId] = useState(null);
+  const [savingUserRoleId, setSavingUserRoleId] = useState(null);
+  const [savingUserProfileId, setSavingUserProfileId] = useState(null);
+  const [runningBulkUsersAction, setRunningBulkUsersAction] = useState(false);
+  const [actionMenuUserId, setActionMenuUserId] = useState(null);
+  const [stockDraft, setStockDraft] = useState({});
+  const [incomingProductId, setIncomingProductId] = useState("");
+  const [incomingSize, setIncomingSize] = useState("");
+  const [incomingQty, setIncomingQty] = useState("1");
+  const [incomingNote, setIncomingNote] = useState("");
+  const [processingIncoming, setProcessingIncoming] = useState(false);
+  const [orderStatusDraft, setOrderStatusDraft] = useState({});
+  const [refundStatusDraft, setRefundStatusDraft] = useState({});
+  const [refundAdminNoteDraft, setRefundAdminNoteDraft] = useState({});
+  const [refundInstructionLinkDraft, setRefundInstructionLinkDraft] = useState({});
+  const [refundAmountDraft, setRefundAmountDraft] = useState({});
+  const [refundReferenceDraft, setRefundReferenceDraft] = useState({});
+  const [expandedRefunds, setExpandedRefunds] = useState({});
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [submittingProduct, setSubmittingProduct] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState(null);
+  const [productDraft, setProductDraft] = useState({
+    sku: "", name: "", category_id: 0, price: "", original_price: "", stock: 0,
+    description: "", sizes: [], sizeStocks: {}, colors: ["", ""], imageFiles: [null, null, null],
+  });
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [savingEditId, setSavingEditId] = useState(null);
+  const [categories, setCategories] = useState([]);
+
+  const loadAll = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [
+        reportsRes,
+        productsRes,
+        ordersRes,
+        refundsRes,
+        usersRes,
+        messagesRes,
+        reviewsRes,
+        feedbackRes, //  ADDED
+        categoriesRes,
+        auditRes
+      ] = await Promise.all([
+        api.get("/api/admin/reports"),
+        api.get("/api/admin/products"),
+        api.get("/api/admin/orders"),
+        api.get("/api/admin/refunds"),
+        api.get("/api/admin/users"),
+        api.get("/api/admin/messages"),
+        api.get("/api/admin/reviews"),
+        api.get("/api/admin/feedback"), //  ADDED
+        api.get("/api/admin/categories").catch(() => ({ data: [] })),
+        api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] })),
+      ]);
+
+      setReports(reportsRes.data || null);
+      setProducts(productsRes.data || []);
+      setOrders(ordersRes.data || []);
+      setRefunds(refundsRes.data || []);
+      setUsers(usersRes.data || []);
+      setUserAuditLog(auditRes.data || []);
+      setMessages(messagesRes.data || []);
+      setReviews(reviewsRes.data || []);
+      setFeedback(feedbackRes.data || []);
+
+      const cats = categoriesRes.data || [];
+      setCategories(cats);
+
+      if (cats.length > 0) {
+        setProductDraft((prev) => ({ ...prev, category_id: cats[0].id }));
+      }
+
+      setStockDraft(Object.fromEntries((productsRes.data || []).map((p) => [p.id, p.stock ?? 0])));
+      setOrderStatusDraft(Object.fromEntries((ordersRes.data || []).map((o) => [o.id, o.status || "pending"])));
+      setRefundStatusDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.status || "pending"])));
+      setRefundAdminNoteDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.admin_note || ""])));
+      setRefundInstructionLinkDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.instruction_link || ""])));
+      setRefundAmountDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.refund_amount == null ? "" : String(r.refund_amount)])));
+      setRefundReferenceDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.refund_reference || ""])));
+
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to fetch admin data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  //  FEEDBACK FILTER (LIKE REVIEWS SEARCH)
+  const filteredFeedback = useMemo(() => {
+    return feedback.filter((f) =>
+      f.name.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+      f.email.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+      f.comments.toLowerCase().includes(feedbackSearch.toLowerCase())
+    );
+  }, [feedback, feedbackSearch]);
+  
   const updateStock = async (productId) => {
     const value = Number(stockDraft[productId]);
     if (!Number.isInteger(value) || value < 0) return;
