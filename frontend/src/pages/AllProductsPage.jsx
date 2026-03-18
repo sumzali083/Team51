@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useContext } from "react";
+import { useEffect, useState, useMemo, useContext, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CartContext } from "../context/CartContext";
@@ -8,9 +8,8 @@ import { PRODUCTS, Fallback } from "../data";
 
 const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const GENDER_OPTIONS = [
-  { label: "Men",   value: "Mens" },
-  { label: "Women", value: "Womens" },
-  { label: "Kids",  value: "Kids" },
+  { label: "Male",   value: "Mens" },
+  { label: "Female", value: "Womens" },
 ];
 
 const COLOR_CSS = {
@@ -52,6 +51,61 @@ function AccordionSection({ title, badge, children, defaultOpen = false }) {
   );
 }
 
+function DualRangeSlider({ min, max, minVal, maxVal, onMinChange, onMaxChange }) {
+  const fillRef = useRef(null);
+  useEffect(() => {
+    if (!fillRef.current || max === min) return;
+    const lo = ((minVal - min) / (max - min)) * 100;
+    const hi = ((maxVal - min) / (max - min)) * 100;
+    fillRef.current.style.left  = `${lo}%`;
+    fillRef.current.style.width = `${hi - lo}%`;
+  }, [min, max, minVal, maxVal]);
+
+  const thumbStyle = {
+    position: "absolute", top: 0, left: 0, width: "100%",
+    WebkitAppearance: "none", appearance: "none",
+    background: "transparent", pointerEvents: "none",
+    height: 2, margin: 0, padding: 0, outline: "none", border: "none",
+  };
+
+  return (
+    <div style={{ paddingTop: 6 }}>
+      <style>{`
+        .osai-thumb::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 14px; height: 14px; border-radius: 2px;
+          background: #0d0d0d; border: 2px solid #fff;
+          cursor: pointer; pointer-events: all;
+        }
+        .osai-thumb::-moz-range-thumb {
+          width: 14px; height: 14px; border-radius: 2px;
+          background: #0d0d0d; border: 2px solid #fff;
+          cursor: pointer; pointer-events: all; border: none;
+        }
+      `}</style>
+      <div style={{ position: "relative", height: 2, background: "rgba(255,255,255,0.12)", borderRadius: 1, margin: "16px 0 8px" }}>
+        <div ref={fillRef} style={{ position: "absolute", height: "100%", background: "#fff", borderRadius: 1 }} />
+        <input
+          type="range" min={min} max={max} value={minVal}
+          className="osai-thumb"
+          onChange={e => onMinChange(Math.min(Number(e.target.value), maxVal - 1))}
+          style={{ ...thumbStyle, zIndex: minVal > max - (max * 0.1) ? 5 : 3 }}
+        />
+        <input
+          type="range" min={min} max={max} value={maxVal}
+          className="osai-thumb"
+          onChange={e => onMaxChange(Math.max(Number(e.target.value), minVal + 1))}
+          style={{ ...thumbStyle, zIndex: 4 }}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888", marginTop: 10 }}>
+        <span>£{minVal}</span>
+        <span>£{maxVal}</span>
+      </div>
+    </div>
+  );
+}
+
 const gridVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
@@ -75,8 +129,9 @@ export function AllProductsPage() {
 
   // ── Filters ──────────────────────────────────────────────────────────
   const [selectedGenders, setSelectedGenders] = useState([]);
-  const [minPrice, setMinPrice]   = useState("");
-  const [maxPrice, setMaxPrice]   = useState("");
+  const [sliderMin, setSliderMin] = useState(0);
+  const [sliderMax, setSliderMax] = useState(500);
+  const [sliderBound, setSliderBound] = useState(500);
   const [saleOnly, setSaleOnly]   = useState(false);
   const [selectedSizes, setSelectedSizes]   = useState([]);
   const [selectedColors, setSelectedColors] = useState([]);
@@ -113,10 +168,18 @@ export function AllProductsPage() {
     Math.ceil(Math.max(0, ...products.map(p => Number(p.price) || 0)) / 10) * 10,
   [products]);
 
+  // Initialise slider bounds once products load
+  useEffect(() => {
+    if (priceMax > 0) {
+      setSliderBound(priceMax);
+      setSliderMax(prev => prev === 500 || prev > priceMax ? priceMax : prev);
+    }
+  }, [priceMax]);
+
   // ── Active filter count ───────────────────────────────────────────────
   const activeFilters =
     (selectedGenders.length > 0 ? 1 : 0) +
-    (minPrice || maxPrice ? 1 : 0) +
+    (sliderMin > 0 || sliderMax < sliderBound ? 1 : 0) +
     (saleOnly ? 1 : 0) +
     (selectedSizes.length > 0 ? 1 : 0) +
     (selectedColors.length > 0 ? 1 : 0) +
@@ -132,11 +195,11 @@ export function AllProductsPage() {
     if (saleOnly)
       list = list.filter(p => p.originalPrice || p.original_price);
 
-    if (minPrice !== "")
-      list = list.filter(p => Number(p.price) >= Number(minPrice));
+    if (sliderMin > 0)
+      list = list.filter(p => Number(p.price) >= sliderMin);
 
-    if (maxPrice !== "")
-      list = list.filter(p => Number(p.price) <= Number(maxPrice));
+    if (sliderMax < sliderBound)
+      list = list.filter(p => Number(p.price) <= sliderMax);
 
     if (selectedSizes.length > 0)
       list = list.filter(p => (p.sizes || []).some(s => selectedSizes.includes(s)));
@@ -153,10 +216,11 @@ export function AllProductsPage() {
     else if (sortBy === "rating") list.sort((a, b) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0));
 
     return list;
-  }, [products, selectedGenders, saleOnly, minPrice, maxPrice, selectedSizes, selectedColors, minRating, sortBy]);
+  }, [products, selectedGenders, saleOnly, sliderMin, sliderMax, sliderBound, selectedSizes, selectedColors, minRating, sortBy]);
 
   const clearAll = () => {
-    setSelectedGenders([]); setMinPrice(""); setMaxPrice("");
+    setSelectedGenders([]);
+    setSliderMin(0); setSliderMax(sliderBound);
     setSaleOnly(false); setSelectedSizes([]); setSelectedColors([]); setMinRating(0);
   };
 
@@ -218,29 +282,12 @@ export function AllProductsPage() {
       </AccordionSection>
 
       {/* Price Range */}
-      <AccordionSection title="Shop By Price" badge={(minPrice || maxPrice) ? 1 : null}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="number" placeholder="Min" value={minPrice}
-            onChange={e => setMinPrice(e.target.value)} min={0}
-            style={{
-              width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 3, color: "#fff", padding: "7px 10px", fontSize: 13, outline: "none",
-            }}
-          />
-          <span style={{ color: "#444", flexShrink: 0, fontSize: 12 }}>–</span>
-          <input
-            type="number" placeholder="Max" value={maxPrice}
-            onChange={e => setMaxPrice(e.target.value)} min={0}
-            style={{
-              width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 3, color: "#fff", padding: "7px 10px", fontSize: 13, outline: "none",
-            }}
-          />
-        </div>
-        <div style={{ marginTop: 6, fontSize: 11, color: "#555" }}>
-          £0 – £{priceMax || "∞"}
-        </div>
+      <AccordionSection title="Shop By Price" badge={(sliderMin > 0 || sliderMax < sliderBound) ? 1 : null}>
+        <DualRangeSlider
+          min={0} max={sliderBound || 500}
+          minVal={sliderMin} maxVal={sliderMax}
+          onMinChange={setSliderMin} onMaxChange={setSliderMax}
+        />
       </AccordionSection>
 
       {/* Sale */}
@@ -524,7 +571,7 @@ export function AllProductsPage() {
                 const rating = product.avg_rating ? Number(product.avg_rating) : null;
 
                 return (
-                  <motion.div key={product.id} className="col-6 col-md-4 col-xl-3" variants={cardVariants}>
+                  <motion.div key={product.id} className="col-12 col-sm-6 col-md-4" variants={cardVariants}>
                     <div className="card h-100 shadow-sm">
                       <Link
                         to={`/product/${product.id}`}
