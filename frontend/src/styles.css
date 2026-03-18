@@ -39,6 +39,7 @@
   --sort-color: #fff;
   --sort-selected-bg: rgba(255,255,255,0.08);
   --sort-selected-color: #fff;
+  --filter-accent: #fff;
   --hero-overlay-start: rgba(0,0,0,0.15);
   --hero-overlay-mid: rgba(0,0,0,0.10);
   --hero-overlay-bottom: rgba(0,0,0,0.55);
@@ -90,6 +91,7 @@
   --sort-color: var(--earth-shade);
   --sort-selected-bg: color-mix(in srgb, var(--earth-shade) 20%, transparent);
   --sort-selected-color: var(--earth-shade);
+  --filter-accent: var(--earth-shade);
   --hero-overlay-start: rgba(0,0,0,0.05);
   --hero-overlay-mid: rgba(0,0,0,0.07);
   --hero-overlay-bottom: rgba(0,0,0,0.18);
