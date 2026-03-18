@@ -3,16 +3,16 @@ const db = require("../config/db");
 
 async function adminMiddleware(req, res, next) {
   try {
-    const userId = req.session?.userId;
+    const userId = Number(req.session?.userId);
 
     // check authentication
-    if (!userId) {
+    if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
     // check user in database
     const [rows] = await db.query(
-      "SELECT id, is_admin, must_change_password FROM users WHERE id = ?",
+      "SELECT id, is_admin, must_change_password FROM users WHERE id = ? LIMIT 1",
       [userId]
     );
 
@@ -22,20 +22,25 @@ async function adminMiddleware(req, res, next) {
 
     const user = rows[0];
 
-    // admin check (safe for 0/1 values)
-    if (!user.is_admin) {
+    // strict admin check to avoid truthy edge-cases (e.g. string/buffer values)
+    if (Number(user.is_admin) !== 1) {
       return res.status(403).json({ message: "Admin access required" });
     }
 
-    if (Number(user.must_change_password) === 1) {
+    const mustChangePassword = Number(user.must_change_password) === 1;
+    if (mustChangePassword) {
       return res.status(403).json({
         message: "Password change required before using admin features.",
         code: "PASSWORD_CHANGE_REQUIRED",
       });
     }
 
-    // attach user (optional, non-breaking improvement)
-    req.user = user;
+    // attach normalized admin user metadata for downstream handlers
+    req.user = {
+      id: Number(user.id),
+      is_admin: true,
+      must_change_password: mustChangePassword,
+    };
 
     next();
   } catch (err) {
