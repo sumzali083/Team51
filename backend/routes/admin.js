@@ -25,7 +25,11 @@ const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 
 function csvCell(value) {
   if (value == null) return "";
-  const str = String(value);
+  let str = String(value);
+  // Prevent CSV formula injection in spreadsheet tools.
+  if (/^\s*[=+\-@]/.test(str)) {
+    str = `'${str}`;
+  }
   if (!/[",\n\r]/.test(str)) return str;
   return `"${str.replace(/"/g, '""')}"`;
 }
