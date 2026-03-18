@@ -495,6 +495,39 @@ export default function AdminPage() {
     }
   };
 
+  const exportDashboardOrdersCsv = () => {
+    const date = dashboardRange === "7d" ? "7d" : dashboardRange === "30d" ? "30d" : "all";
+    setExportingOrdersCsv(true);
+    api
+      .get("/api/admin/orders/export.csv", {
+        responseType: "blob",
+        params: {
+          q: "",
+          status: "all",
+          date,
+          sort: "newest",
+        },
+      })
+      .then((res) => {
+        const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+        const href = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = href;
+        const stamp = new Date().toISOString().slice(0, 10);
+        a.download = `dashboard-orders-${date}-${stamp}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(href);
+      })
+      .catch((err) => {
+        alert(err?.response?.data?.message || "Failed to export orders CSV");
+      })
+      .finally(() => {
+        setExportingOrdersCsv(false);
+      });
+  };
+
   const openOrderDetails = async (orderId) => {
     setLoadingOrderDetails(true);
     try {
@@ -1210,21 +1243,31 @@ export default function AdminPage() {
                 <div className="card-body">
                   <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                     <h4 className="osai-admin-section-title mb-0">Overview</h4>
-                    <div className="btn-group btn-group-sm" role="group" aria-label="Dashboard range">
-                      {[
-                        { key: "7d", label: "7D" },
-                        { key: "30d", label: "30D" },
-                        { key: "all", label: "All" },
-                      ].map((r) => (
-                        <button
-                          key={r.key}
-                          type="button"
-                          className={`btn ${dashboardRange === r.key ? "btn-dark" : "btn-outline-secondary"}`}
-                          onClick={() => setDashboardRange(r.key)}
-                        >
-                          {r.label}
-                        </button>
-                      ))}
+                    <div className="d-flex flex-wrap align-items-center gap-2">
+                      <div className="btn-group btn-group-sm" role="group" aria-label="Dashboard range">
+                        {[
+                          { key: "7d", label: "7D" },
+                          { key: "30d", label: "30D" },
+                          { key: "all", label: "All" },
+                        ].map((r) => (
+                          <button
+                            key={r.key}
+                            type="button"
+                            className={`btn ${dashboardRange === r.key ? "btn-dark" : "btn-outline-secondary"}`}
+                            onClick={() => setDashboardRange(r.key)}
+                          >
+                            {r.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={exportDashboardOrdersCsv}
+                        disabled={exportingOrdersCsv}
+                      >
+                        {exportingOrdersCsv ? "Exporting..." : "Export Orders CSV"}
+                      </button>
                     </div>
                   </div>
                   <div className="row g-2">
