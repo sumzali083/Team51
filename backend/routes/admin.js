@@ -304,8 +304,29 @@ router.delete("/users/:id", adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const targetId = Number(id);
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
     if (targetId === Number(req.session?.userId)) {
       return res.status(400).json({ message: "You cannot delete your own account." });
+    }
+
+    const [[targetUser]] = await db.query(
+      "SELECT id, is_admin FROM users WHERE id = ? LIMIT 1",
+      [targetId]
+    );
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (Number(targetUser.is_admin) === 1) {
+      const [[adminsCountRow]] = await db.query(
+        "SELECT COUNT(*) AS admins_count FROM users WHERE is_admin = 1"
+      );
+      const adminsCount = Number(adminsCountRow?.admins_count || 0);
+      if (adminsCount <= 1) {
+        return res.status(400).json({ message: "Cannot delete the last admin account." });
+      }
     }
 
     const [result] = await db.query(
