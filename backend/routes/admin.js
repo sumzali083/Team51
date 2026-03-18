@@ -13,6 +13,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");
+const { ensureStockMovementsTable, recordStockMovement } = require("../services/stockMovements");
 
 const router = express.Router();
 
@@ -25,6 +26,21 @@ const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 async function tableExists(tableName) {
   const [rows] = await db.query("SHOW TABLES LIKE ?", [tableName]);
   return rows.length > 0;
+}
+
+async function ensureProductSizeStockColumn() {
+  if (!(await tableExists("product_sizes"))) return;
+  const hasStock = await columnExists("product_sizes", "stock");
+  if (!hasStock) {
+    await db.query("ALTER TABLE product_sizes ADD COLUMN stock INT NOT NULL DEFAULT 0");
+    _colCache["product_sizes.stock"] = true;
+    await db.query(
+      `UPDATE product_sizes ps
+       JOIN products p ON p.id = ps.product_id
+       SET ps.stock = COALESCE(p.stock, 0)
+       WHERE ps.stock IS NULL OR ps.stock = 0`
+    );
+  }
 }
 
 // Cache column existence checks so we only query INFORMATION_SCHEMA once per process
@@ -109,6 +125,24 @@ async function ensureUserManagementColumns() {
   }
 }
 
+async function ensureUserProfileColumns() {
+  const columnsToAdd = [
+    ["phone", "VARCHAR(30) NULL"],
+    ["address_line1", "VARCHAR(255) NULL"],
+    ["address_line2", "VARCHAR(255) NULL"],
+    ["city", "VARCHAR(120) NULL"],
+    ["postcode", "VARCHAR(32) NULL"],
+  ];
+
+  for (const [col, def] of columnsToAdd) {
+    const hasCol = await columnExists("users", col);
+    if (!hasCol) {
+      await db.query(`ALTER TABLE users ADD COLUMN ${col} ${def}`);
+      _colCache[`users.${col}`] = true;
+    }
+  }
+}
+
 /* ======================================================
    USER MANAGEMENT
 ====================================================== */
@@ -117,9 +151,11 @@ async function ensureUserManagementColumns() {
 router.get("/users", adminMiddleware, async (req, res) => {
   try {
     await ensureUserManagementColumns();
+    await ensureUserProfileColumns();
     const [rows] = await db.query(
       `SELECT
-        u.id, u.name, u.email, u.is_admin, u.created_at, u.is_suspended, u.suspended_at, u.suspension_reason,
+        u.id, u.name, u.email, u.phone, u.address_line1, u.address_line2, u.city, u.postcode,
+        u.is_admin, u.created_at, u.is_suspended, u.suspended_at, u.suspension_reason,
         (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count,
         (SELECT COUNT(*) FROM refund_requests rr WHERE rr.user_id = u.id) AS refund_count,
         (SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = u.id) AS last_order_at
@@ -169,9 +205,11 @@ router.delete("/users/:id", adminMiddleware, async (req, res) => {
 router.get("/users/:id/summary", adminMiddleware, async (req, res) => {
   try {
     await ensureUserManagementColumns();
+    await ensureUserProfileColumns();
     const userId = Number(req.params.id);
     const [[userRow]] = await db.query(
-      `SELECT id, name, email, is_admin, is_suspended, suspended_at, suspension_reason, created_at
+      `SELECT id, name, email, phone, address_line1, address_line2, city, postcode,
+              is_admin, is_suspended, suspended_at, suspension_reason, created_at
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -230,6 +268,94 @@ router.get("/users/:id/summary", adminMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Admin user summary error:", err);
     return res.status(500).json({ message: "Failed to fetch user summary" });
+  }
+});
+
+router.put("/users/:id/profile", adminMiddleware, async (req, res) => {
+  try {
+    await ensureUserProfileColumns();
+    const userId = Number(req.params.id);
+    const {
+      name,
+      email,
+      phone = "",
+      address_line1 = "",
+      address_line2 = "",
+      city = "",
+      postcode = "",
+    } = req.body || {};
+
+    const normalizedName = String(name || "").trim();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedPhone = String(phone || "").trim();
+    const normalizedAddress1 = String(address_line1 || "").trim();
+    const normalizedAddress2 = String(address_line2 || "").trim();
+    const normalizedCity = String(city || "").trim();
+    const normalizedPostcode = String(postcode || "").trim();
+
+    if (!normalizedName || !normalizedEmail) {
+      return res.status(400).json({ message: "Name and email are required" });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    const [existsRows] = await db.query("SELECT id FROM users WHERE id = ? LIMIT 1", [userId]);
+    if (!existsRows.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const [emailTakenRows] = await db.query(
+      "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
+      [normalizedEmail, userId]
+    );
+    if (emailTakenRows.length) {
+      return res.status(409).json({ message: "Email already in use" });
+    }
+
+    await db.query(
+      `UPDATE users
+          SET name = ?, email = ?, phone = ?, address_line1 = ?, address_line2 = ?, city = ?, postcode = ?
+        WHERE id = ?`,
+      [
+        normalizedName,
+        normalizedEmail,
+        normalizedPhone || null,
+        normalizedAddress1 || null,
+        normalizedAddress2 || null,
+        normalizedCity || null,
+        normalizedPostcode || null,
+        userId,
+      ]
+    );
+
+    await appendAdminAuditLog({
+      adminId: req.session.userId,
+      action: "user_profile_update",
+      targetType: "user",
+      targetId: userId,
+      details: JSON.stringify({
+        fields: ["name", "email", "phone", "address_line1", "address_line2", "city", "postcode"],
+      }),
+    });
+
+    return res.json({
+      message: "User details updated",
+      user: {
+        id: userId,
+        name: normalizedName,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        address_line1: normalizedAddress1,
+        address_line2: normalizedAddress2,
+        city: normalizedCity,
+        postcode: normalizedPostcode,
+      },
+    });
+  } catch (err) {
+    console.error("Admin update user profile error:", err);
+    return res.status(500).json({ message: "Failed to update user details" });
   }
 });
 
@@ -529,6 +655,7 @@ router.get("/low-stock", adminMiddleware, async (req, res) => {
 
 router.get("/reports", adminMiddleware, async (req, res) => {
   try {
+    await ensureStockMovementsTable();
     const [[productCount]] = await db.query(
       "SELECT COUNT(*) AS totalProducts FROM products"
     );
@@ -543,6 +670,28 @@ router.get("/reports", adminMiddleware, async (req, res) => {
 
     const [[lowStock]] = await db.query(
       "SELECT COUNT(*) AS lowStockCount FROM products WHERE stock <= 5"
+    );
+    const [[movementTotals]] = await db.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN movement_type = 'incoming' AND created_at >= (NOW() - INTERVAL 7 DAY) THEN quantity ELSE 0 END), 0) AS incoming_7d,
+         COALESCE(SUM(CASE WHEN movement_type = 'outgoing' AND created_at >= (NOW() - INTERVAL 7 DAY) THEN quantity ELSE 0 END), 0) AS outgoing_7d
+       FROM stock_movements`
+    );
+    const [productFlow7d] = await db.query(
+      `SELECT
+         p.id AS product_id,
+         p.sku,
+         p.name,
+         COALESCE(SUM(CASE WHEN sm.movement_type = 'incoming' THEN sm.quantity ELSE 0 END), 0) AS incoming_units,
+         COALESCE(SUM(CASE WHEN sm.movement_type = 'outgoing' THEN sm.quantity ELSE 0 END), 0) AS outgoing_units
+       FROM products p
+       LEFT JOIN stock_movements sm
+         ON sm.product_id = p.id
+        AND sm.created_at >= (NOW() - INTERVAL 7 DAY)
+       GROUP BY p.id, p.sku, p.name
+       HAVING incoming_units > 0 OR outgoing_units > 0
+       ORDER BY (incoming_units + outgoing_units) DESC
+       LIMIT 20`
     );
     let refundCount = { totalRefundRequests: 0 };
     let pendingRefundCount = { pendingRefundRequests: 0 };
@@ -563,6 +712,16 @@ router.get("/reports", adminMiddleware, async (req, res) => {
       totalOrders: orderCount.totalOrders,
       totalRevenue: revenue.totalRevenue || 0,
       lowStockCount: lowStock.lowStockCount,
+      totalIncomingUnits7d: Number(movementTotals.incoming_7d || 0),
+      totalOutgoingUnits7d: Number(movementTotals.outgoing_7d || 0),
+      productFlow7d: (productFlow7d || []).map((r) => ({
+        product_id: Number(r.product_id),
+        sku: r.sku,
+        name: r.name,
+        incoming_units: Number(r.incoming_units || 0),
+        outgoing_units: Number(r.outgoing_units || 0),
+        net_units: Number(r.incoming_units || 0) - Number(r.outgoing_units || 0),
+      })),
       totalRefundRequests: refundCount.totalRefundRequests,
       pendingRefundRequests: pendingRefundCount.pendingRefundRequests
     });
@@ -589,6 +748,7 @@ router.get("/categories", adminMiddleware, async (_req, res) => {
 
 router.get("/products", adminMiddleware, async (_req, res) => {
   try {
+    await ensureProductSizeStockColumn();
     const hasOriginalPrice = await columnExists("products", "original_price");
     const opSelect = hasOriginalPrice ? "p.original_price," : "NULL AS original_price,";
     const opGroup  = hasOriginalPrice ? "p.original_price," : "";
@@ -607,6 +767,7 @@ router.get("/products", adminMiddleware, async (_req, res) => {
         p.created_at,
         GROUP_CONCAT(DISTINCT pi.url ORDER BY pi.sort_order SEPARATOR '||') AS images,
         GROUP_CONCAT(DISTINCT ps.size ORDER BY ps.size SEPARATOR '||') AS sizes,
+        GROUP_CONCAT(DISTINCT CONCAT(ps.size, ':', COALESCE(ps.stock, 0)) ORDER BY ps.size SEPARATOR '||') AS size_stocks,
         (SELECT GROUP_CONCAT(color SEPARATOR '||') FROM product_colors WHERE product_id = p.id) AS colors
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
@@ -619,6 +780,18 @@ router.get("/products", adminMiddleware, async (_req, res) => {
       ...r,
       images: r.images ? r.images.split("||").filter(Boolean) : [],
       sizes:  r.sizes  ? r.sizes.split("||").filter(Boolean)  : [],
+      sizeStocks: r.size_stocks
+        ? r.size_stocks
+            .split("||")
+            .map((entry) => {
+              const idx = entry.lastIndexOf(":");
+              if (idx <= 0) return null;
+              const size = entry.slice(0, idx);
+              const stock = Number(entry.slice(idx + 1));
+              return { size, stock: Number.isFinite(stock) ? stock : 0 };
+            })
+            .filter(Boolean)
+        : [],
       colors: r.colors ? r.colors.split("||").filter(Boolean) : [],
     })));
   } catch (err) {
@@ -655,6 +828,7 @@ router.post("/products", adminMiddleware, async (req, res) => {
     stock = 0,
     description = "",
     sizes = [],
+    sizeStocks = {},
     colors = [],
     images = [],
   } = req.body || {};
@@ -680,9 +854,16 @@ router.post("/products", adminMiddleware, async (req, res) => {
     );
     const productId = ins.insertId;
 
+    await ensureProductSizeStockColumn();
     if ((await tableExists("product_sizes")) && Array.isArray(sizes) && sizes.length) {
       for (const s of sizes) {
-        await conn.query("INSERT INTO product_sizes (product_id, size) VALUES (?, ?)", [productId, String(s)]);
+        const sizeKey = String(s);
+        const sizeStockRaw = sizeStocks && typeof sizeStocks === "object" ? sizeStocks[sizeKey] : null;
+        const parsedSizeStock = Number(sizeStockRaw);
+        const sizeStock = Number.isFinite(parsedSizeStock) && parsedSizeStock >= 0
+          ? Math.floor(parsedSizeStock)
+          : Number(stock) || 0;
+        await conn.query("INSERT INTO product_sizes (product_id, size, stock) VALUES (?, ?, ?)", [productId, sizeKey, sizeStock]);
       }
     }
 
@@ -725,7 +906,7 @@ router.put("/products/:id", adminMiddleware, async (req, res) => {
   const { id } = req.params;
   const {
     sku, name, category_id, price, original_price = null,
-    stock = 0, description = "", sizes = [], colors = [], images,
+    stock = 0, description = "", sizes = [], sizeStocks = {}, colors = [], images,
   } = req.body || {};
 
   if (!name || !price) {
@@ -746,11 +927,18 @@ router.put("/products/:id", adminMiddleware, async (req, res) => {
       [String(sku || "").trim(), String(name).trim(), Number(category_id), Number(price), ...opValues, Number(stock) || 0, String(description).trim(), id]
     );
 
+    await ensureProductSizeStockColumn();
     if (await tableExists("product_sizes")) {
       await conn.query("DELETE FROM product_sizes WHERE product_id=?", [id]);
       for (const s of (sizes || [])) {
         if (String(s).trim()) {
-          await conn.query("INSERT INTO product_sizes (product_id, size) VALUES (?,?)", [id, String(s).trim()]);
+          const sizeKey = String(s).trim();
+          const sizeStockRaw = sizeStocks && typeof sizeStocks === "object" ? sizeStocks[sizeKey] : null;
+          const parsedSizeStock = Number(sizeStockRaw);
+          const sizeStock = Number.isFinite(parsedSizeStock) && parsedSizeStock >= 0
+            ? Math.floor(parsedSizeStock)
+            : Number(stock) || 0;
+          await conn.query("INSERT INTO product_sizes (product_id, size, stock) VALUES (?,?,?)", [id, sizeKey, sizeStock]);
         }
       }
     }
@@ -799,6 +987,115 @@ router.put("/products/:id/stock", adminMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Admin update stock error:", err);
     return res.status(500).json({ message: "Failed to update stock" });
+  }
+});
+
+router.post("/products/:id/incoming", adminMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { quantity, size = null, note = "" } = req.body || {};
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty <= 0) {
+    return res.status(400).json({ message: "quantity must be a positive integer" });
+  }
+
+  let conn;
+  try {
+    await ensureProductSizeStockColumn();
+    await ensureStockMovementsTable();
+
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    const [[product]] = await conn.query(
+      "SELECT id, stock FROM products WHERE id = ? LIMIT 1",
+      [id]
+    );
+    if (!product) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    if (size && String(size).trim()) {
+      const [sizeResult] = await conn.query(
+        `UPDATE product_sizes
+         SET stock = stock + ?
+         WHERE product_id = ? AND size = ?`,
+        [qty, id, String(size).trim()]
+      );
+      if (!sizeResult.affectedRows) {
+        await conn.rollback();
+        return res.status(404).json({ message: "Size not found for this product" });
+      }
+    }
+
+    await conn.query(
+      "UPDATE products SET stock = stock + ? WHERE id = ?",
+      [qty, id]
+    );
+
+    await recordStockMovement({
+      conn,
+      productId: id,
+      size: size ? String(size).trim() : null,
+      movementType: "incoming",
+      quantity: qty,
+      referenceType: "incoming_order",
+      referenceId: null,
+      note: note ? String(note).slice(0, 255) : "Manual incoming stock",
+      actorUserId: req.session?.userId || null,
+    });
+
+    await conn.commit();
+    return res.json({ message: "Incoming stock processed" });
+  } catch (err) {
+    if (conn) {
+      try { await conn.rollback(); } catch (_) {}
+    }
+    console.error("Admin incoming stock error:", err);
+    return res.status(500).json({ message: "Failed to process incoming stock" });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+router.put("/products/:id/size-stock", adminMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { size, stock } = req.body || {};
+  const n = Number(stock);
+  if (!size || !String(size).trim()) {
+    return res.status(400).json({ message: "size is required" });
+  }
+  if (!Number.isInteger(n) || n < 0) {
+    return res.status(400).json({ message: "stock must be a non-negative integer" });
+  }
+  try {
+    await ensureProductSizeStockColumn();
+    const [result] = await db.query(
+      "UPDATE product_sizes SET stock = ? WHERE product_id = ? AND size = ?",
+      [n, id, String(size).trim()]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Size record not found for this product" });
+    }
+
+    // Keep product stock aligned to sum of size-level stock where size records exist.
+    await db.query(
+      `UPDATE products p
+       JOIN (
+         SELECT product_id, COALESCE(SUM(stock), 0) AS total_size_stock
+         FROM product_sizes
+         WHERE product_id = ?
+         GROUP BY product_id
+       ) s ON s.product_id = p.id
+       SET p.stock = s.total_size_stock
+       WHERE p.id = ?`,
+      [id, id]
+    );
+
+    return res.json({ message: "Size stock updated" });
+  } catch (err) {
+    console.error("Admin update size stock error:", err);
+    return res.status(500).json({ message: "Failed to update size stock" });
   }
 });
 
@@ -1076,6 +1373,45 @@ router.delete("/messages/:id", adminMiddleware, async (req, res) => {
   }
 });
 
+/* ======================================================
+    FEEDBACK (fixed)
+====================================================== */
+
+router.get("/feedback", adminMiddleware, async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, name, email, rating, comments, created_at
+       FROM feedback
+       ORDER BY created_at DESC`
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Admin get feedback error:", err);
+    res.status(500).json({ message: "Failed to fetch feedback" });
+  }
+});
+
+// DELETE feedback
+router.delete("/feedback/:id", adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [result] = await db.query(
+      "DELETE FROM feedback WHERE id = ?",
+      [id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Feedback not found" });
+    }
+
+    res.json({ message: "Feedback deleted" });
+  } catch (err) {
+    console.error("Admin delete feedback error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 /* ======================================================
    REVIEWS
 ====================================================== */

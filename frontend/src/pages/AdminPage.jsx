@@ -14,6 +14,7 @@ const REFUND_TRANSITIONS = {
 export default function AdminPage() {
   const LOW_STOCK_LIMIT = 5;
   const { user } = useContext(AuthContext);
+
   const [reports, setReports] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -38,8 +39,13 @@ export default function AdminPage() {
   const [bulkUserAction, setBulkUserAction] = useState("suspend");
   const [bulkUserReason, setBulkUserReason] = useState("");
   const [userSummary, setUserSummary] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserDraft, setEditUserDraft] = useState(null);
   const [loadingUserSummary, setLoadingUserSummary] = useState(false);
   const [messages, setMessages] = useState([]);
+  //  ADDED FEEDBACK STATE
+  const [feedback, setFeedback] = useState([]);
+  const [feedbackSearch, setFeedbackSearch] = useState("");
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [selectedReview, setSelectedReview] = useState(null);
   const [messageSearch, setMessageSearch] = useState("");
@@ -59,9 +65,15 @@ export default function AdminPage() {
   const [savingRefundId, setSavingRefundId] = useState(null);
   const [savingUserId, setSavingUserId] = useState(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState(null);
+  const [savingUserProfileId, setSavingUserProfileId] = useState(null);
   const [runningBulkUsersAction, setRunningBulkUsersAction] = useState(false);
   const [actionMenuUserId, setActionMenuUserId] = useState(null);
   const [stockDraft, setStockDraft] = useState({});
+  const [incomingProductId, setIncomingProductId] = useState("");
+  const [incomingSize, setIncomingSize] = useState("");
+  const [incomingQty, setIncomingQty] = useState("1");
+  const [incomingNote, setIncomingNote] = useState("");
+  const [processingIncoming, setProcessingIncoming] = useState(false);
   const [orderStatusDraft, setOrderStatusDraft] = useState({});
   const [refundStatusDraft, setRefundStatusDraft] = useState({});
   const [refundAdminNoteDraft, setRefundAdminNoteDraft] = useState({});
@@ -74,7 +86,7 @@ export default function AdminPage() {
   const [deletingProductId, setDeletingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
     sku: "", name: "", category_id: 0, price: "", original_price: "", stock: 0,
-    description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
+    description: "", sizes: [], sizeStocks: {}, colors: ["", ""], imageFiles: [null, null, null],
   });
   const [editingProductId, setEditingProductId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
@@ -85,7 +97,18 @@ export default function AdminPage() {
     setLoading(true);
     setError("");
     try {
-      const [reportsRes, productsRes, ordersRes, refundsRes, usersRes, messagesRes, reviewsRes, categoriesRes, auditRes] = await Promise.all([
+      const [
+        reportsRes,
+        productsRes,
+        ordersRes,
+        refundsRes,
+        usersRes,
+        messagesRes,
+        reviewsRes,
+        feedbackRes, //  ADDED
+        categoriesRes,
+        auditRes
+      ] = await Promise.all([
         api.get("/api/admin/reports"),
         api.get("/api/admin/products"),
         api.get("/api/admin/orders"),
@@ -93,6 +116,7 @@ export default function AdminPage() {
         api.get("/api/admin/users"),
         api.get("/api/admin/messages"),
         api.get("/api/admin/reviews"),
+        api.get("/api/admin/feedback"), //  ADDED
         api.get("/api/admin/categories").catch(() => ({ data: [] })),
         api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] })),
       ]);
@@ -105,12 +129,15 @@ export default function AdminPage() {
       setUserAuditLog(auditRes.data || []);
       setMessages(messagesRes.data || []);
       setReviews(reviewsRes.data || []);
+      setFeedback(feedbackRes.data || []);
+
       const cats = categoriesRes.data || [];
       setCategories(cats);
-      // Set default category_id to first real category
+
       if (cats.length > 0) {
         setProductDraft((prev) => ({ ...prev, category_id: cats[0].id }));
       }
+
       setStockDraft(Object.fromEntries((productsRes.data || []).map((p) => [p.id, p.stock ?? 0])));
       setOrderStatusDraft(Object.fromEntries((ordersRes.data || []).map((o) => [o.id, o.status || "pending"])));
       setRefundStatusDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.status || "pending"])));
@@ -118,6 +145,7 @@ export default function AdminPage() {
       setRefundInstructionLinkDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.instruction_link || ""])));
       setRefundAmountDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.refund_amount == null ? "" : String(r.refund_amount)])));
       setRefundReferenceDraft(Object.fromEntries((refundsRes.data || []).map((r) => [r.id, r.refund_reference || ""])));
+
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to fetch admin data");
     } finally {
@@ -129,6 +157,15 @@ export default function AdminPage() {
     loadAll();
   }, []);
 
+  //  FEEDBACK FILTER (LIKE REVIEWS SEARCH)
+  const filteredFeedback = useMemo(() => {
+    return feedback.filter((f) =>
+      f.name.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+      f.email.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+      f.comments.toLowerCase().includes(feedbackSearch.toLowerCase())
+    );
+  }, [feedback, feedbackSearch]);
+  
   const updateStock = async (productId) => {
     const value = Number(stockDraft[productId]);
     if (!Number.isInteger(value) || value < 0) return;
@@ -455,6 +492,86 @@ export default function AdminPage() {
 
   const closeUserSummary = () => setUserSummary(null);
 
+  const openUserEditor = (targetUser) => {
+    setEditingUser(targetUser);
+    setEditUserDraft({
+      name: targetUser?.name || "",
+      email: targetUser?.email || "",
+      phone: targetUser?.phone || "",
+      address_line1: targetUser?.address_line1 || "",
+      address_line2: targetUser?.address_line2 || "",
+      city: targetUser?.city || "",
+      postcode: targetUser?.postcode || "",
+    });
+  };
+
+  const closeUserEditor = () => {
+    setEditingUser(null);
+    setEditUserDraft(null);
+  };
+
+  const saveUserEditor = async () => {
+    if (!editingUser || !editUserDraft) return;
+    setSavingUserProfileId(editingUser.id);
+    try {
+      const res = await api.put(`/api/admin/users/${editingUser.id}/profile`, editUserDraft);
+      const updated = res.data?.user || {};
+      setUsers((prev) =>
+        prev.map((u) =>
+          Number(u.id) === Number(editingUser.id)
+            ? {
+                ...u,
+                name: updated.name ?? u.name,
+                email: updated.email ?? u.email,
+                phone: updated.phone ?? u.phone,
+                address_line1: updated.address_line1 ?? u.address_line1,
+                address_line2: updated.address_line2 ?? u.address_line2,
+                city: updated.city ?? u.city,
+                postcode: updated.postcode ?? u.postcode,
+              }
+            : u
+        )
+      );
+      closeUserEditor();
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update user details");
+    } finally {
+      setSavingUserProfileId(null);
+    }
+  };
+
+  const processIncomingStock = async () => {
+    const productId = Number(incomingProductId);
+    const quantity = Number(incomingQty);
+    if (!Number.isInteger(productId) || productId <= 0) {
+      alert("Select a product for incoming stock.");
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      alert("Incoming quantity must be a positive integer.");
+      return;
+    }
+    setProcessingIncoming(true);
+    try {
+      await api.post(`/api/admin/products/${productId}/incoming`, {
+        quantity,
+        size: incomingSize || null,
+        note: incomingNote || null,
+      });
+      const res = await api.get("/api/admin/products");
+      setProducts(res.data || []);
+      setStockDraft(Object.fromEntries((res.data || []).map((p) => [p.id, p.stock ?? 0])));
+      setIncomingQty("1");
+      setIncomingNote("");
+      setIncomingSize("");
+      await loadAll();
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to process incoming stock");
+    } finally {
+      setProcessingIncoming(false);
+    }
+  };
+
   const startEdit = (p) => {
     setEditingProductId(p.id);
     setEditDraft({
@@ -466,6 +583,9 @@ export default function AdminPage() {
       stock: p.stock != null ? String(p.stock) : "0",
       description: p.description || "",
       sizes: Array.isArray(p.sizes) ? [...p.sizes] : [],
+      sizeStocks: Object.fromEntries(
+        (Array.isArray(p.sizeStocks) ? p.sizeStocks : []).map((x) => [x.size, String(x.stock ?? 0)])
+      ),
       colors: Array.isArray(p.colors) && p.colors.length ? [...p.colors] : ["", ""],
       images: Array.isArray(p.images) ? [...p.images] : [],
       newImageFiles: [null, null, null],
@@ -484,6 +604,9 @@ export default function AdminPage() {
       sizes: prev.sizes.includes(size)
         ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size],
+      sizeStocks: prev.sizes.includes(size)
+        ? Object.fromEntries(Object.entries(prev.sizeStocks || {}).filter(([k]) => k !== size))
+        : { ...(prev.sizeStocks || {}), [size]: String(prev.stock || "0") },
     }));
   };
 
@@ -517,6 +640,7 @@ export default function AdminPage() {
         stock: Number(editDraft.stock) || 0,
         description: editDraft.description.trim(),
         sizes: editDraft.sizes,
+        sizeStocks: editDraft.sizeStocks || {},
         colors: (editDraft.colors || []).filter((c) => c.trim()),
         images: finalImages,
       };
@@ -557,11 +681,14 @@ export default function AdminPage() {
       sizes: prev.sizes.includes(size)
         ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size],
+      sizeStocks: prev.sizes.includes(size)
+        ? Object.fromEntries(Object.entries(prev.sizeStocks || {}).filter(([k]) => k !== size))
+        : { ...(prev.sizeStocks || {}), [size]: String(prev.stock || "0") },
     }));
   };
 
   const addProduct = async () => {
-    const { sku, name, category_id, price, stock, description, sizes, colors, imageFiles } = productDraft;
+    const { sku, name, category_id, price, stock, description, sizes, sizeStocks, colors, imageFiles } = productDraft;
     if (!sku.trim() || !name.trim() || !price) {
       alert("SKU, Name, and Price are required.");
       return;
@@ -592,12 +719,13 @@ export default function AdminPage() {
         stock: Number(stock) || 0,
         description: description.trim(),
         sizes,
+        sizeStocks: sizeStocks || {},
         colors: colors.filter((c) => c.trim()),
         images: uploadedUrls,
       });
       setProductDraft({
         sku: "", name: "", category_id: categories[0]?.id || 0, price: "", original_price: "", stock: 0,
-        description: "", sizes: [], colors: ["", ""], imageFiles: [null, null, null],
+        description: "", sizes: [], sizeStocks: {}, colors: ["", ""], imageFiles: [null, null, null],
       });
       setShowAddProduct(false);
       const res = await api.get("/api/admin/products");
@@ -665,6 +793,11 @@ export default function AdminPage() {
     );
   }, [products, inventorySearch]);
 
+  const selectedIncomingProduct = useMemo(
+    () => products.find((p) => Number(p.id) === Number(incomingProductId)) || null,
+    [products, incomingProductId]
+  );
+
   const inRange = (dateValue, rangeKey) => {
     if (!dateValue) return false;
     if (rangeKey === "all") return true;
@@ -696,6 +829,10 @@ export default function AdminPage() {
       ),
     [rangeOrders]
   );
+
+  const stockFlow7d = useMemo(() => {
+    return Array.isArray(reports?.productFlow7d) ? reports.productFlow7d : [];
+  }, [reports]);
 
   const needsActionItems = useMemo(() => {
     const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
@@ -1003,22 +1140,30 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className="col-lg-3 col-md-6">
                       <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Orders</div>
                         <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeOrders.length}</div>
                       </div>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-lg-3 col-md-6">
                       <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Refund Requests</div>
                         <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeRefunds.length}</div>
                       </div>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-lg-3 col-md-6">
                       <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
                         <div style={{ fontSize: 24, fontWeight: 700 }}>GBP {rangeRevenue.toFixed(2)}</div>
+                      </div>
+                    </div>
+                    <div className="col-lg-3 col-md-6">
+                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stock Flow (7D)</div>
+                        <div style={{ fontSize: 15, fontWeight: 700 }}>
+                          +{Number(reports?.totalIncomingUnits7d || 0)} / -{Number(reports?.totalOutgoingUnits7d || 0)}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1213,6 +1358,30 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </div>
+                      {productDraft.sizes.length > 0 && (
+                        <div className="col-12">
+                          <label className="form-label">Size-level stock</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            {productDraft.sizes.map((size) => (
+                              <div key={`new-size-stock-${size}`} style={{ width: 120 }}>
+                                <small style={{ color: "var(--muted)" }}>{size}</small>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="form-control form-control-sm"
+                                  value={productDraft.sizeStocks?.[size] ?? productDraft.stock ?? 0}
+                                  onChange={(e) =>
+                                    setProductDraft((prev) => ({
+                                      ...prev,
+                                      sizeStocks: { ...(prev.sizeStocks || {}), [size]: e.target.value },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="col-12 osai-admin-form-section">
                         <label className="form-label">Colors</label>
@@ -1392,6 +1561,30 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </div>
+                      {editDraft.sizes.length > 0 && (
+                        <div className="col-12">
+                          <label className="form-label">Size-level stock</label>
+                          <div className="d-flex flex-wrap gap-2">
+                            {editDraft.sizes.map((size) => (
+                              <div key={`edit-size-stock-${size}`} style={{ width: 120 }}>
+                                <small style={{ color: "var(--muted)" }}>{size}</small>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="form-control form-control-sm"
+                                  value={editDraft.sizeStocks?.[size] ?? editDraft.stock ?? 0}
+                                  onChange={(e) =>
+                                    setEditDraft((prev) => ({
+                                      ...prev,
+                                      sizeStocks: { ...(prev.sizeStocks || {}), [size]: e.target.value },
+                                    }))
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="col-12 osai-admin-form-section">
                         <label className="form-label">Colors</label>
                         <div className="d-flex flex-wrap gap-2 align-items-center">
@@ -1545,6 +1738,70 @@ export default function AdminPage() {
                     onChange={(e) => setInventorySearch(e.target.value)}
                     placeholder="Search SKU, name, category"
                   />
+                </div>
+                <div className="card border-0 mb-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <div className="card-body">
+                    <div className="d-flex flex-wrap align-items-end gap-2">
+                      <div style={{ minWidth: 180 }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Incoming product</label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={incomingProductId}
+                          onChange={(e) => {
+                            setIncomingProductId(e.target.value);
+                            setIncomingSize("");
+                          }}
+                        >
+                          <option value="">Select product</option>
+                          {products.map((p) => (
+                            <option key={`incoming-${p.id}`} value={p.id}>
+                              {p.sku || p.id} - {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ minWidth: 150 }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Size (optional)</label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={incomingSize}
+                          onChange={(e) => setIncomingSize(e.target.value)}
+                          disabled={!selectedIncomingProduct || !Array.isArray(selectedIncomingProduct.sizes) || selectedIncomingProduct.sizes.length === 0}
+                        >
+                          <option value="">No size</option>
+                          {(selectedIncomingProduct?.sizes || []).map((size) => (
+                            <option key={`incoming-size-${size}`} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ width: 120 }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Quantity</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="form-control form-control-sm"
+                          value={incomingQty}
+                          onChange={(e) => setIncomingQty(e.target.value)}
+                        />
+                      </div>
+                      <div style={{ minWidth: 220, flex: "1 1 220px" }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Note</label>
+                        <input
+                          className="form-control form-control-sm"
+                          placeholder="e.g. supplier restock shipment"
+                          value={incomingNote}
+                          onChange={(e) => setIncomingNote(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        className="btn btn-sm btn-outline-success"
+                        onClick={processIncomingStock}
+                        disabled={processingIncoming}
+                      >
+                        {processingIncoming ? "Processing..." : "Process Incoming"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
@@ -2568,6 +2825,15 @@ export default function AdminPage() {
                                     onMouseDown={(e) => e.stopPropagation()}
                                   >
                                     <button
+                                      className="btn btn-sm btn-outline-light w-100 mb-2"
+                                      onClick={() => {
+                                        openUserEditor(u);
+                                        setActionMenuUserId(null);
+                                      }}
+                                    >
+                                      Edit Details
+                                    </button>
+                                    <button
                                       className="btn btn-sm btn-outline-info w-100 mb-2"
                                       onClick={() => {
                                         updateUserRole(u, Number(u.is_admin) !== 1);
@@ -2816,6 +3082,143 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {editingUser && editUserDraft && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.7)", zIndex: 1999 }}
+          onClick={closeUserEditor}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(760px, 94vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0 osai-admin-section-title">Edit User #{editingUser.id}</h5>
+                <button className="btn btn-sm btn-outline-secondary" onClick={closeUserEditor}>
+                  Close
+                </button>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>Name</label>
+                  <input
+                    className="form-control"
+                    value={editUserDraft.name}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, name: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>Email</label>
+                  <input
+                    className="form-control"
+                    type="email"
+                    value={editUserDraft.email}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>Phone</label>
+                  <input
+                    className="form-control"
+                    value={editUserDraft.phone}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>Postcode</label>
+                  <input
+                    className="form-control"
+                    value={editUserDraft.postcode}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, postcode: e.target.value }))}
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>Address Line 1</label>
+                  <input
+                    className="form-control"
+                    value={editUserDraft.address_line1}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, address_line1: e.target.value }))}
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>Address Line 2</label>
+                  <input
+                    className="form-control"
+                    value={editUserDraft.address_line2}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, address_line2: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label" style={{ color: "var(--sub)", fontSize: 12 }}>City</label>
+                  <input
+                    className="form-control"
+                    value={editUserDraft.city}
+                    onChange={(e) => setEditUserDraft((p) => ({ ...p, city: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="d-flex justify-content-end gap-2 mt-4">
+                <button className="btn btn-sm btn-outline-secondary" onClick={closeUserEditor}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-sm btn-light"
+                  onClick={saveUserEditor}
+                  disabled={savingUserProfileId === editingUser.id}
+                >
+                  {savingUserProfileId === editingUser.id ? "Saving..." : "Save"}
+                </button>
+              </div>
+                </div>
+              </div>
+
+              <div className="card border-0 shadow-sm">
+                <div className="card-body">
+                  <div className="osai-admin-tab-header">
+                    <h4 className="osai-admin-section-title">Stock Movement (Last 7 Days)</h4>
+                    <span style={{ color: "var(--sub)", fontSize: 12 }}>
+                      +{Number(reports?.totalIncomingUnits7d || 0)} incoming / -{Number(reports?.totalOutgoingUnits7d || 0)} outgoing
+                    </span>
+                  </div>
+                  {stockFlow7d.length === 0 ? (
+                    <p className="mb-0" style={{ color: "var(--sub)", fontSize: 13 }}>
+                      No stock movements recorded yet.
+                    </p>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle">
+                        <thead className="table-light">
+                          <tr>
+                            <th>SKU</th>
+                            <th>Product</th>
+                            <th>Incoming</th>
+                            <th>Outgoing</th>
+                            <th>Net</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stockFlow7d.map((row) => (
+                            <tr key={`flow-${row.product_id}`}>
+                              <td>{row.sku || "-"}</td>
+                              <td>{row.name || `#${row.product_id}`}</td>
+                              <td style={{ color: "#34d399", fontWeight: 700 }}>+{Number(row.incoming_units || 0)}</td>
+                              <td style={{ color: "#f87171", fontWeight: 700 }}>-{Number(row.outgoing_units || 0)}</td>
+                              <td style={{ fontWeight: 700 }}>{Number(row.net_units || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
       {selectedReview && (
         <div
