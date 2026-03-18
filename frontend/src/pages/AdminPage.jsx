@@ -1229,9 +1229,10 @@ export default function AdminPage() {
   const stockFlow7d = useMemo(() => {
     return Array.isArray(reports?.productFlow7d) ? reports.productFlow7d : [];
   }, [reports]);
+  const DASHBOARD_FLOW_LIMIT = 3;
   const stockFlowChartRows = useMemo(() => {
     const rows = (stockFlow7d || [])
-      .slice(0, 6)
+      .slice(0, DASHBOARD_FLOW_LIMIT)
       .map((r) => ({
         productLabel: String(r.sku || `#${r.product_id}`),
         incoming: Number(r.incoming_units || 0),
@@ -1244,8 +1245,9 @@ export default function AdminPage() {
     return {
       rows,
       maxUnits: maxUnits > 0 ? maxUnits : 1,
+      totalRows: (stockFlow7d || []).length,
     };
-  }, [stockFlow7d]);
+  }, [stockFlow7d, DASHBOARD_FLOW_LIMIT]);
 
   const needsActionItems = useMemo(() => {
     const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
@@ -1662,11 +1664,21 @@ export default function AdminPage() {
                   >
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                        Stock Flow Graph (Top Products, 7D)
+                        Stock Flow Graph (Top {DASHBOARD_FLOW_LIMIT}, 7D)
                       </div>
-                      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--sub)" }}>
+                      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--sub)", alignItems: "center", flexWrap: "wrap" }}>
                         <span><span style={{ color: "#34d399" }}>■</span> Incoming</span>
                         <span><span style={{ color: "#f87171" }}>■</span> Outgoing</span>
+                        {stockFlowChartRows.totalRows > stockFlowChartRows.rows.length ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary"
+                            style={{ padding: "2px 8px", fontSize: 11 }}
+                            onClick={() => setActiveTab("inventory")}
+                          >
+                            View full stock table
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
