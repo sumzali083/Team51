@@ -1229,6 +1229,23 @@ export default function AdminPage() {
   const stockFlow7d = useMemo(() => {
     return Array.isArray(reports?.productFlow7d) ? reports.productFlow7d : [];
   }, [reports]);
+  const stockFlowChartRows = useMemo(() => {
+    const rows = (stockFlow7d || [])
+      .slice(0, 6)
+      .map((r) => ({
+        productLabel: String(r.sku || `#${r.product_id}`),
+        incoming: Number(r.incoming_units || 0),
+        outgoing: Number(r.outgoing_units || 0),
+      }));
+    const maxUnits = rows.reduce(
+      (max, row) => Math.max(max, row.incoming, row.outgoing),
+      0
+    );
+    return {
+      rows,
+      maxUnits: maxUnits > 0 ? maxUnits : 1,
+    };
+  }, [stockFlow7d]);
 
   const needsActionItems = useMemo(() => {
     const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
@@ -1633,6 +1650,61 @@ export default function AdminPage() {
                   </div>
                   <div className="mt-2" style={{ color: "var(--sub)", fontSize: 12 }}>
                     Contact messages in range: <strong>{rangeMessages.length}</strong>
+                  </div>
+                  <div
+                    className="mt-3"
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: "var(--radius)",
+                      padding: 12,
+                      background: "rgba(255,255,255,0.02)",
+                    }}
+                  >
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Stock Flow Graph (Top Products, 7D)
+                      </div>
+                      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--sub)" }}>
+                        <span><span style={{ color: "#34d399" }}>■</span> Incoming</span>
+                        <span><span style={{ color: "#f87171" }}>■</span> Outgoing</span>
+                      </div>
+                    </div>
+
+                    {stockFlowChartRows.rows.length === 0 ? (
+                      <div style={{ color: "var(--sub)", fontSize: 13 }}>
+                        No stock movements recorded in the last 7 days.
+                      </div>
+                    ) : (
+                      <div className="d-flex flex-column gap-2">
+                        {stockFlowChartRows.rows.map((row) => (
+                          <div key={`flow-chart-${row.productLabel}`} style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "center" }}>
+                            <div style={{ color: "var(--sub)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {row.productLabel}
+                            </div>
+                            <div style={{ display: "grid", gap: 4 }}>
+                              <div
+                                style={{
+                                  height: 10,
+                                  width: `${Math.max(6, Math.round((row.incoming / stockFlowChartRows.maxUnits) * 100))}%`,
+                                  background: "#34d399",
+                                  borderRadius: 999,
+                                }}
+                                title={`Incoming: +${row.incoming}`}
+                              />
+                              <div
+                                style={{
+                                  height: 10,
+                                  width: `${Math.max(6, Math.round((row.outgoing / stockFlowChartRows.maxUnits) * 100))}%`,
+                                  background: "#f87171",
+                                  borderRadius: 999,
+                                }}
+                                title={`Outgoing: -${row.outgoing}`}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
