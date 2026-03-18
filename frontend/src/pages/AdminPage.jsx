@@ -123,11 +123,52 @@ export default function AdminPage() {
       setPromptDialog({ title, message, placeholder, confirmLabel, cancelLabel, resolve });
     });
 
+  const closeConfirmDialog = (accepted) => {
+    if (!confirmDialog) return;
+    confirmDialog.resolve(accepted);
+    setConfirmDialog(null);
+  };
+
+  const closePromptDialog = (value) => {
+    if (!promptDialog) return;
+    promptDialog.resolve(value);
+    setPromptDialog(null);
+    setPromptValue("");
+  };
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 4200);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (promptDialog) {
+          e.preventDefault();
+          closePromptDialog(null);
+          return;
+        }
+        if (confirmDialog) {
+          e.preventDefault();
+          closeConfirmDialog(false);
+        }
+        return;
+      }
+
+      if (e.key === "Enter" && confirmDialog) {
+        const tag = String(e.target?.tagName || "").toLowerCase();
+        if (tag !== "input" && tag !== "textarea") {
+          e.preventDefault();
+          closeConfirmDialog(true);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [confirmDialog, promptDialog]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -296,6 +337,7 @@ export default function AdminPage() {
       await api.delete(`/api/admin/messages/${message.id}`);
       setMessages((prev) => prev.filter((m) => m.id !== message.id));
       setSelectedMessage((prev) => (prev && prev.id === message.id ? null : prev));
+      showToast("Message deleted.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete message", "error");
     }
@@ -370,6 +412,7 @@ export default function AdminPage() {
     try {
       await api.delete(`/api/admin/reviews/${id}`);
       setReviews((prev) => prev.filter((r) => r.id !== id));
+      showToast("Review deleted.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete review", "error");
     }
@@ -386,6 +429,7 @@ export default function AdminPage() {
     try {
       await api.delete(`/api/admin/feedback/${id}`);
       setFeedback((prev) => prev.filter((f) => f.id !== id));
+      showToast("Feedback deleted.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete feedback", "error");
     }
@@ -406,6 +450,7 @@ export default function AdminPage() {
     try {
       await api.delete(`/api/admin/users/${id}`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
+      showToast("User deleted.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete user", "error");
     }
@@ -443,6 +488,7 @@ export default function AdminPage() {
       );
       const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
       setUserAuditLog(auditRes.data || []);
+      showToast(suspended ? "User suspended." : "User unsuspended.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to update user suspension", "error");
     } finally {
@@ -473,6 +519,7 @@ export default function AdminPage() {
       );
       const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
       setUserAuditLog(auditRes.data || []);
+      showToast(makeAdmin ? "User promoted to admin." : "Admin access removed.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to update user role", "error");
     } finally {
@@ -493,6 +540,7 @@ export default function AdminPage() {
       setAdminRoleRequests(requestsRes.data || []);
       setUsers(usersRes.data || []);
       setUserAuditLog(auditRes.data || []);
+      showToast(decision === "approved" ? "Admin role request approved." : "Admin role request rejected.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to process admin request", "error");
     } finally {
@@ -533,6 +581,7 @@ export default function AdminPage() {
         return next;
       });
       setSelectedOrders({});
+      showToast(`Updated ${selectedOrderIds.length} orders.`, "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to bulk update orders", "error");
     } finally {
@@ -746,6 +795,7 @@ export default function AdminPage() {
       setUserAuditLog(auditRes.data || []);
       setSelectedUsers({});
       setBulkUserReason("");
+      showToast(`Bulk action completed for ${selectedUserIds.length} users.`, "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Bulk action failed", "error");
     } finally {
@@ -847,6 +897,7 @@ export default function AdminPage() {
         )
       );
       closeUserEditor();
+      showToast("User details saved.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to update user details", "error");
     } finally {
@@ -879,6 +930,7 @@ export default function AdminPage() {
       setIncomingNote("");
       setIncomingSize("");
       await loadAll();
+      showToast("Incoming stock processed.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to process incoming stock", "error");
     } finally {
@@ -982,6 +1034,7 @@ export default function AdminPage() {
           }
         })
         .catch(() => {});
+      showToast("Product updated.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to update product", "error");
     } finally {
@@ -1045,6 +1098,7 @@ export default function AdminPage() {
       const res = await api.get("/api/admin/products");
       setProducts(res.data || []);
       setStockDraft(Object.fromEntries((res.data || []).map((p) => [p.id, p.stock ?? 0])));
+      showToast("Product created.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to create product", "error");
     } finally {
@@ -1069,6 +1123,7 @@ export default function AdminPage() {
         delete next[id];
         return next;
       });
+      showToast("Product deleted.", "success");
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete product", "error");
     } finally {
@@ -4123,10 +4178,7 @@ export default function AdminPage() {
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(0,0,0,0.65)", zIndex: 2100 }}
-          onClick={() => {
-            confirmDialog.resolve(false);
-            setConfirmDialog(null);
-          }}
+          onClick={() => closeConfirmDialog(false)}
         >
           <div
             className="card border-0 shadow-sm"
@@ -4139,19 +4191,13 @@ export default function AdminPage() {
               <div className="d-flex justify-content-end gap-2">
                 <button
                   className="btn btn-sm btn-outline-secondary"
-                  onClick={() => {
-                    confirmDialog.resolve(false);
-                    setConfirmDialog(null);
-                  }}
+                  onClick={() => closeConfirmDialog(false)}
                 >
                   {confirmDialog.cancelLabel}
                 </button>
                 <button
                   className={`btn btn-sm ${confirmDialog.danger ? "btn-outline-danger" : "btn-dark"}`}
-                  onClick={() => {
-                    confirmDialog.resolve(true);
-                    setConfirmDialog(null);
-                  }}
+                  onClick={() => closeConfirmDialog(true)}
                 >
                   {confirmDialog.confirmLabel}
                 </button>
@@ -4165,11 +4211,7 @@ export default function AdminPage() {
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(0,0,0,0.65)", zIndex: 2101 }}
-          onClick={() => {
-            promptDialog.resolve(null);
-            setPromptDialog(null);
-            setPromptValue("");
-          }}
+          onClick={() => closePromptDialog(null)}
         >
           <div
             className="card border-0 shadow-sm"
@@ -4187,30 +4229,20 @@ export default function AdminPage() {
                 onChange={(e) => setPromptValue(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    promptDialog.resolve(promptValue);
-                    setPromptDialog(null);
-                    setPromptValue("");
+                    closePromptDialog(promptValue);
                   }
                 }}
               />
               <div className="d-flex justify-content-end gap-2 mt-3">
                 <button
                   className="btn btn-sm btn-outline-secondary"
-                  onClick={() => {
-                    promptDialog.resolve(null);
-                    setPromptDialog(null);
-                    setPromptValue("");
-                  }}
+                  onClick={() => closePromptDialog(null)}
                 >
                   {promptDialog.cancelLabel}
                 </button>
                 <button
                   className="btn btn-sm btn-dark"
-                  onClick={() => {
-                    promptDialog.resolve(promptValue);
-                    setPromptDialog(null);
-                    setPromptValue("");
-                  }}
+                  onClick={() => closePromptDialog(promptValue)}
                 >
                   {promptDialog.confirmLabel}
                 </button>
