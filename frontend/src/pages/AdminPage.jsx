@@ -803,6 +803,7 @@ export default function AdminPage() {
       { label: "Low Stock", value: reports?.lowStockCount ?? 0, tab: "stockAlerts" },
       { label: "Pending Refunds", value: reports?.pendingRefundRequests ?? 0, tab: "refunds" },
       { label: "Messages", value: messages.length, tab: "contacts" },
+      { label: "Feedback", value: feedback.length, tab: "feedback" },
       { label: "Reviews", value: reviews.length, tab: "reviews" },
     ];
   }, [messages.length, orders.length, products.length, refunds.length, reports, reviews.length]);
