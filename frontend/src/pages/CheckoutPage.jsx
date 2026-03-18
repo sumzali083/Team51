@@ -354,6 +354,8 @@ const CheckoutPage = () => {
                 const img = item.image || (item.images && item.images[0]) || "/images/placeholder.jpg";
                 const priceNum = Number(item.price || 0);
                 const qtyNum = Number(item.quantity || 0);
+                const origPrice = item.originalPrice ? Number(item.originalPrice) : null;
+                const discountPct = origPrice ? Math.round((1 - priceNum / origPrice) * 100) : null;
 
                 return (
                   <div className="co-item" key={item.id + (item.size || "") + (item.color || "")}>
@@ -373,7 +375,25 @@ const CheckoutPage = () => {
                       {item.size && <p className="co-item-meta">Size: {item.size}</p>}
                       {item.color && <p className="co-item-meta">Colour: {item.color}</p>}
                     </div>
-                    <span className="co-item-price">£{(priceNum * qtyNum).toFixed(2)}</span>
+                    {origPrice ? (
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ color: "#888", fontSize: 11, textDecoration: "line-through" }}>
+                          £{(origPrice * qtyNum).toFixed(2)}
+                        </div>
+                        <div style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                          £{(priceNum * qtyNum).toFixed(2)}
+                        </div>
+                        <div style={{
+                          background: "#e53935", color: "#fff",
+                          fontSize: 10, fontWeight: 700, padding: "1px 5px",
+                          borderRadius: 3, letterSpacing: "0.04em", display: "inline-block", marginTop: 2,
+                        }}>
+                          -{discountPct}%
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="co-item-price">£{(priceNum * qtyNum).toFixed(2)}</span>
+                    )}
                   </div>
                 );
               })

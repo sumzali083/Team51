@@ -14,18 +14,80 @@ const GENDER_OPTIONS = [
 ];
 
 const COLOR_CSS = {
-  black: "#111111", white: "#f5f5f5", red: "#e53935", blue: "#1565c0",
+  // Basics
+  black: "#111111", white: "#f5f5f5", red: "#e53935", blue: "#1e88e5",
   navy: "#0d1b4b", green: "#2e7d32", grey: "#757575", gray: "#757575",
   beige: "#d4b896", cream: "#f5f0e8", brown: "#6d4c41", pink: "#ec407a",
   purple: "#7b1fa2", yellow: "#f9a825", orange: "#e65100", khaki: "#b5a642",
   lilac: "#c5b3e6", teal: "#00695c", burgundy: "#6d1a2e", coral: "#ff6b6b",
+  // Extended palette
+  berry: "#8b1a4a",
+  "bright white": "#ffffff",
+  charcoal: "#3c3c3c",
+  cinder: "#2a2a2a",
+  "dusty terracotta": "#c17f6a",
+  fig: "#6b3050",
+  fog: "#d0cfc8",
+  forest: "#2d5a27",
+  "forest green": "#2d5a27",
+  "grey marl": "#9e9e9e",
+  ink: "#1c2340",
+  "light wash": "#b8ccd8",
+  moon: "#d8d5c8",
+  oat: "#e8d9c0",
+  "olive green": "#6b7c45",
+  "orange & navy": "linear-gradient(135deg,#e65100 50%,#0d1b4b 50%)",
+  pine: "#2d4a38",
+  sage: "#8fa67a",
+  "sky blue": "#87ceeb",
+  "slate blue": "#6a7fbd",
+  "soft white": "#f8f4ef",
+  "stone beige": "#c5b49a",
+  "washed black & grey": "linear-gradient(135deg,#222 50%,#888 50%)",
+  "washed brown & tan": "linear-gradient(135deg,#6d4c41 50%,#c9aa7c 50%)",
+  "washed yellow": "#e8d060",
+  "red & black": "linear-gradient(135deg,#e53935 50%,#111 50%)",
+  "light grey": "#c0c0c0",
+  "dark green": "#1b4d2e",
+  "dark navy": "#0a1128",
+  "mid blue": "#4a7bb5",
+  "pale blue": "#b8d0e8",
+  "electric blue": "#0066ff",
+  camel: "#c19a6b",
+  sand: "#d4b896",
+  tan: "#c9aa7c",
+  ivory: "#fffff0",
+  ecru: "#e8dcc8",
+  indigo: "#3949ab",
+  turquoise: "#00bcd4",
+  aqua: "#00bcd4",
+  mint: "#98ff98",
+  gold: "#ffc107",
+  silver: "#bdbdbd",
+  rust: "#b7410e",
+  wine: "#722f37",
+  plum: "#8e4585",
+  rose: "#ff7f7f",
+  blush: "#ffb6c1",
+  peach: "#ffcba4",
+  mustard: "#ffdb58",
+  lemon: "#fff44f",
+  lime: "#cddc39",
+  olive: "#808000",
+  slate: "#708090",
+  denim: "#1560bd",
 };
 
 function colorToCss(name) {
   if (!name) return null;
-  const k = name.toLowerCase();
-  if (k === "multi" || k === "multicolour" || k === "multicolor") return "multi";
+  const k = name.toLowerCase().trim();
+  if (k === "multi" || k === "multicolour" || k === "multicolor" || k === "multi-colour") return "multi";
   return COLOR_CSS[k] ?? null;
+}
+
+function isLight(name) {
+  const light = ["white","bright white","soft white","cream","ivory","ecru","fog","moon","oat","lemon","mint","pale blue","silver","light wash","light grey","washed yellow"];
+  return light.includes((name || "").toLowerCase().trim());
 }
 
 function AccordionSection({ title, badge, children, defaultOpen = false }) {
@@ -242,6 +304,22 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
     else if (sortBy === "price-high-low") list.sort((a, b) => Number(b.price) - Number(a.price));
     else if (sortBy === "newest") list.sort((a, b) => Number(b.db_id || b.id) - Number(a.db_id || a.id));
     else if (sortBy === "rating") list.sort((a, b) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0));
+    else {
+      // Interleave by category so products from different categories are mixed
+      const buckets = {};
+      list.forEach(p => {
+        const cat = (p.category || "other").toLowerCase();
+        if (!buckets[cat]) buckets[cat] = [];
+        buckets[cat].push(p);
+      });
+      const keys = Object.keys(buckets);
+      const interleaved = [];
+      const maxLen = Math.max(...keys.map(k => buckets[k].length));
+      for (let i = 0; i < maxLen; i++) {
+        keys.forEach(k => { if (buckets[k][i]) interleaved.push(buckets[k][i]); });
+      }
+      list = interleaved;
+    }
 
     return list;
   }, [products, selectedGenders, saleOnly, sliderMin, sliderMax, sliderBound, selectedSizes, selectedColors, minRating, sortBy]);
@@ -399,34 +477,46 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
         {availableColors.length === 0 ? (
           <p style={{ color: "#555", fontSize: 12, margin: 0 }}>No colour data available</p>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {availableColors.map(color => {
               const css = colorToCss(color);
               const active = selectedColors.includes(color);
+              const light = isLight(color);
+              const isMulti = css === "multi";
+              const swatchBg = isMulti
+                ? "linear-gradient(135deg,#e53935 25%,#1565c0 50%,#2e7d32 75%,#f9a825)"
+                : (css || "rgba(255,255,255,0.08)");
               return (
                 <button
                   key={color}
                   onClick={() => toggle(setSelectedColors, color)}
                   title={color}
                   style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "4px 9px", fontSize: 11, borderRadius: 2, cursor: "pointer",
-                    border: `1px solid ${active ? "#fff" : "rgba(255,255,255,0.12)"}`,
-                    background: active ? "rgba(255,255,255,0.08)" : "transparent",
-                    color: active ? "#fff" : "#888", transition: "all 0.15s",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                    padding: 0, background: "none", border: "none", cursor: "pointer",
+                    width: 52,
                   }}
                 >
-                  {css && (
-                    <span style={{
-                      width: 11, height: 11, borderRadius: "50%", flexShrink: 0,
-                      background: css === "multi"
-                        ? "linear-gradient(135deg,#e53935 25%,#1565c0 50%,#2e7d32 75%,#f9a825)"
-                        : css,
-                      border: color.toLowerCase() === "white" || color.toLowerCase() === "cream"
-                        ? "1px solid rgba(255,255,255,0.25)" : "none",
-                    }} />
-                  )}
-                  {color}
+                  <span style={{
+                    width: 32, height: 32, borderRadius: "50%", display: "block",
+                    background: swatchBg,
+                    border: active
+                      ? "2px solid #fff"
+                      : light
+                        ? "1px solid rgba(255,255,255,0.35)"
+                        : "1px solid rgba(255,255,255,0.12)",
+                    boxShadow: active ? "0 0 0 2px rgba(255,255,255,0.25)" : "none",
+                    transition: "all 0.15s",
+                    flexShrink: 0,
+                  }} />
+                  <span style={{
+                    fontSize: 9, color: active ? "#fff" : "#888",
+                    textAlign: "center", lineHeight: 1.2,
+                    fontFamily: "var(--font-body)", letterSpacing: "0.02em",
+                    wordBreak: "break-word", maxWidth: 52,
+                  }}>
+                    {color}
+                  </span>
                 </button>
               );
             })}
