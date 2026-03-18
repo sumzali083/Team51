@@ -677,6 +677,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
   }
 
   try {
+    await ensureAuthColumnsAndTables();
     const [users] = await db.query(
       "SELECT id, password_hash FROM users WHERE id = ?",
       [userId]
@@ -695,11 +696,18 @@ router.post("/change-password", requireAuth, async (req, res) => {
 
     const newHash = await bcrypt.hash(newPassword, 10);
     await db.query(
-      "UPDATE users SET password_hash = ? WHERE id = ?",
+      "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
       [newHash, user.id]
     );
 
-    return res.json({ message: "Password updated successfully" });
+    if (req.session?.user) {
+      req.session.user.must_change_password = false;
+    }
+
+    return res.json({
+      message: "Password updated successfully",
+      user: req.session?.user || null,
+    });
   } catch (err) {
     console.error("Change password error:", err);
     return res.status(500).json({ message: "Server error" });
