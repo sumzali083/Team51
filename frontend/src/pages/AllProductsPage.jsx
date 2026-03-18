@@ -8,7 +8,6 @@ import { PRODUCTS, Fallback } from "../data";
 
 const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const FILTER_ACCENT = "var(--filter-accent, #fff)";
-const FILTER_RADIUS = "var(--filter-radius, 4px)";
 const GENDER_OPTIONS = [
   { label: "Male",   value: "Mens" },
   { label: "Female", value: "Womens" },
@@ -399,7 +398,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                   border: `1px solid ${active ? FILTER_ACCENT : "rgba(255,255,255,0.15)"}`,
                   background: active ? FILTER_ACCENT : "transparent",
                   color: active ? "#111" : "#777",
-                  borderRadius: FILTER_RADIUS, transition: "all 0.15s",
+                  borderRadius: 3, transition: "all 0.15s",
                 }}
               >
                 {label}
@@ -453,7 +452,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                   border: `1px solid ${active ? FILTER_ACCENT : "rgba(255,255,255,0.12)"}`,
                   background: active ? FILTER_ACCENT : "transparent",
                   color: active ? "#111" : "#777",
-                  borderRadius: FILTER_RADIUS, cursor: "pointer", transition: "all 0.15s",
+                  borderRadius: 2, cursor: "pointer", transition: "all 0.15s",
                 }}
               >
                 {size}
@@ -580,7 +579,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
             minHeight: 44, background: activeFilters > 0 ? FILTER_ACCENT : "transparent",
             border: `1px solid ${activeFilters > 0 ? FILTER_ACCENT : "rgba(255,255,255,0.2)"}`,
             color: activeFilters > 0 ? "#111" : FILTER_ACCENT,
-            borderRadius: FILTER_RADIUS, fontFamily: "var(--font-display)", fontSize: 14,
+            borderRadius: 4, fontFamily: "var(--font-display)", fontSize: 14,
             fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
           }}
         >
@@ -595,7 +594,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
               width: "100%", minHeight: 44, display: "flex", alignItems: "center",
               justifyContent: "center", gap: 8,
               background: "transparent", border: "1px solid rgba(255,255,255,0.2)",
-              color: FILTER_ACCENT, borderRadius: FILTER_RADIUS, fontFamily: "var(--font-display)", fontSize: 14,
+              color: FILTER_ACCENT, borderRadius: 4, fontFamily: "var(--font-display)", fontSize: 14,
               fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
             }}
           >
@@ -694,7 +693,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                 onClick={() => setSidebarOpen(false)}
                 style={{
                   width: "100%", minHeight: 48, background: FILTER_ACCENT, color: "#111",
-                  border: "none", borderRadius: FILTER_RADIUS, cursor: "pointer",
+                  border: "none", borderRadius: 4, cursor: "pointer",
                   fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700,
                   letterSpacing: "0.1em", textTransform: "uppercase",
                 }}
