@@ -20,6 +20,8 @@ const router = express.Router();
 const uploadsPath = path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 
+const ALLOWED_ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
+
 // Memory storage so we can process with sharp before writing to disk
 const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -856,7 +858,7 @@ router.get("/orders/export.csv", adminMiddleware, async (req, res) => {
     const where = [];
     const params = [];
 
-    if (["pending", "processing", "shipped", "delivered", "cancelled"].includes(status)) {
+    if (ALLOWED_ORDER_STATUSES.includes(status)) {
       where.push("o.status = ?");
       params.push(status);
     }
@@ -925,10 +927,13 @@ router.get("/orders/export.csv", adminMiddleware, async (req, res) => {
 router.put("/orders/:id/status", adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const status = String(req.body?.status || "").trim().toLowerCase();
 
     if (!status) {
       return res.status(400).json({ message: "Status is required" });
+    }
+    if (!ALLOWED_ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
     }
 
     const [result] = await db.query(
@@ -953,7 +958,7 @@ router.post("/orders/bulk-status", adminMiddleware, async (req, res) => {
     if (!Array.isArray(orderIds) || !orderIds.length) {
       return res.status(400).json({ message: "orderIds is required" });
     }
-    if (!["pending", "processing", "shipped", "delivered", "cancelled"].includes(status)) {
+    if (!ALLOWED_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
     const ids = [...new Set(orderIds.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
