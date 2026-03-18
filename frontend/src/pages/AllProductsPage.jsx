@@ -8,6 +8,7 @@ import { PRODUCTS, Fallback } from "../data";
 
 const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 const FILTER_ACCENT = "var(--filter-accent, #fff)";
+const FILTER_RADIUS = "var(--filter-radius, 4px)";
 const GENDER_OPTIONS = [
   { label: "Male",   value: "Mens" },
   { label: "Female", value: "Womens" },
@@ -204,6 +205,20 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
   const { addToCart } = useContext(CartContext);
   const { addToWishlist } = useContext(WishlistContext);
 
+  const stickyCenterOffsetByCategory = {
+    all: 300,
+    men: 285,
+    mens: 285,
+    women: 285,
+    womens: 285,
+    kids: 265,
+    sale: 295,
+    new: 295,
+    newarrivals: 295,
+  };
+  const stickyCenterOffset =
+    stickyCenterOffsetByCategory[String(cat || "all").toLowerCase()] ?? 290;
+
   const [products, setProducts]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [hoveredId, setHoveredId]   = useState(null);
@@ -348,7 +363,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
     <div style={{
       background: "#0d0d0d",
       border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 4,
+      borderRadius: FILTER_RADIUS,
       padding: "0 18px",
     }}>
       {/* Header */}
@@ -384,7 +399,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                   border: `1px solid ${active ? FILTER_ACCENT : "rgba(255,255,255,0.15)"}`,
                   background: active ? FILTER_ACCENT : "transparent",
                   color: active ? "#111" : "#777",
-                  borderRadius: 3, transition: "all 0.15s",
+                  borderRadius: FILTER_RADIUS, transition: "all 0.15s",
                 }}
               >
                 {label}
@@ -409,7 +424,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
           onClick={() => setSaleOnly(o => !o)}
           style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "10px 12px", cursor: "pointer", borderRadius: 3,
+            padding: "10px 12px", cursor: "pointer", borderRadius: FILTER_RADIUS,
             border: `1px solid ${saleOnly ? "#e53935" : "rgba(255,255,255,0.12)"}`,
             background: saleOnly ? "rgba(229,57,53,0.12)" : "transparent",
             color: saleOnly ? FILTER_ACCENT : "#888",
@@ -438,7 +453,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                   border: `1px solid ${active ? FILTER_ACCENT : "rgba(255,255,255,0.12)"}`,
                   background: active ? FILTER_ACCENT : "transparent",
                   color: active ? "#111" : "#777",
-                  borderRadius: 2, cursor: "pointer", transition: "all 0.15s",
+                  borderRadius: FILTER_RADIUS, cursor: "pointer", transition: "all 0.15s",
                 }}
               >
                 {size}
@@ -461,7 +476,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                 width: "100%", marginBottom: 6, padding: "7px 10px",
                 background: active ? "rgba(255,255,255,0.07)" : "transparent",
                 border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "transparent"}`,
-                borderRadius: 3, cursor: "pointer",
+                borderRadius: FILTER_RADIUS, cursor: "pointer",
                 fontFamily: "var(--font-body)",
               }}
             >
@@ -565,7 +580,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
             minHeight: 44, background: activeFilters > 0 ? FILTER_ACCENT : "transparent",
             border: `1px solid ${activeFilters > 0 ? FILTER_ACCENT : "rgba(255,255,255,0.2)"}`,
             color: activeFilters > 0 ? "#111" : FILTER_ACCENT,
-            borderRadius: 4, fontFamily: "var(--font-display)", fontSize: 14,
+            borderRadius: FILTER_RADIUS, fontFamily: "var(--font-display)", fontSize: 14,
             fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
           }}
         >
@@ -580,7 +595,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
               width: "100%", minHeight: 44, display: "flex", alignItems: "center",
               justifyContent: "center", gap: 8,
               background: "transparent", border: "1px solid rgba(255,255,255,0.2)",
-              color: FILTER_ACCENT, borderRadius: 4, fontFamily: "var(--font-display)", fontSize: 14,
+              color: FILTER_ACCENT, borderRadius: FILTER_RADIUS, fontFamily: "var(--font-display)", fontSize: 14,
               fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer",
             }}
           >
@@ -591,7 +606,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
             <div style={{
               position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 200,
               background: "#111", border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 4, padding: "4px 0", boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
+              borderRadius: FILTER_RADIUS, padding: "4px 0", boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
             }}>
               {SORT_OPTIONS.map(({ value, label }) => (
                 <button key={value} onClick={() => { setSortBy(value); setSortOpen(false); }}
@@ -679,7 +694,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                 onClick={() => setSidebarOpen(false)}
                 style={{
                   width: "100%", minHeight: 48, background: FILTER_ACCENT, color: "#111",
-                  border: "none", borderRadius: 4, cursor: "pointer",
+                  border: "none", borderRadius: FILTER_RADIUS, cursor: "pointer",
                   fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700,
                   letterSpacing: "0.1em", textTransform: "uppercase",
                 }}
@@ -698,12 +713,13 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
         <div
           className="d-none d-lg-block"
           style={{
+            "--filters-sticky-top": `max(calc(var(--nav-h, 80px) + 10px), calc(50vh - ${stickyCenterOffset}px))`,
             width: 260,
             flexShrink: 0,
             position: "sticky",
-            top: "calc(var(--nav-h, 80px) + 10px)",
+            top: "var(--filters-sticky-top)",
             alignSelf: "flex-start",
-            maxHeight: "calc(100vh - (var(--nav-h, 80px) + 20px))",
+            maxHeight: "calc(100vh - var(--filters-sticky-top) - 10px)",
             overflowY: "auto",
           }}
         >
@@ -713,7 +729,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
           <div style={{ marginTop: 16 }}>
             <div style={{
               background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 4, padding: "0 18px",
+              borderRadius: FILTER_RADIUS, padding: "0 18px",
             }}>
               <div style={{ padding: "15px 0 0", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: FILTER_ACCENT }}>
                 Sort By
