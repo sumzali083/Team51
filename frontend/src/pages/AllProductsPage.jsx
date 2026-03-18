@@ -137,7 +137,7 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-export function AllProductsPage() {
+export function FilteredProductPage({ cat = "all", pageTitle = "All Products", showCategory = true }) {
   const { addToCart } = useContext(CartContext);
   const { addToWishlist } = useContext(WishlistContext);
 
@@ -170,7 +170,7 @@ export function AllProductsPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.get("/api/products", { params: { cat: "all" } })
+    api.get("/api/products", { params: { cat } })
       .then(res => { if (!cancelled) setProducts(res.data || []); })
       .catch(() => { if (!cancelled) setProducts(PRODUCTS); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -290,8 +290,8 @@ export function AllProductsPage() {
         )}
       </div>
 
-      {/* Gender */}
-      <AccordionSection title="Category" badge={selectedGenders.length || null} defaultOpen>
+      {/* Category — hidden on single-category pages like Mens */}
+      {showCategory && <AccordionSection title="Category" badge={selectedGenders.length || null} defaultOpen>
         <div style={{ display: "flex", gap: 8 }}>
           {GENDER_OPTIONS.map(({ label, value }) => {
             const active = selectedGenders.includes(value);
@@ -313,7 +313,7 @@ export function AllProductsPage() {
             );
           })}
         </div>
-      </AccordionSection>
+      </AccordionSection>}
 
       {/* Price Range */}
       <AccordionSection title="Shop By Price" badge={(sliderMin > 0 || sliderMax < sliderBound) ? 1 : null}>
@@ -450,7 +450,7 @@ export function AllProductsPage() {
 
       {/* Page heading */}
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>All Products</h2>
+        <h2 style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>{pageTitle}</h2>
         {!loading && (
           <p style={{ color: "#666", fontSize: 13, margin: 0 }}>
             {filtered.length} {filtered.length === 1 ? "product" : "products"}
@@ -761,3 +761,5 @@ export function AllProductsPage() {
     </div>
   );
 }
+
+export function AllProductsPage() { return <FilteredProductPage cat="all" pageTitle="All Products" showCategory />; }
