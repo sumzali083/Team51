@@ -400,6 +400,58 @@ router.get("/users/:id/summary", adminMiddleware, async (req, res) => {
   }
 });
 
+router.get("/users/:id/orders", adminMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const page = Math.max(1, Number(req.query.page || 1));
+    const pageSize = Math.max(1, Math.min(50, Number(req.query.pageSize || 10)));
+    const offset = (page - 1) * pageSize;
+
+    const [[userRow]] = await db.query(
+      "SELECT id FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    if (!userRow) return res.status(404).json({ message: "User not found" });
+
+    const [[countRow]] = await db.query(
+      "SELECT COUNT(*) AS total FROM orders WHERE user_id = ?",
+      [userId]
+    );
+    const total = Number(countRow?.total || 0);
+
+    const [rows] = await db.query(
+      `SELECT
+         o.id,
+         o.total_price,
+         o.status,
+         o.created_at,
+         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+       FROM orders o
+       WHERE o.user_id = ?
+       ORDER BY o.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [userId, pageSize, offset]
+    );
+
+    return res.json({
+      rows: rows || [],
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    });
+  } catch (err) {
+    console.error("Admin user orders error:", err);
+    return res.status(500).json({ message: "Failed to fetch user order history" });
+  }
+});
+
 router.put("/users/:id/profile", adminMiddleware, async (req, res) => {
   try {
     await ensureUserProfileColumns();
