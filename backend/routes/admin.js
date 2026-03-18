@@ -407,8 +407,12 @@ router.get("/users/:id/orders", adminMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Invalid user id" });
     }
 
-    const page = Math.max(1, Number(req.query.page || 1));
-    const pageSize = Math.max(1, Math.min(50, Number(req.query.pageSize || 10)));
+    const rawPage = Number.parseInt(String(req.query.page || "1"), 10);
+    const rawPageSize = Number.parseInt(String(req.query.pageSize || "10"), 10);
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+    const pageSize = Number.isFinite(rawPageSize) && rawPageSize > 0
+      ? Math.min(50, rawPageSize)
+      : 10;
     const offset = (page - 1) * pageSize;
 
     const [[userRow]] = await db.query(
