@@ -207,6 +207,86 @@ router.get("/users", adminMiddleware, async (req, res) => {
   }
 });
 
+router.get("/users/export.csv", adminMiddleware, async (req, res) => {
+  try {
+    await ensureUserManagementColumns();
+    await ensureUserProfileColumns();
+
+    const q = String(req.query.q || "").trim();
+    const role = String(req.query.role || "all").toLowerCase();
+    const status = String(req.query.status || "all").toLowerCase();
+
+    const where = [];
+    const params = [];
+
+    if (role === "admin") {
+      where.push("u.is_admin = 1");
+    } else if (role === "customer") {
+      where.push("u.is_admin = 0");
+    }
+
+    if (status === "active") {
+      where.push("u.is_suspended = 0");
+    } else if (status === "suspended") {
+      where.push("u.is_suspended = 1");
+    }
+
+    if (q) {
+      const like = `%${q}%`;
+      where.push("(CAST(u.id AS CHAR) LIKE ? OR u.name LIKE ? OR u.email LIKE ?)");
+      params.push(like, like, like);
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const [rows] = await db.query(
+      `SELECT
+         u.id,
+         u.name,
+         u.email,
+         u.phone,
+         u.city,
+         u.postcode,
+         u.is_admin,
+         u.is_suspended,
+         u.created_at,
+         (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count,
+         (SELECT COUNT(*) FROM refund_requests rr WHERE rr.user_id = u.id) AS refund_count,
+         (SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = u.id) AS last_order_at
+       FROM users u
+       ${whereClause}
+       ORDER BY u.id DESC`,
+      params
+    );
+
+    const csv = asCsv((rows || []).map((row) => ({
+      ...row,
+      role: Number(row.is_admin) === 1 ? "admin" : "customer",
+      account_status: Number(row.is_suspended) === 1 ? "suspended" : "active",
+    })), [
+      { key: "id", label: "user_id" },
+      { key: "name", label: "name" },
+      { key: "email", label: "email" },
+      { key: "role", label: "role" },
+      { key: "account_status", label: "account_status" },
+      { key: "phone", label: "phone" },
+      { key: "city", label: "city" },
+      { key: "postcode", label: "postcode" },
+      { key: "order_count", label: "order_count" },
+      { key: "refund_count", label: "refund_count" },
+      { key: "last_order_at", label: "last_order_at" },
+      { key: "created_at", label: "created_at" },
+    ]);
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="users-export-${stamp}.csv"`);
+    return res.status(200).send(csv);
+  } catch (err) {
+    console.error("Admin export users CSV error:", err);
+    return res.status(500).json({ message: "Failed to export users CSV" });
+  }
+});
+
 // DELETE user
 router.delete("/users/:id", adminMiddleware, async (req, res) => {
   try {
@@ -996,6 +1076,64 @@ router.get("/products", adminMiddleware, async (_req, res) => {
   } catch (err) {
     console.error("Admin get products error:", err);
     res.status(500).json({ message: "Failed to fetch products" });
+  }
+});
+
+router.get("/products/export.csv", adminMiddleware, async (req, res) => {
+  try {
+    await ensureProductSizeStockColumn();
+    const hasOriginalPrice = await columnExists("products", "original_price");
+    const opSelect = hasOriginalPrice ? "p.original_price," : "NULL AS original_price,";
+    const opGroup = hasOriginalPrice ? "p.original_price," : "";
+
+    const q = String(req.query.q || "").trim();
+    const where = [];
+    const params = [];
+    if (q) {
+      const like = `%${q}%`;
+      where.push("(CAST(p.id AS CHAR) LIKE ? OR p.sku LIKE ? OR p.name LIKE ? OR c.name LIKE ?)");
+      params.push(like, like, like, like);
+    }
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const [rows] = await db.query(
+      `SELECT
+         p.id,
+         p.sku,
+         p.name,
+         c.name AS category,
+         p.price,
+         ${opSelect}
+         p.stock,
+         p.created_at,
+         COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.product_id = p.id), 0) AS total_units_sold
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       ${whereClause}
+       GROUP BY p.id, p.sku, p.name, c.name, p.price, ${opGroup} p.stock, p.created_at
+       ORDER BY p.id DESC`,
+      params
+    );
+
+    const csv = asCsv(rows || [], [
+      { key: "id", label: "product_id" },
+      { key: "sku", label: "sku" },
+      { key: "name", label: "name" },
+      { key: "category", label: "category" },
+      { key: "price", label: "price" },
+      { key: "original_price", label: "original_price" },
+      { key: "stock", label: "stock" },
+      { key: "total_units_sold", label: "total_units_sold" },
+      { key: "created_at", label: "created_at" },
+    ]);
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="products-export-${stamp}.csv"`);
+    return res.status(200).send(csv);
+  } catch (err) {
+    console.error("Admin export products CSV error:", err);
+    return res.status(500).json({ message: "Failed to export products CSV" });
   }
 });
 

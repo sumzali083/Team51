@@ -65,6 +65,8 @@ export default function AdminPage() {
   const [savingStockId, setSavingStockId] = useState(null);
   const [savingOrderId, setSavingOrderId] = useState(null);
   const [exportingOrdersCsv, setExportingOrdersCsv] = useState(false);
+  const [exportingUsersCsv, setExportingUsersCsv] = useState(false);
+  const [exportingProductsCsv, setExportingProductsCsv] = useState(false);
   const [savingRefundId, setSavingRefundId] = useState(null);
   const [savingUserId, setSavingUserId] = useState(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState(null);
@@ -526,6 +528,70 @@ export default function AdminPage() {
       .finally(() => {
         setExportingOrdersCsv(false);
       });
+  };
+
+  const exportUsersCsv = async () => {
+    setExportingUsersCsv(true);
+    try {
+      const res = await api.get("/api/admin/users/export.csv", {
+        responseType: "blob",
+        params: {
+          q: usersSearch,
+          role: userRoleFilter,
+          status: userStatusFilter,
+        },
+      });
+
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+
+      const disposition = String(res.headers?.["content-disposition"] || "");
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const fallback = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = match?.[1] || fallback;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to export users CSV");
+    } finally {
+      setExportingUsersCsv(false);
+    }
+  };
+
+  const exportProductsCsv = async () => {
+    setExportingProductsCsv(true);
+    try {
+      const res = await api.get("/api/admin/products/export.csv", {
+        responseType: "blob",
+        params: {
+          q: inventorySearch,
+        },
+      });
+
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+
+      const disposition = String(res.headers?.["content-disposition"] || "");
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const fallback = `products-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = match?.[1] || fallback;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to export products CSV");
+    } finally {
+      setExportingProductsCsv(false);
+    }
   };
 
   const openOrderDetails = async (orderId) => {
@@ -1389,12 +1455,21 @@ export default function AdminPage() {
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Product Management</h4>
-                  <button
-                    className="btn btn-dark btn-sm"
-                    onClick={() => setShowAddProduct((prev) => !prev)}
-                  >
-                    {showAddProduct ? <><i className="bi bi-x-lg me-1" />Cancel</> : <><i className="bi bi-plus-lg me-1" />Add Product</>}
-                  </button>
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={exportProductsCsv}
+                      disabled={exportingProductsCsv}
+                    >
+                      {exportingProductsCsv ? "Exporting..." : "Export CSV"}
+                    </button>
+                    <button
+                      className="btn btn-dark btn-sm"
+                      onClick={() => setShowAddProduct((prev) => !prev)}
+                    >
+                      {showAddProduct ? <><i className="bi bi-x-lg me-1" />Cancel</> : <><i className="bi bi-plus-lg me-1" />Add Product</>}
+                    </button>
+                  </div>
                 </div>
 
                 {showAddProduct && (
@@ -2970,7 +3045,16 @@ export default function AdminPage() {
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Users</h4>
-                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredUsers.length} accounts</span>
+                  <div className="d-flex align-items-center gap-2">
+                    <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredUsers.length} accounts</span>
+                    <button
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={exportUsersCsv}
+                      disabled={exportingUsersCsv}
+                    >
+                      {exportingUsersCsv ? "Exporting..." : "Export CSV"}
+                    </button>
+                  </div>
                 </div>
                 <div className="d-flex gap-2 flex-wrap mb-3">
                   <input
