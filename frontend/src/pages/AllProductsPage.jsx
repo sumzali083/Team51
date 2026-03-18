@@ -712,13 +712,12 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
         <div
           className="d-none d-lg-block"
           style={{
-            "--filters-sticky-top": `max(calc(var(--nav-h, 80px) + 10px), calc(50vh - ${stickyCenterOffset}px))`,
             width: 260,
             flexShrink: 0,
             position: "sticky",
-            top: "var(--filters-sticky-top)",
+            top: "calc(var(--nav-h, 80px) + 10px)",
             alignSelf: "flex-start",
-            maxHeight: "calc(100vh - var(--filters-sticky-top) - 10px)",
+            maxHeight: "calc(100vh - (var(--nav-h, 80px) + 20px))",
             overflowY: "auto",
           }}
         >
