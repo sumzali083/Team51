@@ -102,6 +102,32 @@ export default function AdminPage() {
   const [editDraft, setEditDraft] = useState(null);
   const [savingEditId, setSavingEditId] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [promptDialog, setPromptDialog] = useState(null);
+  const [promptValue, setPromptValue] = useState("");
+
+  const showToast = (message, type = "error") => {
+    if (!message) return;
+    setToast({ message, type, ts: Date.now() });
+  };
+
+  const confirmAction = ({ title = "Confirm Action", message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false }) =>
+    new Promise((resolve) => {
+      setConfirmDialog({ title, message, confirmLabel, cancelLabel, danger, resolve });
+    });
+
+  const promptAction = ({ title = "Enter Value", message, placeholder = "", initialValue = "", confirmLabel = "Confirm", cancelLabel = "Cancel" }) =>
+    new Promise((resolve) => {
+      setPromptValue(initialValue);
+      setPromptDialog({ title, message, placeholder, confirmLabel, cancelLabel, resolve });
+    });
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4200);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -189,7 +215,7 @@ export default function AdminPage() {
       await api.put(`/api/admin/products/${productId}/stock`, { stock: value });
       setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, stock: value } : p)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update stock");
+      showToast(err?.response?.data?.message || "Failed to update stock", "error");
     } finally {
       setSavingStockId(null);
     }
@@ -205,7 +231,7 @@ export default function AdminPage() {
       await api.put(`/api/admin/orders/${orderId}/status`, { status });
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update order status");
+      showToast(err?.response?.data?.message || "Failed to update order status", "error");
     } finally {
       setSavingOrderId(null);
     }
@@ -243,7 +269,7 @@ export default function AdminPage() {
         )
       );
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update refund request");
+      showToast(err?.response?.data?.message || "Failed to update refund request", "error");
     } finally {
       setSavingRefundId(null);
     }
@@ -259,13 +285,19 @@ export default function AdminPage() {
   const deleteMessage = async (message) => {
     const sender = message?.name || "this sender";
     const email = message?.email || "unknown email";
-    if (!window.confirm(`Delete message from ${sender} (${email})? This cannot be undone.`)) return;
+    const confirmed = await confirmAction({
+      title: "Delete Message",
+      message: `Delete message from ${sender} (${email})? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/messages/${message.id}`);
       setMessages((prev) => prev.filter((m) => m.id !== message.id));
       setSelectedMessage((prev) => (prev && prev.id === message.id ? null : prev));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete message");
+      showToast(err?.response?.data?.message || "Failed to delete message", "error");
     }
   };
 
@@ -275,7 +307,7 @@ export default function AdminPage() {
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
       setSelectedMessage((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update message status");
+      showToast(err?.response?.data?.message || "Failed to update message status", "error");
     }
   };
 
@@ -293,7 +325,7 @@ export default function AdminPage() {
   const replyToMessage = (message) => {
     const email = String(message?.email || "").trim();
     if (!email) {
-      alert("No email found for this message.");
+      showToast("No email found for this message.", "warning");
       return;
     }
     const subject = encodeURIComponent("Regarding your message to OSAI");
@@ -328,46 +360,71 @@ export default function AdminPage() {
   }, []);
 
   const deleteReview = async (id) => {
-    if (!window.confirm("Delete this review?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete Review",
+      message: "Delete this review?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/reviews/${id}`);
       setReviews((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete review");
+      showToast(err?.response?.data?.message || "Failed to delete review", "error");
     }
   };
 
   const deleteFeedback = async (id) => {
-    if (!window.confirm("Delete this feedback entry?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete Feedback",
+      message: "Delete this feedback entry?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/feedback/${id}`);
       setFeedback((prev) => prev.filter((f) => f.id !== id));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete feedback");
+      showToast(err?.response?.data?.message || "Failed to delete feedback", "error");
     }
   };
 
   const deleteUser = async (id) => {
     if (Number(id) === Number(user?.id)) {
-      alert("You cannot delete your own account.");
+      showToast("You cannot delete your own account.", "warning");
       return;
     }
-    if (!window.confirm("Delete this user account?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete User",
+      message: "Delete this user account?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/users/${id}`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete user");
+      showToast(err?.response?.data?.message || "Failed to delete user", "error");
     }
   };
 
   const updateUserSuspension = async (targetUser, suspended) => {
     if (Number(targetUser?.id) === Number(user?.id)) {
-      alert("You cannot change your own admin account status.");
+      showToast("You cannot change your own admin account status.", "warning");
       return;
     }
     const reason = suspended
-      ? (window.prompt("Reason for suspension (optional):", "") || "")
+      ? ((await promptAction({
+          title: "Suspend User",
+          message: "Reason for suspension (optional):",
+          placeholder: "Optional reason",
+          initialValue: "",
+          confirmLabel: "Continue",
+          cancelLabel: "Skip",
+        })) ?? "")
       : "";
     setSavingUserId(targetUser.id);
     try {
@@ -387,7 +444,7 @@ export default function AdminPage() {
       const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
       setUserAuditLog(auditRes.data || []);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update user suspension");
+      showToast(err?.response?.data?.message || "Failed to update user suspension", "error");
     } finally {
       setSavingUserId(null);
     }
@@ -395,8 +452,18 @@ export default function AdminPage() {
 
   const updateUserRole = async (targetUser, makeAdmin) => {
     const actionText = makeAdmin ? "promote to admin" : "remove admin access";
-    const typed = window.prompt(`Type ADMIN to confirm you want to ${actionText} for ${targetUser?.email || "this user"}.`, "");
-    if (typed !== "ADMIN") return;
+    const typed = await promptAction({
+      title: "Confirm Role Change",
+      message: `Type ADMIN to confirm you want to ${actionText} for ${targetUser?.email || "this user"}.`,
+      placeholder: "Type ADMIN",
+      initialValue: "",
+      confirmLabel: "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (typed !== "ADMIN") {
+      showToast("Role change canceled. Type ADMIN exactly to continue.", "warning");
+      return;
+    }
 
     setSavingUserRoleId(targetUser.id);
     try {
@@ -407,7 +474,7 @@ export default function AdminPage() {
       const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
       setUserAuditLog(auditRes.data || []);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update user role");
+      showToast(err?.response?.data?.message || "Failed to update user role", "error");
     } finally {
       setSavingUserRoleId(null);
     }
@@ -427,7 +494,7 @@ export default function AdminPage() {
       setUsers(usersRes.data || []);
       setUserAuditLog(auditRes.data || []);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to process admin request");
+      showToast(err?.response?.data?.message || "Failed to process admin request", "error");
     } finally {
       setReviewingRoleRequestId(null);
     }
@@ -444,10 +511,16 @@ export default function AdminPage() {
 
   const runBulkOrderStatus = async () => {
     if (!selectedOrderIds.length) {
-      alert("Select at least one order first.");
+      showToast("Select at least one order first.", "warning");
       return;
     }
-    if (!window.confirm(`Update ${selectedOrderIds.length} selected orders to ${bulkOrderStatus}?`)) return;
+    const confirmed = await confirmAction({
+      title: "Bulk Update Orders",
+      message: `Update ${selectedOrderIds.length} selected orders to ${bulkOrderStatus}?`,
+      confirmLabel: "Run Update",
+      danger: true,
+    });
+    if (!confirmed) return;
     setRunningBulkOrderAction(true);
     try {
       await api.post("/api/admin/orders/bulk-status", { orderIds: selectedOrderIds, status: bulkOrderStatus });
@@ -461,7 +534,7 @@ export default function AdminPage() {
       });
       setSelectedOrders({});
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to bulk update orders");
+      showToast(err?.response?.data?.message || "Failed to bulk update orders", "error");
     } finally {
       setRunningBulkOrderAction(false);
     }
@@ -518,7 +591,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export orders CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export orders CSV"), "error");
     } finally {
       setExportingOrdersCsv(false);
     }
@@ -549,7 +622,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export orders CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export orders CSV"), "error");
     } finally {
       setExportingOrdersCsv(false);
     }
@@ -582,7 +655,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export users CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export users CSV"), "error");
     } finally {
       setExportingUsersCsv(false);
     }
@@ -610,7 +683,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export products CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export products CSV"), "error");
     } finally {
       setExportingProductsCsv(false);
     }
@@ -623,7 +696,7 @@ export default function AdminPage() {
       setSelectedOrderDetails(res.data || null);
       return true;
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to load order details");
+      showToast(err?.response?.data?.message || "Failed to load order details", "error");
       return false;
     } finally {
       setLoadingOrderDetails(false);
@@ -648,10 +721,16 @@ export default function AdminPage() {
 
   const runBulkUserAction = async () => {
     if (!selectedUserIds.length) {
-      alert("Select at least one user first.");
+      showToast("Select at least one user first.", "warning");
       return;
     }
-    if (!window.confirm(`Run ${bulkUserAction} for ${selectedUserIds.length} users?`)) return;
+    const confirmed = await confirmAction({
+      title: "Bulk User Action",
+      message: `Run ${bulkUserAction} for ${selectedUserIds.length} users?`,
+      confirmLabel: "Run Action",
+      danger: true,
+    });
+    if (!confirmed) return;
     setRunningBulkUsersAction(true);
     try {
       await api.post("/api/admin/users/bulk-action", {
@@ -668,7 +747,7 @@ export default function AdminPage() {
       setSelectedUsers({});
       setBulkUserReason("");
     } catch (err) {
-      alert(err?.response?.data?.message || "Bulk action failed");
+      showToast(err?.response?.data?.message || "Bulk action failed", "error");
     } finally {
       setRunningBulkUsersAction(false);
     }
@@ -690,7 +769,7 @@ export default function AdminPage() {
       setUserOrders(ordersRes.data?.rows || []);
       setUserOrdersTotalPages(Math.max(1, Number(ordersRes.data?.pagination?.totalPages || 1)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to load user summary");
+      showToast(err?.response?.data?.message || "Failed to load user summary", "error");
     } finally {
       setLoadingUserSummary(false);
       setLoadingUserOrders(false);
@@ -709,7 +788,7 @@ export default function AdminPage() {
       setUserOrdersPage(normalizedPage);
       setUserOrdersTotalPages(Math.max(1, Number(res.data?.pagination?.totalPages || 1)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to load user order history");
+      showToast(err?.response?.data?.message || "Failed to load user order history", "error");
     } finally {
       setLoadingUserOrders(false);
     }
@@ -769,7 +848,7 @@ export default function AdminPage() {
       );
       closeUserEditor();
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update user details");
+      showToast(err?.response?.data?.message || "Failed to update user details", "error");
     } finally {
       setSavingUserProfileId(null);
     }
@@ -779,11 +858,11 @@ export default function AdminPage() {
     const productId = Number(incomingProductId);
     const quantity = Number(incomingQty);
     if (!Number.isInteger(productId) || productId <= 0) {
-      alert("Select a product for incoming stock.");
+      showToast("Select a product for incoming stock.", "warning");
       return;
     }
     if (!Number.isInteger(quantity) || quantity <= 0) {
-      alert("Incoming quantity must be a positive integer.");
+      showToast("Incoming quantity must be a positive integer.", "warning");
       return;
     }
     setProcessingIncoming(true);
@@ -801,7 +880,7 @@ export default function AdminPage() {
       setIncomingSize("");
       await loadAll();
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to process incoming stock");
+      showToast(err?.response?.data?.message || "Failed to process incoming stock", "error");
     } finally {
       setProcessingIncoming(false);
     }
@@ -847,7 +926,7 @@ export default function AdminPage() {
 
   const saveEdit = async () => {
     if (!editDraft.name.trim() || !editDraft.price) {
-      alert("Name and Price are required.");
+      showToast("Name and Price are required.", "warning");
       return;
     }
     setSavingEditId(editingProductId);
@@ -904,7 +983,7 @@ export default function AdminPage() {
         })
         .catch(() => {});
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update product");
+      showToast(err?.response?.data?.message || "Failed to update product", "error");
     } finally {
       setSavingEditId(null);
     }
@@ -925,11 +1004,11 @@ export default function AdminPage() {
   const addProduct = async () => {
     const { sku, name, category_id, price, stock, description, sizes, sizeStocks, colors, imageFiles } = productDraft;
     if (!sku.trim() || !name.trim() || !price) {
-      alert("SKU, Name, and Price are required.");
+      showToast("SKU, Name, and Price are required.", "warning");
       return;
     }
     if (Number(price) <= 0) {
-      alert("Price must be greater than 0.");
+      showToast("Price must be greater than 0.", "warning");
       return;
     }
     setSubmittingProduct(true);
@@ -967,14 +1046,20 @@ export default function AdminPage() {
       setProducts(res.data || []);
       setStockDraft(Object.fromEntries((res.data || []).map((p) => [p.id, p.stock ?? 0])));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to create product");
+      showToast(err?.response?.data?.message || "Failed to create product", "error");
     } finally {
       setSubmittingProduct(false);
     }
   };
 
   const deleteProduct = async (id) => {
-    if (!window.confirm("Permanently delete this product and all its images, sizes, and colors?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete Product",
+      message: "Permanently delete this product and all its images, sizes, and colors?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     setDeletingProductId(id);
     try {
       await api.delete(`/api/admin/products/${id}`);
@@ -985,7 +1070,7 @@ export default function AdminPage() {
         return next;
       });
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete product");
+      showToast(err?.response?.data?.message || "Failed to delete product", "error");
     } finally {
       setDeletingProductId(null);
     }
@@ -4029,6 +4114,148 @@ export default function AdminPage() {
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.65)", zIndex: 2100 }}
+          onClick={() => {
+            confirmDialog.resolve(false);
+            setConfirmDialog(null);
+          }}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(520px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <h5 className="mb-2 osai-admin-section-title">{confirmDialog.title}</h5>
+              <p className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>{confirmDialog.message}</p>
+              <div className="d-flex justify-content-end gap-2">
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => {
+                    confirmDialog.resolve(false);
+                    setConfirmDialog(null);
+                  }}
+                >
+                  {confirmDialog.cancelLabel}
+                </button>
+                <button
+                  className={`btn btn-sm ${confirmDialog.danger ? "btn-outline-danger" : "btn-dark"}`}
+                  onClick={() => {
+                    confirmDialog.resolve(true);
+                    setConfirmDialog(null);
+                  }}
+                >
+                  {confirmDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptDialog && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.65)", zIndex: 2101 }}
+          onClick={() => {
+            promptDialog.resolve(null);
+            setPromptDialog(null);
+            setPromptValue("");
+          }}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(560px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <h5 className="mb-2 osai-admin-section-title">{promptDialog.title}</h5>
+              <p className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>{promptDialog.message}</p>
+              <input
+                autoFocus
+                className="form-control"
+                placeholder={promptDialog.placeholder}
+                value={promptValue}
+                onChange={(e) => setPromptValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    promptDialog.resolve(promptValue);
+                    setPromptDialog(null);
+                    setPromptValue("");
+                  }
+                }}
+              />
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => {
+                    promptDialog.resolve(null);
+                    setPromptDialog(null);
+                    setPromptValue("");
+                  }}
+                >
+                  {promptDialog.cancelLabel}
+                </button>
+                <button
+                  className="btn btn-sm btn-dark"
+                  onClick={() => {
+                    promptDialog.resolve(promptValue);
+                    setPromptDialog(null);
+                    setPromptValue("");
+                  }}
+                >
+                  {promptDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          className="position-fixed"
+          style={{ right: 20, bottom: 20, zIndex: 2200, maxWidth: 360 }}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{
+              background:
+                toast.type === "warning"
+                  ? "rgba(245, 158, 11, 0.15)"
+                  : toast.type === "success"
+                    ? "rgba(16, 185, 129, 0.15)"
+                    : "rgba(239, 68, 68, 0.15)",
+              border: "1px solid var(--line)",
+            }}
+          >
+            <div className="card-body py-2 px-3 d-flex align-items-start gap-2">
+              <i
+                className={`bi ${
+                  toast.type === "warning"
+                    ? "bi-exclamation-triangle"
+                    : toast.type === "success"
+                      ? "bi-check-circle"
+                      : "bi-x-octagon"
+                }`}
+                style={{ marginTop: 1 }}
+              />
+              <div style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.35 }}>{toast.message}</div>
+              <button
+                className="btn btn-sm btn-outline-secondary ms-auto"
+                style={{ padding: "0 6px", lineHeight: 1.2 }}
+                onClick={() => setToast(null)}
+              >
+                x
+              </button>
             </div>
           </div>
         </div>
