@@ -990,6 +990,74 @@ router.put("/products/:id/stock", adminMiddleware, async (req, res) => {
   }
 });
 
+router.post("/products/:id/incoming", adminMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { quantity, size = null, note = "" } = req.body || {};
+  const qty = Number(quantity);
+  if (!Number.isInteger(qty) || qty <= 0) {
+    return res.status(400).json({ message: "quantity must be a positive integer" });
+  }
+
+  let conn;
+  try {
+    await ensureProductSizeStockColumn();
+    await ensureStockMovementsTable();
+
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    const [[product]] = await conn.query(
+      "SELECT id, stock FROM products WHERE id = ? LIMIT 1",
+      [id]
+    );
+    if (!product) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    if (size && String(size).trim()) {
+      const [sizeResult] = await conn.query(
+        `UPDATE product_sizes
+         SET stock = stock + ?
+         WHERE product_id = ? AND size = ?`,
+        [qty, id, String(size).trim()]
+      );
+      if (!sizeResult.affectedRows) {
+        await conn.rollback();
+        return res.status(404).json({ message: "Size not found for this product" });
+      }
+    }
+
+    await conn.query(
+      "UPDATE products SET stock = stock + ? WHERE id = ?",
+      [qty, id]
+    );
+
+    await recordStockMovement({
+      conn,
+      productId: id,
+      size: size ? String(size).trim() : null,
+      movementType: "incoming",
+      quantity: qty,
+      referenceType: "incoming_order",
+      referenceId: null,
+      note: note ? String(note).slice(0, 255) : "Manual incoming stock",
+      actorUserId: req.session?.userId || null,
+    });
+
+    await conn.commit();
+    return res.json({ message: "Incoming stock processed" });
+  } catch (err) {
+    if (conn) {
+      try { await conn.rollback(); } catch (_) {}
+    }
+    console.error("Admin incoming stock error:", err);
+    return res.status(500).json({ message: "Failed to process incoming stock" });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 router.put("/products/:id/size-stock", adminMiddleware, async (req, res) => {
   const { id } = req.params;
   const { size, stock } = req.body || {};

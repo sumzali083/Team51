@@ -65,6 +65,11 @@ export default function AdminPage() {
   const [runningBulkUsersAction, setRunningBulkUsersAction] = useState(false);
   const [actionMenuUserId, setActionMenuUserId] = useState(null);
   const [stockDraft, setStockDraft] = useState({});
+  const [incomingProductId, setIncomingProductId] = useState("");
+  const [incomingSize, setIncomingSize] = useState("");
+  const [incomingQty, setIncomingQty] = useState("1");
+  const [incomingNote, setIncomingNote] = useState("");
+  const [processingIncoming, setProcessingIncoming] = useState(false);
   const [orderStatusDraft, setOrderStatusDraft] = useState({});
   const [refundStatusDraft, setRefundStatusDraft] = useState({});
   const [refundAdminNoteDraft, setRefundAdminNoteDraft] = useState({});
@@ -506,6 +511,38 @@ export default function AdminPage() {
     }
   };
 
+  const processIncomingStock = async () => {
+    const productId = Number(incomingProductId);
+    const quantity = Number(incomingQty);
+    if (!Number.isInteger(productId) || productId <= 0) {
+      alert("Select a product for incoming stock.");
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      alert("Incoming quantity must be a positive integer.");
+      return;
+    }
+    setProcessingIncoming(true);
+    try {
+      await api.post(`/api/admin/products/${productId}/incoming`, {
+        quantity,
+        size: incomingSize || null,
+        note: incomingNote || null,
+      });
+      const res = await api.get("/api/admin/products");
+      setProducts(res.data || []);
+      setStockDraft(Object.fromEntries((res.data || []).map((p) => [p.id, p.stock ?? 0])));
+      setIncomingQty("1");
+      setIncomingNote("");
+      setIncomingSize("");
+      await loadAll();
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to process incoming stock");
+    } finally {
+      setProcessingIncoming(false);
+    }
+  };
+
   const startEdit = (p) => {
     setEditingProductId(p.id);
     setEditDraft({
@@ -726,6 +763,11 @@ export default function AdminPage() {
       String(p.category || "").toLowerCase().includes(q)
     );
   }, [products, inventorySearch]);
+
+  const selectedIncomingProduct = useMemo(
+    () => products.find((p) => Number(p.id) === Number(incomingProductId)) || null,
+    [products, incomingProductId]
+  );
 
   const inRange = (dateValue, rangeKey) => {
     if (!dateValue) return false;
@@ -1667,6 +1709,70 @@ export default function AdminPage() {
                     onChange={(e) => setInventorySearch(e.target.value)}
                     placeholder="Search SKU, name, category"
                   />
+                </div>
+                <div className="card border-0 mb-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <div className="card-body">
+                    <div className="d-flex flex-wrap align-items-end gap-2">
+                      <div style={{ minWidth: 180 }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Incoming product</label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={incomingProductId}
+                          onChange={(e) => {
+                            setIncomingProductId(e.target.value);
+                            setIncomingSize("");
+                          }}
+                        >
+                          <option value="">Select product</option>
+                          {products.map((p) => (
+                            <option key={`incoming-${p.id}`} value={p.id}>
+                              {p.sku || p.id} - {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ minWidth: 150 }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Size (optional)</label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={incomingSize}
+                          onChange={(e) => setIncomingSize(e.target.value)}
+                          disabled={!selectedIncomingProduct || !Array.isArray(selectedIncomingProduct.sizes) || selectedIncomingProduct.sizes.length === 0}
+                        >
+                          <option value="">No size</option>
+                          {(selectedIncomingProduct?.sizes || []).map((size) => (
+                            <option key={`incoming-size-${size}`} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ width: 120 }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Quantity</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="form-control form-control-sm"
+                          value={incomingQty}
+                          onChange={(e) => setIncomingQty(e.target.value)}
+                        />
+                      </div>
+                      <div style={{ minWidth: 220, flex: "1 1 220px" }}>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Note</label>
+                        <input
+                          className="form-control form-control-sm"
+                          placeholder="e.g. supplier restock shipment"
+                          value={incomingNote}
+                          onChange={(e) => setIncomingNote(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        className="btn btn-sm btn-outline-success"
+                        onClick={processIncomingStock}
+                        disabled={processingIncoming}
+                      >
+                        {processingIncoming ? "Processing..." : "Process Incoming"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="table-responsive">
                   <table className="table table-sm align-middle">
