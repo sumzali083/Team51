@@ -695,7 +695,18 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
       <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
 
         {/* Desktop sidebar */}
-        <div className="d-none d-lg-block" style={{ width: 260, flexShrink: 0, position: "sticky", top: 90 }}>
+        <div
+          className="d-none d-lg-block"
+          style={{
+            width: 260,
+            flexShrink: 0,
+            position: "sticky",
+            top: "calc(var(--nav-h, 80px) + 10px)",
+            alignSelf: "flex-start",
+            maxHeight: "calc(100vh - (var(--nav-h, 80px) + 20px))",
+            overflowY: "auto",
+          }}
+        >
           {sidebarContent}
 
           {/* Sort — desktop */}
