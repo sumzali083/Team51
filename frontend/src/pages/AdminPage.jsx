@@ -43,6 +43,10 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [editUserDraft, setEditUserDraft] = useState(null);
   const [loadingUserSummary, setLoadingUserSummary] = useState(false);
+  const [loadingUserOrders, setLoadingUserOrders] = useState(false);
+  const [userOrders, setUserOrders] = useState([]);
+  const [userOrdersPage, setUserOrdersPage] = useState(1);
+  const [userOrdersTotalPages, setUserOrdersTotalPages] = useState(1);
   const [messages, setMessages] = useState([]);
   //  ADDED FEEDBACK STATE
   const [feedback, setFeedback] = useState([]);
@@ -669,18 +673,56 @@ export default function AdminPage() {
   };
 
   const openUserSummary = async (targetUser) => {
+    const targetId = Number(targetUser?.id);
+    if (!Number.isInteger(targetId) || targetId <= 0) return;
+
     setLoadingUserSummary(true);
+    setLoadingUserOrders(true);
+    setUserOrdersPage(1);
     try {
-      const res = await api.get(`/api/admin/users/${targetUser.id}/summary`);
-      setUserSummary(res.data || null);
+      const [summaryRes, ordersRes] = await Promise.all([
+        api.get(`/api/admin/users/${targetId}/summary`),
+        api.get(`/api/admin/users/${targetId}/orders`, { params: { page: 1, pageSize: 10 } }),
+      ]);
+      setUserSummary(summaryRes.data || null);
+      setUserOrders(ordersRes.data?.rows || []);
+      setUserOrdersTotalPages(Math.max(1, Number(ordersRes.data?.pagination?.totalPages || 1)));
     } catch (err) {
       alert(err?.response?.data?.message || "Failed to load user summary");
     } finally {
       setLoadingUserSummary(false);
+      setLoadingUserOrders(false);
     }
   };
 
-  const closeUserSummary = () => setUserSummary(null);
+  const loadUserOrdersPage = async (targetUserId, page) => {
+    const normalizedPage = Math.max(1, Number(page || 1));
+    setLoadingUserOrders(true);
+    try {
+      const res = await api.get(`/api/admin/users/${targetUserId}/orders`, {
+        params: { page: normalizedPage, pageSize: 10 },
+      });
+      setUserOrders(res.data?.rows || []);
+      setUserOrdersPage(normalizedPage);
+      setUserOrdersTotalPages(Math.max(1, Number(res.data?.pagination?.totalPages || 1)));
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to load user order history");
+    } finally {
+      setLoadingUserOrders(false);
+    }
+  };
+
+  const openOrderDetailsFromUserSummary = async (orderId) => {
+    closeUserSummary();
+    await openOrderDetails(orderId);
+  };
+
+  const closeUserSummary = () => {
+    setUserSummary(null);
+    setUserOrders([]);
+    setUserOrdersPage(1);
+    setUserOrdersTotalPages(1);
+  };
 
   const openUserEditor = (targetUser) => {
     setEditingUser(targetUser);
@@ -3526,34 +3568,104 @@ export default function AdminPage() {
               {loadingUserSummary ? (
                 <div style={{ color: "var(--sub)" }}>Loading...</div>
               ) : (
-                <div className="row g-3">
-                  <div className="col-12 col-md-6">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Name</div>
-                    <div>{userSummary.user?.name || "-"}</div>
+                <div className="d-flex flex-column gap-3">
+                  <div className="row g-3">
+                    <div className="col-12 col-md-6">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Name</div>
+                      <div>{userSummary.user?.name || "-"}</div>
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Email</div>
+                      <div>{userSummary.user?.email || "-"}</div>
+                    </div>
+                    <div className="col-12 col-md-4">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Orders</div>
+                      <div>{Number(userSummary.orders?.total_orders || 0)}</div>
+                    </div>
+                    <div className="col-12 col-md-4">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Total Spend</div>
+                      <div>GBP {Number(userSummary.orders?.total_spend || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="col-12 col-md-4">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Refund Requests</div>
+                      <div>{Number(userSummary.refunds?.total_refunds || 0)}</div>
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Pending Refunds</div>
+                      <div>{Number(userSummary.refunds?.pending_refunds || 0)}</div>
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <div style={{ color: "var(--sub)", fontSize: 12 }}>Contact Messages</div>
+                      <div>{Number(userSummary.messages?.total_messages || 0)}</div>
+                    </div>
                   </div>
-                  <div className="col-12 col-md-6">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Email</div>
-                    <div>{userSummary.user?.email || "-"}</div>
-                  </div>
-                  <div className="col-12 col-md-4">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Orders</div>
-                    <div>{Number(userSummary.orders?.total_orders || 0)}</div>
-                  </div>
-                  <div className="col-12 col-md-4">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Total Spend</div>
-                    <div>GBP {Number(userSummary.orders?.total_spend || 0).toFixed(2)}</div>
-                  </div>
-                  <div className="col-12 col-md-4">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Refund Requests</div>
-                    <div>{Number(userSummary.refunds?.total_refunds || 0)}</div>
-                  </div>
-                  <div className="col-12 col-md-6">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Pending Refunds</div>
-                    <div>{Number(userSummary.refunds?.pending_refunds || 0)}</div>
-                  </div>
-                  <div className="col-12 col-md-6">
-                    <div style={{ color: "var(--sub)", fontSize: 12 }}>Contact Messages</div>
-                    <div>{Number(userSummary.messages?.total_messages || 0)}</div>
+
+                  <div className="border rounded p-2" style={{ borderColor: "var(--line)", background: "rgba(255,255,255,0.02)" }}>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <h6 className="mb-0" style={{ color: "var(--text)" }}>Order History</h6>
+                      <span style={{ color: "var(--sub)", fontSize: 12 }}>
+                        Page {userOrdersPage} of {userOrdersTotalPages}
+                      </span>
+                    </div>
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Order</th>
+                            <th>Status</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Date</th>
+                            <th>View</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loadingUserOrders ? (
+                            <tr><td colSpan={6} style={{ color: "var(--sub)" }}>Loading order history...</td></tr>
+                          ) : userOrders.length === 0 ? (
+                            <tr><td colSpan={6} style={{ color: "var(--sub)" }}>No orders found for this user.</td></tr>
+                          ) : (
+                            userOrders.map((o) => (
+                              <tr key={`u-order-${o.id}`}>
+                                <td>#{o.id}</td>
+                                <td>
+                                  <span className={`osai-status osai-status-${o.status || "pending"}`}>
+                                    {o.status || "pending"}
+                                  </span>
+                                </td>
+                                <td>{Number(o.item_count || 0)}</td>
+                                <td>GBP {Number(o.total_price || 0).toFixed(2)}</td>
+                                <td>{o.created_at ? new Date(o.created_at).toLocaleDateString() : "-"}</td>
+                                <td>
+                                  <button
+                                    className="btn btn-sm btn-outline-light"
+                                    onClick={() => openOrderDetailsFromUserSummary(o.id)}
+                                  >
+                                    View
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="d-flex justify-content-end gap-2 mt-2">
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={loadingUserOrders || userOrdersPage <= 1}
+                        onClick={() => loadUserOrdersPage(userSummary.user?.id, userOrdersPage - 1)}
+                      >
+                        Prev
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={loadingUserOrders || userOrdersPage >= userOrdersTotalPages}
+                        onClick={() => loadUserOrdersPage(userSummary.user?.id, userOrdersPage + 1)}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
