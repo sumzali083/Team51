@@ -1459,7 +1459,7 @@ export default function AdminPage() {
   const overviewCardStyle = {
     border: "1px solid var(--line)",
     borderRadius: "var(--radius)",
-    minHeight: 104,
+    height: 120,
     width: "100%",
     background: "rgba(255,255,255,0.03)",
     color: "var(--text)",
@@ -1470,6 +1470,7 @@ export default function AdminPage() {
     textAlign: "left",
     cursor: "pointer",
     transition: "border-color .18s ease, background-color .18s ease",
+    overflow: "hidden",
   };
 
   if (loading) {
@@ -1610,7 +1611,9 @@ export default function AdminPage() {
                         title="Open orders and revenue data"
                       >
                         <div style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
-                        <div style={{ fontSize: 34, fontWeight: 800, color: "var(--text)", lineHeight: 1.1 }}>GBP {rangeRevenue.toFixed(2)}</div>
+                        <div style={{ fontSize: 30, fontWeight: 800, color: "var(--text)", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                          GBP {rangeRevenue.toFixed(2)}
+                        </div>
                       </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
