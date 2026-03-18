@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useContext } from "react";
+import { useEffect, useState, useMemo, useContext, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CartContext } from "../context/CartContext";
@@ -57,6 +57,75 @@ function AccordionSection({ title, badge, children, defaultOpen = false }) {
   );
 }
 
+
+function DualRangeSlider({ min, max, minVal, maxVal, onMinChange, onMaxChange }) {
+  const fillRef = useRef(null);
+
+  useEffect(() => {
+    if (!fillRef.current || max === min) return;
+    const lo = ((minVal - min) / (max - min)) * 100;
+    const hi = ((maxVal - min) / (max - min)) * 100;
+    fillRef.current.style.left  = `${lo}%`;
+    fillRef.current.style.width = `${hi - lo}%`;
+  }, [min, max, minVal, maxVal]);
+
+  return (
+    <div style={{ paddingTop: 4 }}>
+      <style>{`
+        .osai-range-slider {
+          -webkit-appearance: none; appearance: none;
+          position: absolute; left: 0; top: 50%;
+          transform: translateY(-50%);
+          width: 100%; height: 0;
+          background: transparent; pointer-events: none;
+          outline: none; margin: 0;
+        }
+        .osai-range-slider::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 16px; height: 16px; border-radius: 3px;
+          background: #111; border: 2px solid #fff;
+          cursor: pointer; pointer-events: all;
+        }
+        .osai-range-slider::-moz-range-thumb {
+          width: 16px; height: 16px; border-radius: 3px;
+          background: #111; border: 2px solid #fff;
+          cursor: pointer; pointer-events: all; box-sizing: border-box;
+        }
+      `}</style>
+
+      {/* Track */}
+      <div style={{ position: "relative", height: 24, margin: "8px 0" }}>
+        <div style={{
+          position: "absolute", top: "50%", left: 0, right: 0,
+          height: 2, background: "rgba(255,255,255,0.15)",
+          transform: "translateY(-50%)", borderRadius: 1,
+        }} />
+        <div ref={fillRef} style={{
+          position: "absolute", top: "50%", height: 2,
+          background: "#fff", transform: "translateY(-50%)", borderRadius: 1,
+        }} />
+        <input
+          type="range" className="osai-range-slider"
+          min={min} max={max} value={minVal}
+          style={{ zIndex: minVal > max * 0.9 ? 5 : 3 }}
+          onChange={e => onMinChange(Math.min(Number(e.target.value), maxVal - 1))}
+        />
+        <input
+          type="range" className="osai-range-slider"
+          min={min} max={max} value={maxVal}
+          style={{ zIndex: 4 }}
+          onChange={e => onMaxChange(Math.max(Number(e.target.value), minVal + 1))}
+        />
+      </div>
+
+      {/* Value labels */}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#aaa", marginTop: 4 }}>
+        <span>£{minVal}</span>
+        <span>£{maxVal}</span>
+      </div>
+    </div>
+  );
+}
 
 const gridVariants = {
   hidden: { opacity: 0 },
@@ -241,33 +310,11 @@ export function AllProductsPage() {
 
       {/* Price Range */}
       <AccordionSection title="Shop By Price" badge={(sliderMin > 0 || sliderMax < sliderBound) ? 1 : null}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>From</div>
-            <div style={{ display: "flex", alignItems: "center", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, overflow: "hidden" }}>
-              <span style={{ padding: "0 8px", color: "#555", fontSize: 13, borderRight: "1px solid rgba(255,255,255,0.08)" }}>£</span>
-              <input
-                type="number" min={0} value={sliderMin || ""}
-                placeholder="0"
-                onChange={e => setSliderMin(e.target.value === "" ? 0 : Number(e.target.value))}
-                style={{ width: "100%", background: "transparent", border: "none", color: "#fff", padding: "8px 10px", fontSize: 13, outline: "none" }}
-              />
-            </div>
-          </div>
-          <div style={{ color: "#444", paddingTop: 20, fontSize: 12 }}>—</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>To</div>
-            <div style={{ display: "flex", alignItems: "center", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 3, overflow: "hidden" }}>
-              <span style={{ padding: "0 8px", color: "#555", fontSize: 13, borderRight: "1px solid rgba(255,255,255,0.08)" }}>£</span>
-              <input
-                type="number" min={0} value={sliderMax >= sliderBound ? "" : sliderMax}
-                placeholder={sliderBound ? String(sliderBound) : "Any"}
-                onChange={e => setSliderMax(e.target.value === "" ? sliderBound : Number(e.target.value))}
-                style={{ width: "100%", background: "transparent", border: "none", color: "#fff", padding: "8px 10px", fontSize: 13, outline: "none" }}
-              />
-            </div>
-          </div>
-        </div>
+        <DualRangeSlider
+          min={0} max={sliderBound || 500}
+          minVal={sliderMin} maxVal={sliderMax}
+          onMinChange={setSliderMin} onMaxChange={setSliderMax}
+        />
       </AccordionSection>
 
       {/* Sale */}
