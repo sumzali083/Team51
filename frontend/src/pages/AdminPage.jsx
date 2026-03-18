@@ -1070,6 +1070,19 @@ export default function AdminPage() {
     { key: "users",     label: "Users",             icon: "bi-people" },
   ];
 
+  const overviewCardStyle = {
+    border: "1px solid var(--line)",
+    borderRadius: "var(--radius)",
+    minHeight: 104,
+    width: "100%",
+    background: "rgba(255,255,255,0.01)",
+    padding: 12,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    textAlign: "left",
+  };
+
   if (loading) {
     return (
       <div className="osai-admin page-container">
@@ -1166,30 +1179,54 @@ export default function AdminPage() {
                   </div>
                   <div className="row g-2">
                     <div className="col-lg-3 col-md-6">
-                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                      <button
+                        type="button"
+                        className="btn p-0"
+                        style={overviewCardStyle}
+                        onClick={() => setActiveTab("orders")}
+                        title="Open orders"
+                      >
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Orders</div>
                         <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeOrders.length}</div>
-                      </div>
+                      </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
-                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                      <button
+                        type="button"
+                        className="btn p-0"
+                        style={overviewCardStyle}
+                        onClick={() => setActiveTab("refunds")}
+                        title="Open refunds"
+                      >
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Refund Requests</div>
                         <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeRefunds.length}</div>
-                      </div>
+                      </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
-                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                      <button
+                        type="button"
+                        className="btn p-0"
+                        style={overviewCardStyle}
+                        onClick={() => setActiveTab("orders")}
+                        title="Open orders and revenue data"
+                      >
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
                         <div style={{ fontSize: 24, fontWeight: 700 }}>GBP {rangeRevenue.toFixed(2)}</div>
-                      </div>
+                      </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
-                      <div className="p-3" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)" }}>
+                      <button
+                        type="button"
+                        className="btn p-0"
+                        style={overviewCardStyle}
+                        onClick={() => setActiveTab("inventory")}
+                        title="Open inventory stock flow context"
+                      >
                         <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stock Flow (7D)</div>
                         <div style={{ fontSize: 15, fontWeight: 700 }}>
                           +{Number(reports?.totalIncomingUnits7d || 0)} / -{Number(reports?.totalOutgoingUnits7d || 0)}
                         </div>
-                      </div>
+                      </button>
                     </div>
                   </div>
                   <div className="mt-2" style={{ color: "var(--sub)", fontSize: 12 }}>
