@@ -38,7 +38,7 @@ function AccordionSection({ title, badge, children, defaultOpen = false }) {
           width: "100%", display: "flex", justifyContent: "space-between",
           alignItems: "center", padding: "15px 0", background: "none",
           border: "none", cursor: "pointer", color: "#fff",
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+          fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -365,22 +365,27 @@ export function AllProductsPage() {
 
       {/* Rating */}
       <AccordionSection title="Rating" badge={minRating > 0 ? 1 : null}>
-        {[4, 3, 2, 1].map(r => (
-          <label key={r} style={{
-            display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
-            cursor: "pointer", fontSize: 13, color: minRating === r ? "#fff" : "#888",
-          }}>
-            <input
-              type="radio" name="rating"
-              checked={minRating === r}
-              onChange={() => setMinRating(minRating === r ? 0 : r)}
-              style={{ accentColor: "#fff", cursor: "pointer", flexShrink: 0 }}
-            />
-            <span style={{ color: "#f9a825", letterSpacing: 1 }}>{"★".repeat(r)}</span>
-            <span style={{ color: "#444", letterSpacing: 1 }}>{"★".repeat(4 - r)}</span>
-            <span style={{ color: "#666", fontSize: 11 }}>&amp; up</span>
-          </label>
-        ))}
+        {[4, 3, 2, 1].map(r => {
+          const active = minRating === r;
+          return (
+            <button
+              key={r}
+              onClick={() => setMinRating(active ? 0 : r)}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", marginBottom: 6, padding: "7px 10px",
+                background: active ? "rgba(255,255,255,0.07)" : "transparent",
+                border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "transparent"}`,
+                borderRadius: 3, cursor: "pointer",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              <span style={{ color: "#f9a825", letterSpacing: 2, fontSize: 13 }}>{"★".repeat(r)}</span>
+              <span style={{ color: "#333", letterSpacing: 2, fontSize: 13 }}>{"★".repeat(4 - r)}</span>
+              <span style={{ color: active ? "#aaa" : "#555", fontSize: 11, fontFamily: "var(--font-body)" }}>&amp; up</span>
+            </button>
+          );
+        })}
       </AccordionSection>
 
       {/* Colour */}
