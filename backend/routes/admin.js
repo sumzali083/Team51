@@ -23,6 +23,19 @@ if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 // Memory storage so we can process with sharp before writing to disk
 const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+function csvCell(value) {
+  if (value == null) return "";
+  const str = String(value);
+  if (!/[",\n\r]/.test(str)) return str;
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+function asCsv(rows, headers) {
+  const head = headers.map((h) => csvCell(h.label)).join(",");
+  const body = rows.map((row) => headers.map((h) => csvCell(row[h.key])).join(",")).join("\n");
+  return `${head}\n${body}`;
+}
+
 async function tableExists(tableName) {
   const [rows] = await db.query("SHOW TABLES LIKE ?", [tableName]);
   return rows.length > 0;
@@ -646,6 +659,81 @@ router.get("/orders", adminMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Admin get orders error:", err);
     res.status(500).json({ message: "Failed to fetch orders" });
+  }
+});
+
+router.get("/orders/export.csv", adminMiddleware, async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    const status = String(req.query.status || "all").toLowerCase();
+    const dateRange = String(req.query.date || "all").toLowerCase();
+    const sort = String(req.query.sort || "newest").toLowerCase();
+
+    const where = [];
+    const params = [];
+
+    if (["pending", "processing", "shipped", "delivered", "cancelled"].includes(status)) {
+      where.push("o.status = ?");
+      params.push(status);
+    }
+
+    if (["7d", "30d", "90d"].includes(dateRange)) {
+      const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+      where.push("o.created_at >= (NOW() - INTERVAL ? DAY)");
+      params.push(days);
+    }
+
+    if (q) {
+      where.push("(CAST(o.id AS CHAR) LIKE ? OR u.name LIKE ? OR u.email LIKE ?)");
+      const like = `%${q}%`;
+      params.push(like, like, like);
+    }
+
+    let orderBy = "o.created_at DESC";
+    if (sort === "oldest") {
+      orderBy = "o.created_at ASC";
+    } else if (sort === "highest") {
+      orderBy = "o.total_price DESC, o.created_at DESC";
+    } else if (sort === "pending_first") {
+      orderBy = "CASE WHEN o.status = 'pending' THEN 0 ELSE 1 END ASC, o.created_at DESC";
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const [rows] = await db.query(
+      `SELECT
+         o.id,
+         o.user_id,
+         u.name,
+         u.email,
+         o.status,
+         o.total_price,
+         o.created_at,
+         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+       FROM orders o
+       JOIN users u ON o.user_id = u.id
+       ${whereClause}
+       ORDER BY ${orderBy}`,
+      params
+    );
+
+    const csv = asCsv(rows || [], [
+      { key: "id", label: "order_id" },
+      { key: "user_id", label: "user_id" },
+      { key: "name", label: "customer_name" },
+      { key: "email", label: "customer_email" },
+      { key: "status", label: "status" },
+      { key: "total_price", label: "total_price" },
+      { key: "item_count", label: "item_count" },
+      { key: "created_at", label: "created_at" },
+    ]);
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="orders-export-${stamp}.csv"`);
+    return res.status(200).send(csv);
+  } catch (err) {
+    console.error("Admin export orders CSV error:", err);
+    return res.status(500).json({ message: "Failed to export orders CSV" });
   }
 });
 

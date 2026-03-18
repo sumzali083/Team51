@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [inventorySearch, setInventorySearch] = useState("");
   const [savingStockId, setSavingStockId] = useState(null);
   const [savingOrderId, setSavingOrderId] = useState(null);
+  const [exportingOrdersCsv, setExportingOrdersCsv] = useState(false);
   const [savingRefundId, setSavingRefundId] = useState(null);
   const [savingUserId, setSavingUserId] = useState(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState(null);
@@ -457,6 +458,40 @@ export default function AdminPage() {
       alert(err?.response?.data?.message || "Failed to bulk update orders");
     } finally {
       setRunningBulkOrderAction(false);
+    }
+  };
+
+  const exportOrdersCsv = async () => {
+    setExportingOrdersCsv(true);
+    try {
+      const res = await api.get("/api/admin/orders/export.csv", {
+        responseType: "blob",
+        params: {
+          q: orderSearch,
+          status: orderStatusFilter,
+          date: orderDateFilter,
+          sort: orderSortBy,
+        },
+      });
+
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+
+      const disposition = String(res.headers?.["content-disposition"] || "");
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const fallback = `orders-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = match?.[1] || fallback;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to export orders CSV");
+    } finally {
+      setExportingOrdersCsv(false);
     }
   };
 
@@ -2144,7 +2179,17 @@ export default function AdminPage() {
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Orders</h4>
-                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredOrders.length} orders</span>
+                  <div className="d-flex align-items-center gap-2">
+                    <span style={{ color: "var(--sub)", fontSize: 12 }}>{filteredOrders.length} orders</span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={exportOrdersCsv}
+                      disabled={exportingOrdersCsv}
+                    >
+                      {exportingOrdersCsv ? "Exporting..." : "Export CSV"}
+                    </button>
+                  </div>
                 </div>
                 <div className="d-flex gap-2 flex-wrap mb-3">
                   <input
