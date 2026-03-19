@@ -23,7 +23,7 @@ export default function LoginPage() {
         textTransform: "uppercase",
         letterSpacing: "-0.01em",
         lineHeight: 0.92,
-        color: "var(--text-primary)",
+        color: "#000",
         marginBottom: 40,
         textAlign: "center",
       }}>
@@ -49,7 +49,7 @@ export default function LoginPage() {
             style={{
               padding: "10px 36px",
               background: mode === key ? "#000" : "#141414",
-              color: "#fff",
+              color: mode === key ? "var(--accent)" : "#fff",
               border: "none",
               fontSize: 11,
               fontWeight: 700,
