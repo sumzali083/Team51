@@ -122,7 +122,7 @@ export function HomePage() {
       <section
         ref={welcomeRef}
         style={{
-        background: "#f0f0f0",
+        background: "var(--bg-story-section, var(--bg-story, var(--bg-main)))",
         width: "100%",
       }}>
         <div style={{
