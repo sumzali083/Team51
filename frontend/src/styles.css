@@ -14,8 +14,8 @@
   --radius:     2px;
   --radius-md:  6px;
   --shadow:     0 4px 32px rgba(0,0,0,0.6);
-  --font-display: 'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
-  --font-body:    'Helvetica Neue', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Barlow Condensed', 'Inter', sans-serif;
+  --font-body:    'Inter', ui-sans-serif, system-ui, sans-serif;
   --nav-h:      80px;
 
   --bg-main: #000000;
@@ -24,8 +24,8 @@
   --text-primary: #ffffff;
   --text-secondary: #888888;
   --text-muted: #444444;
-  --accent: #FA5400;
-  --accent-hover: #E64D00;
+  --accent: #C8A27A;
+  --accent-hover: #B8916A;
   --border: rgba(255,255,255,0.12);
 
   --nav-bg: rgba(0,0,0,0.97);
@@ -741,9 +741,9 @@ h1, h2, h3, h4, h5, h6 {
 /* ─── PRODUCT CARDS ──────────────────────────────────────────────────────── */
 .card {
   background: var(--card);
-  border: 1.5px solid #FA5400 !important;
+  border: none !important;
   border-radius: 0 !important;
-  overflow: visible;
+  overflow: hidden;
   box-shadow: none !important;
   transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   display: flex;
@@ -753,12 +753,12 @@ h1, h2, h3, h4, h5, h6 {
 .card:hover { background: var(--card-hover) }
 
 .card.h-100.shadow-sm {
-  border: 1.5px solid #FA5400 !important;
+  border: 1px solid var(--line-hover) !important;
 }
 
 .card.h-100.shadow-sm:hover {
   transform: translateY(-2px);
-  border-color: #FA5400 !important;
+  border-color: rgba(255,255,255,0.3) !important;
   box-shadow: 0 12px 30px rgba(0,0,0,.1) !important;
 }
 
