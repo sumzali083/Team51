@@ -42,7 +42,7 @@ export function AboutPage() {
       <section ref={introRef} className="container text-center py-5" data-animation="fadeInUp">
         <div>
           <h1 className="fw-bold text-decoration-underline display-5 mb-3">About OSAI</h1>
-          <p className="fw-bold mb-3">From Japan to the streets around the globe</p>
+          <p className="fw-bold mb-3 about-accent-title">From Japan to the streets around the globe</p>
           <p className="lead mx-auto" style={{ maxWidth: "720px", color: "#fff" }}>
             At OSAI, every piece begins with premium materials sourced directly from Japan's most respected textile mills. We choose fabrics known for their durability, comfort, and craftsmanship -- fibers that stay vibrant, hold their shape, and feel luxurious on the skin. This commitment ensures that every hoodie, T-shirt, or streetwear essential we produce meets the highest standards from the very first touch.
           </p>
@@ -56,7 +56,7 @@ export function AboutPage() {
           </div>
 
           <div ref={text1Ref} className="col-md-6" data-animation="fadeInRight">
-            <h2 className="h3 fw-light mb-3">Our Story</h2>
+            <h2 className="h3 fw-light mb-3 about-accent-title">Our Story</h2>
             <p style={{ color: "#fff" }}>
               At OSAI, every piece begins with premium materials sourced directly from Japan's most respected textile mills. We choose fabrics known for their durability, comfort, and craftsmanship -- fibers that stay vibrant, hold their shape, and feel luxurious on the skin. This commitment ensures that every hoodie, T-shirt, or streetwear essential we produce meets the highest standards from the very first touch.
             </p>
@@ -71,7 +71,7 @@ export function AboutPage() {
           </div>
 
           <div ref={text2Ref} className="col-md-6 order-md-1" data-animation="fadeInLeft">
-            <h2 className="h3 fw-light mb-3">Design &amp; Inspiration</h2>
+            <h2 className="h3 fw-light mb-3 about-accent-title">Design &amp; Inspiration</h2>
             <p style={{ color: "#fff" }}>
               Our design team is the creative heartbeat of OSAI -- a collective of passionate artists and innovators inspired by the energy of Tokyo, Osaka, and global urban life. They draw from graffiti, architecture, music, and modern minimalism to craft pieces that blend authenticity with style. Every design is bold yet wearable, merging Japanese precision with contemporary streetwear aesthetics.
             </p>
@@ -88,7 +88,7 @@ export function AboutPage() {
             { title: "Timelessness", description: "Designed to outlast short trends and remain a core part of your wardrobe." }
           ].map((item) => (
             <div key={item.title} className="col-md-4 text-center">
-              <h3 className="h5 fw-light mb-2">{item.title}</h3>
+              <h3 className="h5 fw-light mb-2 about-value-title">{item.title}</h3>
               <p style={{ color: "#fff" }}>{item.description}</p>
             </div>
           ))}
