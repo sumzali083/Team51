@@ -385,6 +385,9 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
   const sidebarSubText = isLightTheme ? "#555" : "#666";
   const filterBtnBorder = isLightTheme ? "rgba(17,17,17,0.2)" : "rgba(255,255,255,0.15)";
   const filterBtnInactiveColor = isLightTheme ? "#555" : "#777";
+  const countTextColor = isLightTheme ? "#555" : "#666";
+  const mobileSortSelectedBg = isLightTheme ? "rgba(17,17,17,0.08)" : "rgba(255,255,255,0.08)";
+  const sortSelectedBg = isLightTheme ? "rgba(17,17,17,0.08)" : "rgba(255,255,255,0.06)";
   const sidebarContent = (
     <div style={{
       background: sidebarBg,
@@ -581,15 +584,20 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
     <div className="container-fluid" style={{ maxWidth: 1400, margin: "0 auto", padding: "40px 20px 60px" }}>
 
       {/* Page heading */}
-      <div style={{ marginBottom: 28 }}>
+      <motion.div
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        style={{ marginBottom: 28 }}
+      >
         <h2 style={{ fontWeight: 700, fontSize: 22, marginBottom: 4 }}>{pageTitle}</h2>
         {!loading && (
-          <p style={{ color: "#666", fontSize: 13, margin: 0 }}>
+          <p style={{ color: countTextColor, fontSize: 13, margin: 0 }}>
             {filtered.length} {filtered.length === 1 ? "product" : "products"}
             {activeFilters > 0 ? " — filters applied" : ""}
           </p>
         )}
-      </div>
+      </motion.div>
 
       {cartMsg && (
         <div className={`alert alert-${cartMsgType} mb-3`} role="alert">{cartMsg}</div>
@@ -638,7 +646,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                 <button key={value} onClick={() => { setSortBy(value); setSortOpen(false); }}
                   style={{
                     width: "100%", textAlign: "left", minHeight: 44,
-                    background: sortBy === value ? "rgba(255,255,255,0.08)" : "transparent",
+                    background: sortBy === value ? mobileSortSelectedBg : "transparent",
                     border: "none", padding: "12px 16px", cursor: "pointer",
                     color: sortBy === value ? FILTER_ACCENT : "#888",
                     fontFamily: "var(--font-body)", fontSize: 13,
@@ -736,8 +744,11 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
       <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
 
         {/* Desktop sidebar */}
-        <div
+        <motion.div
           className="d-none d-lg-block"
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
           style={{
             "--filters-sticky-top": `max(calc(var(--nav-h, 80px) + 10px), calc(50vh - ${stickyCenterOffset}px))`,
             width: 260,
@@ -764,7 +775,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                 {SORT_OPTIONS.map(({ value, label }) => (
                   <button key={value} onClick={() => setSortBy(value)}
                     style={{
-                      textAlign: "left", background: sortBy === value ? "rgba(255,255,255,0.06)" : "transparent",
+                      textAlign: "left", background: sortBy === value ? sortSelectedBg : "transparent",
                       border: "none", padding: "7px 0", cursor: "pointer",
                       color: sortBy === value ? FILTER_ACCENT : sidebarSubText,
                       fontWeight: sortBy === value ? 600 : 400,
@@ -778,7 +789,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Product grid */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -818,24 +829,48 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
 
                 return (
                   <motion.div key={product.id} className="col-12 col-sm-6 col-md-4" variants={cardVariants}>
-                    <div className="card h-100 shadow-sm">
+                    <div
+                      className="card h-100 shadow-sm"
+                      style={{
+                        background: isLightTheme ? "#fff" : "#050505",
+                        border: isLightTheme ? undefined : "none",
+                        borderRadius: isLightTheme ? undefined : 0,
+                        overflow: "hidden",
+                      }}
+                    >
                       <Link
                         to={`/product/${product.id}`}
                         className="text-decoration-none"
                         onMouseEnter={() => setHoveredId(product.id)}
                         onMouseLeave={() => setHoveredId(null)}
                       >
-                        <div style={{ position: "relative", overflow: "hidden" }}>
+                        <div style={{
+                          position: "relative",
+                          overflow: "hidden",
+                          aspectRatio: "3 / 4",
+                          background: "#f3f3f3",
+                        }}>
                           <img
                             src={img} alt={product.name}
-                            style={{ width: "100%", display: "block", opacity: isHovered ? 0 : 1, transition: "opacity 0.4s ease" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              padding: 0,
+                              display: "block",
+                              opacity: isHovered ? 0 : 1,
+                              transition: "opacity 0.4s ease",
+                            }}
                             onError={e => { e.target.src = Fallback; }}
                           />
                           <img
                             src={hoverImg} alt=""
                             style={{
                               position: "absolute", inset: 0, width: "100%", height: "100%",
-                              objectFit: "cover", opacity: isHovered ? 1 : 0, transition: "opacity 0.4s ease",
+                              objectFit: "cover",
+                              padding: 0,
+                              opacity: isHovered ? 1 : 0,
+                              transition: "opacity 0.4s ease",
                             }}
                             onError={e => { e.target.src = Fallback; }}
                           />
@@ -849,9 +884,9 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                         </div>
                       </Link>
 
-                      <div className="card-body d-flex flex-column" style={{ padding: "12px 14px" }}>
+                      <div className="card-body d-flex flex-column" style={{ padding: "12px 14px", background: isLightTheme ? "#fff" : "#050505" }}>
                         <Link to={`/product/${product.id}`} className="text-decoration-none">
-                          <h6 className="card-title mb-1" style={{ fontSize: 13, lineHeight: 1.3 }}>{product.name}</h6>
+                          <h6 className="card-title mb-1" style={{ fontSize: 13, lineHeight: 1.3, color: isLightTheme ? "#111" : "#f1f1f1" }}>{product.name}</h6>
                         </Link>
 
                         {/* Rating stars */}
@@ -860,7 +895,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                             <span style={{ color: "#f9a825", fontSize: 11 }}>
                               {"★".repeat(Math.round(rating))}{"☆".repeat(5 - Math.round(rating))}
                             </span>
-                            <span style={{ color: "#555", fontSize: 10 }}>{rating.toFixed(1)}</span>
+                            <span style={{ color: isLightTheme ? "#555" : "#9a9a9a", fontSize: 10 }}>{rating.toFixed(1)}</span>
                           </div>
                         )}
 
@@ -869,10 +904,10 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                           {originalPrice ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                               <span style={{ color: "#888", fontSize: 12, textDecoration: "line-through" }}>£{originalPrice.toFixed(2)}</span>
-                              <span style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
+                              <span style={{ color: isLightTheme ? "#111" : "#ffffff", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
                             </div>
                           ) : (
-                            <span style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
+                            <span style={{ color: isLightTheme ? "#111" : "#ffffff", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
                           )}
                         </div>
 
@@ -886,10 +921,28 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                         )}
 
                         <div className="d-grid gap-2 mt-auto">
-                          <button className="btn btn-dark btn-sm" onClick={() => handleAddToCart(product)} disabled={isSoldOut}>
+                          <button
+                            className="btn btn-dark btn-sm"
+                            onClick={() => handleAddToCart(product)}
+                            disabled={isSoldOut}
+                            style={isLightTheme ? undefined : {
+                              background: "transparent",
+                              border: "none",
+                              color: "#d7d7d7",
+                              letterSpacing: "0.08em",
+                            }}
+                          >
                             {isSoldOut ? "Sold Out" : "Add to Basket"}
                           </button>
-                          <button className="btn btn-outline-danger btn-sm" onClick={() => addToWishlist(product)}>
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => addToWishlist(product)}
+                            style={isLightTheme ? undefined : {
+                              background: "transparent",
+                              color: "#dc2626",
+                              border: "1px solid #dc2626",
+                            }}
+                          >
                             ♡ Favourite
                           </button>
                         </div>

@@ -10,6 +10,7 @@ export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
+  const themeFadeTimerRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,6 +34,14 @@ export function Layout() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    return () => {
+      if (themeFadeTimerRef.current) {
+        clearTimeout(themeFadeTimerRef.current);
+      }
+    };
+  }, []);
   const { user, logout } = useContext(AuthContext);
 
   const handleLogout = async () => {
@@ -52,8 +61,15 @@ export function Layout() {
 
   const wishlistCtx = useContext(WishlistContext);
   const totalFav = wishlistCtx?.wishlist?.length || 0;
+  const isLightTheme = theme === "light";
 
   const toggleTheme = () => {
+    document.documentElement.classList.add("theme-fade");
+    if (themeFadeTimerRef.current) clearTimeout(themeFadeTimerRef.current);
+    themeFadeTimerRef.current = setTimeout(() => {
+      document.documentElement.classList.remove("theme-fade");
+      themeFadeTimerRef.current = null;
+    }, 520);
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
@@ -179,19 +195,19 @@ export function Layout() {
                       top: "calc(100% + 10px)",
                       right: 0,
                       minWidth: 220,
-                      background: "#0e0e0e",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: isLightTheme ? "#f0f0f0" : "#0e0e0e",
+                      border: isLightTheme ? "1px solid rgba(17,17,17,0.12)" : "1px solid rgba(255,255,255,0.1)",
                       borderRadius: 10,
                       zIndex: 1000,
                       overflow: "hidden",
-                      boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+                      boxShadow: isLightTheme ? "0 12px 30px rgba(17,17,17,0.12)" : "0 12px 40px rgba(0,0,0,0.6)",
                     }}>
                       {/* User header */}
-                      <div style={{ padding: "16px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ padding: "16px", borderBottom: isLightTheme ? "1px solid rgba(17,17,17,0.12)" : "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 12 }}>
                         <div className="osai-profile-avatar-lg">{user.name?.[0] || "?"}</div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
-                          <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: isLightTheme ? "#111" : "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
+                          <div style={{ fontSize: 11, color: isLightTheme ? "#555" : "#555", marginTop: 3 }}>
                             {user.email || (user.is_admin ? "Administrator" : "Member")}
                           </div>
                         </div>
@@ -222,7 +238,7 @@ export function Layout() {
                           Change Password
                         </NavLink>
 
-                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "6px 0" }} />
+                        <div style={{ borderTop: isLightTheme ? "1px solid rgba(17,17,17,0.12)" : "1px solid rgba(255,255,255,0.07)", margin: "6px 0" }} />
 
                         <button onClick={handleLogout} className="osai-dropdown-item danger">
                           <i className="bi bi-box-arrow-right" />

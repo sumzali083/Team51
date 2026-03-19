@@ -1667,8 +1667,8 @@ export default function AdminPage() {
                         Stock Flow Graph (Top {DASHBOARD_FLOW_LIMIT}, 7D)
                       </div>
                       <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--sub)", alignItems: "center", flexWrap: "wrap" }}>
-                        <span><span style={{ color: "#34d399" }}>■</span> Incoming</span>
-                        <span><span style={{ color: "#f87171" }}>■</span> Outgoing</span>
+                        <span><span style={{ color: "#ef4444" }}>■</span> Incoming</span>
+                        <span><span style={{ color: "#166534" }}>■</span> Outgoing</span>
                         {stockFlowChartRows.totalRows > stockFlowChartRows.rows.length ? (
                           <button
                             type="button"
@@ -1698,7 +1698,7 @@ export default function AdminPage() {
                                 style={{
                                   height: 10,
                                   width: `${Math.max(6, Math.round((row.incoming / stockFlowChartRows.maxUnits) * 100))}%`,
-                                  background: "#34d399",
+                                  background: "#ef4444",
                                   borderRadius: 999,
                                 }}
                                 title={`Incoming: +${row.incoming}`}
@@ -1707,7 +1707,7 @@ export default function AdminPage() {
                                 style={{
                                   height: 10,
                                   width: `${Math.max(6, Math.round((row.outgoing / stockFlowChartRows.maxUnits) * 100))}%`,
-                                  background: "#f87171",
+                                  background: "#166534",
                                   borderRadius: 999,
                                 }}
                                 title={`Outgoing: -${row.outgoing}`}
@@ -2346,7 +2346,7 @@ export default function AdminPage() {
                   <div className="card-body">
                     <div className="d-flex flex-wrap align-items-end gap-2">
                       <div style={{ minWidth: 180 }}>
-                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Incoming product</label>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--text-primary)" }}>Incoming product</label>
                         <select
                           className="form-select form-select-sm"
                           value={incomingProductId}
@@ -2364,7 +2364,7 @@ export default function AdminPage() {
                         </select>
                       </div>
                       <div style={{ minWidth: 150 }}>
-                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Size (optional)</label>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--text-primary)" }}>Size (optional)</label>
                         <select
                           className="form-select form-select-sm"
                           value={incomingSize}
@@ -2378,7 +2378,7 @@ export default function AdminPage() {
                         </select>
                       </div>
                       <div style={{ width: 120 }}>
-                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Quantity</label>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--text-primary)" }}>Quantity</label>
                         <input
                           type="number"
                           min="1"
@@ -2388,7 +2388,7 @@ export default function AdminPage() {
                         />
                       </div>
                       <div style={{ minWidth: 220, flex: "1 1 220px" }}>
-                        <label className="form-label" style={{ fontSize: 12, color: "var(--sub)" }}>Note</label>
+                        <label className="form-label" style={{ fontSize: 12, color: "var(--text-primary)" }}>Note</label>
                         <input
                           className="form-control form-control-sm"
                           placeholder="e.g. supplier restock shipment"
@@ -3301,7 +3301,7 @@ export default function AdminPage() {
                   </span>
                 </div>
                 <div
-                  className="d-flex gap-2 flex-wrap mb-3"
+                  className="d-flex gap-2 flex-wrap mb-3 osai-contact-status-filters"
                   style={{ border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: 8 }}
                 >
                   <button
@@ -3442,7 +3442,7 @@ export default function AdminPage() {
           )}
 
           {activeTab === "users" && (
-            <div className="card border-0 shadow-sm">
+            <div className="card border-0 shadow-sm osai-users-section">
               <div className="card-body">
                 <div className="osai-admin-tab-header">
                   <h4 className="osai-admin-section-title">Users</h4>
