@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 const ThemeToggle = () => {
   const [theme, setTheme] = useState(() => {
-    // Get saved theme or default to 'light'
-    return localStorage.getItem('theme') || 'light';
+    // Get saved theme or default to 'dark'
+    return localStorage.getItem('theme') || 'dark';
   });
 
   useEffect(() => {
