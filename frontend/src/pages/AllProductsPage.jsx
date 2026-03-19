@@ -848,15 +848,15 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                           position: "relative",
                           overflow: "hidden",
                           aspectRatio: "3 / 4",
-                          background: isLightTheme ? "#f3f3f3" : "#ececec",
+                          background: "#f3f3f3",
                         }}>
                           <img
                             src={img} alt={product.name}
                             style={{
                               width: "100%",
                               height: "100%",
-                              objectFit: isLightTheme ? "cover" : "contain",
-                              padding: isLightTheme ? 0 : "20px 16px",
+                              objectFit: "cover",
+                              padding: 0,
                               display: "block",
                               opacity: isHovered ? 0 : 1,
                               transition: "opacity 0.4s ease",
@@ -867,8 +867,8 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                             src={hoverImg} alt=""
                             style={{
                               position: "absolute", inset: 0, width: "100%", height: "100%",
-                              objectFit: isLightTheme ? "cover" : "contain",
-                              padding: isLightTheme ? 0 : "20px 16px",
+                              objectFit: "cover",
+                              padding: 0,
                               opacity: isHovered ? 1 : 0,
                               transition: "opacity 0.4s ease",
                             }}
