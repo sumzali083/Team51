@@ -741,9 +741,9 @@ h1, h2, h3, h4, h5, h6 {
 /* ─── PRODUCT CARDS ──────────────────────────────────────────────────────── */
 .card {
   background: var(--card);
-  border: 1.5px solid #FA5400 !important;
+  border: none !important;
   border-radius: 0 !important;
-  overflow: visible;
+  overflow: hidden;
   box-shadow: none !important;
   transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   display: flex;
@@ -753,12 +753,12 @@ h1, h2, h3, h4, h5, h6 {
 .card:hover { background: var(--card-hover) }
 
 .card.h-100.shadow-sm {
-  border: 1.5px solid #FA5400 !important;
+  border: none !important;
 }
 
 .card.h-100.shadow-sm:hover {
   transform: translateY(-2px);
-  border-color: #FA5400 !important;
+  border-color: transparent !important;
   box-shadow: 0 12px 30px rgba(0,0,0,.1) !important;
 }
 
