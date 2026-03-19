@@ -829,24 +829,48 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
 
                 return (
                   <motion.div key={product.id} className="col-12 col-sm-6 col-md-4" variants={cardVariants}>
-                    <div className="card h-100 shadow-sm">
+                    <div
+                      className="card h-100 shadow-sm"
+                      style={{
+                        background: isLightTheme ? "#fff" : "#050505",
+                        border: isLightTheme ? undefined : "none",
+                        borderRadius: isLightTheme ? undefined : 0,
+                        overflow: "hidden",
+                      }}
+                    >
                       <Link
                         to={`/product/${product.id}`}
                         className="text-decoration-none"
                         onMouseEnter={() => setHoveredId(product.id)}
                         onMouseLeave={() => setHoveredId(null)}
                       >
-                        <div style={{ position: "relative", overflow: "hidden" }}>
+                        <div style={{
+                          position: "relative",
+                          overflow: "hidden",
+                          aspectRatio: "3 / 4",
+                          background: isLightTheme ? "#f3f3f3" : "#ececec",
+                        }}>
                           <img
                             src={img} alt={product.name}
-                            style={{ width: "100%", display: "block", opacity: isHovered ? 0 : 1, transition: "opacity 0.4s ease" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: isLightTheme ? "cover" : "contain",
+                              padding: isLightTheme ? 0 : "20px 16px",
+                              display: "block",
+                              opacity: isHovered ? 0 : 1,
+                              transition: "opacity 0.4s ease",
+                            }}
                             onError={e => { e.target.src = Fallback; }}
                           />
                           <img
                             src={hoverImg} alt=""
                             style={{
                               position: "absolute", inset: 0, width: "100%", height: "100%",
-                              objectFit: "cover", opacity: isHovered ? 1 : 0, transition: "opacity 0.4s ease",
+                              objectFit: isLightTheme ? "cover" : "contain",
+                              padding: isLightTheme ? 0 : "20px 16px",
+                              opacity: isHovered ? 1 : 0,
+                              transition: "opacity 0.4s ease",
                             }}
                             onError={e => { e.target.src = Fallback; }}
                           />
@@ -860,9 +884,9 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                         </div>
                       </Link>
 
-                      <div className="card-body d-flex flex-column" style={{ padding: "12px 14px" }}>
+                      <div className="card-body d-flex flex-column" style={{ padding: "12px 14px", background: isLightTheme ? "#fff" : "#050505" }}>
                         <Link to={`/product/${product.id}`} className="text-decoration-none">
-                          <h6 className="card-title mb-1" style={{ fontSize: 13, lineHeight: 1.3 }}>{product.name}</h6>
+                          <h6 className="card-title mb-1" style={{ fontSize: 13, lineHeight: 1.3, color: isLightTheme ? "#111" : "#f1f1f1" }}>{product.name}</h6>
                         </Link>
 
                         {/* Rating stars */}
@@ -871,7 +895,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                             <span style={{ color: "#f9a825", fontSize: 11 }}>
                               {"★".repeat(Math.round(rating))}{"☆".repeat(5 - Math.round(rating))}
                             </span>
-                            <span style={{ color: "#555", fontSize: 10 }}>{rating.toFixed(1)}</span>
+                            <span style={{ color: isLightTheme ? "#555" : "#9a9a9a", fontSize: 10 }}>{rating.toFixed(1)}</span>
                           </div>
                         )}
 
@@ -880,10 +904,10 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                           {originalPrice ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                               <span style={{ color: "#888", fontSize: 12, textDecoration: "line-through" }}>£{originalPrice.toFixed(2)}</span>
-                              <span style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
+                              <span style={{ color: isLightTheme ? "#111" : "#ffffff", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
                             </div>
                           ) : (
-                            <span style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
+                            <span style={{ color: isLightTheme ? "#111" : "#ffffff", fontWeight: 700, fontSize: 15 }}>£{price.toFixed(2)}</span>
                           )}
                         </div>
 
@@ -897,10 +921,28 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                         )}
 
                         <div className="d-grid gap-2 mt-auto">
-                          <button className="btn btn-dark btn-sm" onClick={() => handleAddToCart(product)} disabled={isSoldOut}>
+                          <button
+                            className="btn btn-dark btn-sm"
+                            onClick={() => handleAddToCart(product)}
+                            disabled={isSoldOut}
+                            style={isLightTheme ? undefined : {
+                              background: "transparent",
+                              border: "none",
+                              color: "#d7d7d7",
+                              letterSpacing: "0.08em",
+                            }}
+                          >
                             {isSoldOut ? "Sold Out" : "Add to Basket"}
                           </button>
-                          <button className="btn btn-outline-danger btn-sm" onClick={() => addToWishlist(product)}>
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => addToWishlist(product)}
+                            style={isLightTheme ? undefined : {
+                              background: "transparent",
+                              color: "#dc2626",
+                              border: "1px solid #dc2626",
+                            }}
+                          >
                             ♡ Favourite
                           </button>
                         </div>
