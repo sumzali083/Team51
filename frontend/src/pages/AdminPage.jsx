@@ -102,6 +102,94 @@ export default function AdminPage() {
   const [editDraft, setEditDraft] = useState(null);
   const [savingEditId, setSavingEditId] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [toastQueue, setToastQueue] = useState([]);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [promptDialog, setPromptDialog] = useState(null);
+  const [promptValue, setPromptValue] = useState("");
+
+  const showToast = (message, type = "error") => {
+    if (!message) return;
+    const item = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      message,
+      type,
+    };
+    setToastQueue((prev) => [...prev, item].slice(-6));
+  };
+
+  const confirmAction = ({ title = "Confirm Action", message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false }) =>
+    new Promise((resolve) => {
+      setConfirmDialog({ title, message, confirmLabel, cancelLabel, danger, resolve });
+    });
+
+  const promptAction = ({ title = "Enter Value", message, placeholder = "", initialValue = "", confirmLabel = "Confirm", cancelLabel = "Cancel" }) =>
+    new Promise((resolve) => {
+      setPromptValue(initialValue);
+      setPromptDialog({ title, message, placeholder, confirmLabel, cancelLabel, resolve });
+    });
+
+  const closeConfirmDialog = (accepted) => {
+    if (!confirmDialog) return;
+    confirmDialog.resolve(accepted);
+    setConfirmDialog(null);
+  };
+
+  const closePromptDialog = (value) => {
+    if (!promptDialog) return;
+    promptDialog.resolve(value);
+    setPromptDialog(null);
+    setPromptValue("");
+  };
+
+  const activeToast = toastQueue[0] || null;
+  const dismissActiveToast = () => {
+    setToastQueue((prev) => prev.slice(1));
+  };
+
+  useEffect(() => {
+    if (!activeToast) return;
+    const duration =
+      activeToast.type === "success"
+        ? 2600
+        : activeToast.type === "info"
+          ? 3200
+          : activeToast.type === "warning"
+            ? 3800
+            : 4500;
+    const timer = setTimeout(() => {
+      setToastQueue((prev) => prev.slice(1));
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [activeToast]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (promptDialog) {
+          e.preventDefault();
+          closePromptDialog(null);
+          return;
+        }
+        if (confirmDialog) {
+          e.preventDefault();
+          closeConfirmDialog(false);
+        }
+        return;
+      }
+
+      if (e.key === "Enter" && confirmDialog) {
+        const tag = String(e.target?.tagName || "").toLowerCase();
+        if (tag !== "input" && tag !== "textarea") {
+          e.preventDefault();
+          closeConfirmDialog(true);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmDialog, promptDialog]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -189,7 +277,7 @@ export default function AdminPage() {
       await api.put(`/api/admin/products/${productId}/stock`, { stock: value });
       setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, stock: value } : p)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update stock");
+      showToast(err?.response?.data?.message || "Failed to update stock", "error");
     } finally {
       setSavingStockId(null);
     }
@@ -205,7 +293,7 @@ export default function AdminPage() {
       await api.put(`/api/admin/orders/${orderId}/status`, { status });
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update order status");
+      showToast(err?.response?.data?.message || "Failed to update order status", "error");
     } finally {
       setSavingOrderId(null);
     }
@@ -243,7 +331,7 @@ export default function AdminPage() {
         )
       );
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update refund request");
+      showToast(err?.response?.data?.message || "Failed to update refund request", "error");
     } finally {
       setSavingRefundId(null);
     }
@@ -259,13 +347,20 @@ export default function AdminPage() {
   const deleteMessage = async (message) => {
     const sender = message?.name || "this sender";
     const email = message?.email || "unknown email";
-    if (!window.confirm(`Delete message from ${sender} (${email})? This cannot be undone.`)) return;
+    const confirmed = await confirmAction({
+      title: "Delete Message",
+      message: `Delete message from ${sender} (${email})? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/messages/${message.id}`);
       setMessages((prev) => prev.filter((m) => m.id !== message.id));
       setSelectedMessage((prev) => (prev && prev.id === message.id ? null : prev));
+      showToast("Message deleted.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete message");
+      showToast(err?.response?.data?.message || "Failed to delete message", "error");
     }
   };
 
@@ -275,7 +370,7 @@ export default function AdminPage() {
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
       setSelectedMessage((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update message status");
+      showToast(err?.response?.data?.message || "Failed to update message status", "error");
     }
   };
 
@@ -293,7 +388,7 @@ export default function AdminPage() {
   const replyToMessage = (message) => {
     const email = String(message?.email || "").trim();
     if (!email) {
-      alert("No email found for this message.");
+      showToast("No email found for this message.", "warning");
       return;
     }
     const subject = encodeURIComponent("Regarding your message to OSAI");
@@ -328,46 +423,74 @@ export default function AdminPage() {
   }, []);
 
   const deleteReview = async (id) => {
-    if (!window.confirm("Delete this review?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete Review",
+      message: "Delete this review?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/reviews/${id}`);
       setReviews((prev) => prev.filter((r) => r.id !== id));
+      showToast("Review deleted.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete review");
+      showToast(err?.response?.data?.message || "Failed to delete review", "error");
     }
   };
 
   const deleteFeedback = async (id) => {
-    if (!window.confirm("Delete this feedback entry?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete Feedback",
+      message: "Delete this feedback entry?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/feedback/${id}`);
       setFeedback((prev) => prev.filter((f) => f.id !== id));
+      showToast("Feedback deleted.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete feedback");
+      showToast(err?.response?.data?.message || "Failed to delete feedback", "error");
     }
   };
 
   const deleteUser = async (id) => {
     if (Number(id) === Number(user?.id)) {
-      alert("You cannot delete your own account.");
+      showToast("You cannot delete your own account.", "warning");
       return;
     }
-    if (!window.confirm("Delete this user account?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete User",
+      message: "Delete this user account?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/api/admin/users/${id}`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
+      showToast("User deleted.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete user");
+      showToast(err?.response?.data?.message || "Failed to delete user", "error");
     }
   };
 
   const updateUserSuspension = async (targetUser, suspended) => {
     if (Number(targetUser?.id) === Number(user?.id)) {
-      alert("You cannot change your own admin account status.");
+      showToast("You cannot change your own admin account status.", "warning");
       return;
     }
     const reason = suspended
-      ? (window.prompt("Reason for suspension (optional):", "") || "")
+      ? ((await promptAction({
+          title: "Suspend User",
+          message: "Reason for suspension (optional):",
+          placeholder: "Optional reason",
+          initialValue: "",
+          confirmLabel: "Continue",
+          cancelLabel: "Skip",
+        })) ?? "")
       : "";
     setSavingUserId(targetUser.id);
     try {
@@ -386,8 +509,9 @@ export default function AdminPage() {
       );
       const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
       setUserAuditLog(auditRes.data || []);
+      showToast(suspended ? "User suspended." : "User unsuspended.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update user suspension");
+      showToast(err?.response?.data?.message || "Failed to update user suspension", "error");
     } finally {
       setSavingUserId(null);
     }
@@ -395,8 +519,18 @@ export default function AdminPage() {
 
   const updateUserRole = async (targetUser, makeAdmin) => {
     const actionText = makeAdmin ? "promote to admin" : "remove admin access";
-    const typed = window.prompt(`Type ADMIN to confirm you want to ${actionText} for ${targetUser?.email || "this user"}.`, "");
-    if (typed !== "ADMIN") return;
+    const typed = await promptAction({
+      title: "Confirm Role Change",
+      message: `Type ADMIN to confirm you want to ${actionText} for ${targetUser?.email || "this user"}.`,
+      placeholder: "Type ADMIN",
+      initialValue: "",
+      confirmLabel: "Confirm",
+      cancelLabel: "Cancel",
+    });
+    if (typed !== "ADMIN") {
+      showToast("Role change canceled. Type ADMIN exactly to continue.", "warning");
+      return;
+    }
 
     setSavingUserRoleId(targetUser.id);
     try {
@@ -406,8 +540,9 @@ export default function AdminPage() {
       );
       const auditRes = await api.get("/api/admin/users/audit-log?limit=12").catch(() => ({ data: [] }));
       setUserAuditLog(auditRes.data || []);
+      showToast(makeAdmin ? "User promoted to admin." : "Admin access removed.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update user role");
+      showToast(err?.response?.data?.message || "Failed to update user role", "error");
     } finally {
       setSavingUserRoleId(null);
     }
@@ -426,8 +561,9 @@ export default function AdminPage() {
       setAdminRoleRequests(requestsRes.data || []);
       setUsers(usersRes.data || []);
       setUserAuditLog(auditRes.data || []);
+      showToast(decision === "approved" ? "Admin role request approved." : "Admin role request rejected.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to process admin request");
+      showToast(err?.response?.data?.message || "Failed to process admin request", "error");
     } finally {
       setReviewingRoleRequestId(null);
     }
@@ -444,10 +580,16 @@ export default function AdminPage() {
 
   const runBulkOrderStatus = async () => {
     if (!selectedOrderIds.length) {
-      alert("Select at least one order first.");
+      showToast("Select at least one order first.", "warning");
       return;
     }
-    if (!window.confirm(`Update ${selectedOrderIds.length} selected orders to ${bulkOrderStatus}?`)) return;
+    const confirmed = await confirmAction({
+      title: "Bulk Update Orders",
+      message: `Update ${selectedOrderIds.length} selected orders to ${bulkOrderStatus}?`,
+      confirmLabel: "Run Update",
+      danger: true,
+    });
+    if (!confirmed) return;
     setRunningBulkOrderAction(true);
     try {
       await api.post("/api/admin/orders/bulk-status", { orderIds: selectedOrderIds, status: bulkOrderStatus });
@@ -460,8 +602,9 @@ export default function AdminPage() {
         return next;
       });
       setSelectedOrders({});
+      showToast(`Updated ${selectedOrderIds.length} orders.`, "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to bulk update orders");
+      showToast(err?.response?.data?.message || "Failed to bulk update orders", "error");
     } finally {
       setRunningBulkOrderAction(false);
     }
@@ -475,7 +618,7 @@ export default function AdminPage() {
         const parsed = JSON.parse(text);
         if (parsed?.message) return String(parsed.message);
         return text || fallbackMessage;
-      } catch (_) {
+      } catch {
         return fallbackMessage;
       }
     }
@@ -483,7 +626,7 @@ export default function AdminPage() {
       try {
         const parsed = JSON.parse(data);
         if (parsed?.message) return String(parsed.message);
-      } catch (_) {}
+      } catch { /* ignore parse error */ }
       return data || fallbackMessage;
     }
     if (data?.message) return String(data.message);
@@ -518,7 +661,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export orders CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export orders CSV"), "error");
     } finally {
       setExportingOrdersCsv(false);
     }
@@ -549,7 +692,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export orders CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export orders CSV"), "error");
     } finally {
       setExportingOrdersCsv(false);
     }
@@ -582,7 +725,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export users CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export users CSV"), "error");
     } finally {
       setExportingUsersCsv(false);
     }
@@ -610,7 +753,7 @@ export default function AdminPage() {
       a.remove();
       URL.revokeObjectURL(href);
     } catch (err) {
-      alert(await getApiErrorMessage(err, "Failed to export products CSV"));
+      showToast(await getApiErrorMessage(err, "Failed to export products CSV"), "error");
     } finally {
       setExportingProductsCsv(false);
     }
@@ -623,7 +766,7 @@ export default function AdminPage() {
       setSelectedOrderDetails(res.data || null);
       return true;
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to load order details");
+      showToast(err?.response?.data?.message || "Failed to load order details", "error");
       return false;
     } finally {
       setLoadingOrderDetails(false);
@@ -648,10 +791,16 @@ export default function AdminPage() {
 
   const runBulkUserAction = async () => {
     if (!selectedUserIds.length) {
-      alert("Select at least one user first.");
+      showToast("Select at least one user first.", "warning");
       return;
     }
-    if (!window.confirm(`Run ${bulkUserAction} for ${selectedUserIds.length} users?`)) return;
+    const confirmed = await confirmAction({
+      title: "Bulk User Action",
+      message: `Run ${bulkUserAction} for ${selectedUserIds.length} users?`,
+      confirmLabel: "Run Action",
+      danger: true,
+    });
+    if (!confirmed) return;
     setRunningBulkUsersAction(true);
     try {
       await api.post("/api/admin/users/bulk-action", {
@@ -667,8 +816,9 @@ export default function AdminPage() {
       setUserAuditLog(auditRes.data || []);
       setSelectedUsers({});
       setBulkUserReason("");
+      showToast(`Bulk action completed for ${selectedUserIds.length} users.`, "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Bulk action failed");
+      showToast(err?.response?.data?.message || "Bulk action failed", "error");
     } finally {
       setRunningBulkUsersAction(false);
     }
@@ -690,7 +840,7 @@ export default function AdminPage() {
       setUserOrders(ordersRes.data?.rows || []);
       setUserOrdersTotalPages(Math.max(1, Number(ordersRes.data?.pagination?.totalPages || 1)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to load user summary");
+      showToast(err?.response?.data?.message || "Failed to load user summary", "error");
     } finally {
       setLoadingUserSummary(false);
       setLoadingUserOrders(false);
@@ -709,7 +859,7 @@ export default function AdminPage() {
       setUserOrdersPage(normalizedPage);
       setUserOrdersTotalPages(Math.max(1, Number(res.data?.pagination?.totalPages || 1)));
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to load user order history");
+      showToast(err?.response?.data?.message || "Failed to load user order history", "error");
     } finally {
       setLoadingUserOrders(false);
     }
@@ -768,8 +918,9 @@ export default function AdminPage() {
         )
       );
       closeUserEditor();
+      showToast("User details saved.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update user details");
+      showToast(err?.response?.data?.message || "Failed to update user details", "error");
     } finally {
       setSavingUserProfileId(null);
     }
@@ -779,11 +930,11 @@ export default function AdminPage() {
     const productId = Number(incomingProductId);
     const quantity = Number(incomingQty);
     if (!Number.isInteger(productId) || productId <= 0) {
-      alert("Select a product for incoming stock.");
+      showToast("Select a product for incoming stock.", "warning");
       return;
     }
     if (!Number.isInteger(quantity) || quantity <= 0) {
-      alert("Incoming quantity must be a positive integer.");
+      showToast("Incoming quantity must be a positive integer.", "warning");
       return;
     }
     setProcessingIncoming(true);
@@ -799,9 +950,9 @@ export default function AdminPage() {
       setIncomingQty("1");
       setIncomingNote("");
       setIncomingSize("");
-      await loadAll();
+      showToast("Incoming stock processed.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to process incoming stock");
+      showToast(err?.response?.data?.message || "Failed to process incoming stock", "error");
     } finally {
       setProcessingIncoming(false);
     }
@@ -847,7 +998,7 @@ export default function AdminPage() {
 
   const saveEdit = async () => {
     if (!editDraft.name.trim() || !editDraft.price) {
-      alert("Name and Price are required.");
+      showToast("Name and Price are required.", "warning");
       return;
     }
     setSavingEditId(editingProductId);
@@ -903,8 +1054,9 @@ export default function AdminPage() {
           }
         })
         .catch(() => {});
+      showToast("Product updated.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update product");
+      showToast(err?.response?.data?.message || "Failed to update product", "error");
     } finally {
       setSavingEditId(null);
     }
@@ -925,11 +1077,11 @@ export default function AdminPage() {
   const addProduct = async () => {
     const { sku, name, category_id, price, stock, description, sizes, sizeStocks, colors, imageFiles } = productDraft;
     if (!sku.trim() || !name.trim() || !price) {
-      alert("SKU, Name, and Price are required.");
+      showToast("SKU, Name, and Price are required.", "warning");
       return;
     }
     if (Number(price) <= 0) {
-      alert("Price must be greater than 0.");
+      showToast("Price must be greater than 0.", "warning");
       return;
     }
     setSubmittingProduct(true);
@@ -966,15 +1118,22 @@ export default function AdminPage() {
       const res = await api.get("/api/admin/products");
       setProducts(res.data || []);
       setStockDraft(Object.fromEntries((res.data || []).map((p) => [p.id, p.stock ?? 0])));
+      showToast("Product created.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to create product");
+      showToast(err?.response?.data?.message || "Failed to create product", "error");
     } finally {
       setSubmittingProduct(false);
     }
   };
 
   const deleteProduct = async (id) => {
-    if (!window.confirm("Permanently delete this product and all its images, sizes, and colors?")) return;
+    const confirmed = await confirmAction({
+      title: "Delete Product",
+      message: "Permanently delete this product and all its images, sizes, and colors?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     setDeletingProductId(id);
     try {
       await api.delete(`/api/admin/products/${id}`);
@@ -984,8 +1143,9 @@ export default function AdminPage() {
         delete next[id];
         return next;
       });
+      showToast("Product deleted.", "success");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete product");
+      showToast(err?.response?.data?.message || "Failed to delete product", "error");
     } finally {
       setDeletingProductId(null);
     }
@@ -1003,7 +1163,7 @@ export default function AdminPage() {
       { label: "Feedback", value: feedback.length, tab: "feedback" },
       { label: "Reviews", value: reviews.length, tab: "reviews" },
     ];
-  }, [messages.length, orders.length, products.length, refunds.length, reports, reviews.length]);
+  }, [messages.length, orders.length, products.length, refunds.length, reports, reviews.length, feedback.length]);
 
   const outOfStockProducts = useMemo(
     () => products.filter((p) => Number(p.stock ?? 0) === 0),
@@ -1069,6 +1229,25 @@ export default function AdminPage() {
   const stockFlow7d = useMemo(() => {
     return Array.isArray(reports?.productFlow7d) ? reports.productFlow7d : [];
   }, [reports]);
+  const DASHBOARD_FLOW_LIMIT = 3;
+  const stockFlowChartRows = useMemo(() => {
+    const rows = (stockFlow7d || [])
+      .slice(0, DASHBOARD_FLOW_LIMIT)
+      .map((r) => ({
+        productLabel: String(r.sku || `#${r.product_id}`),
+        incoming: Number(r.incoming_units || 0),
+        outgoing: Number(r.outgoing_units || 0),
+      }));
+    const maxUnits = rows.reduce(
+      (max, row) => Math.max(max, row.incoming, row.outgoing),
+      0
+    );
+    return {
+      rows,
+      maxUnits: maxUnits > 0 ? maxUnits : 1,
+      totalRows: (stockFlow7d || []).length,
+    };
+  }, [stockFlow7d, DASHBOARD_FLOW_LIMIT]);
 
   const needsActionItems = useMemo(() => {
     const pendingRefunds = refunds.filter((r) => (r.status || "pending") === "pending").length;
@@ -1280,6 +1459,7 @@ export default function AdminPage() {
         String(product?.sku || "").toLowerCase().includes(q)
       );
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviews, reviewSearch, reviewRatingFilter, reviewDateFilter, productLookup]);
 
   const tabs = [
@@ -1298,14 +1478,18 @@ export default function AdminPage() {
   const overviewCardStyle = {
     border: "1px solid var(--line)",
     borderRadius: "var(--radius)",
-    minHeight: 104,
+    height: 120,
     width: "100%",
-    background: "rgba(255,255,255,0.01)",
-    padding: 12,
+    background: "rgba(255,255,255,0.03)",
+    color: "var(--text)",
+    padding: 14,
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     textAlign: "left",
+    cursor: "pointer",
+    transition: "border-color .18s ease, background-color .18s ease",
+    overflow: "hidden",
   };
 
   if (loading) {
@@ -1416,49 +1600,51 @@ export default function AdminPage() {
                     <div className="col-lg-3 col-md-6">
                       <button
                         type="button"
-                        className="btn p-0"
+                        className="w-100 text-start"
                         style={overviewCardStyle}
                         onClick={() => setActiveTab("orders")}
                         title="Open orders"
                       >
-                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Orders</div>
-                        <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeOrders.length}</div>
+                        <div style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Orders</div>
+                        <div style={{ fontSize: 34, fontWeight: 800, color: "var(--text)", lineHeight: 1.1 }}>{rangeOrders.length}</div>
                       </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
                       <button
                         type="button"
-                        className="btn p-0"
+                        className="w-100 text-start"
                         style={overviewCardStyle}
                         onClick={() => setActiveTab("refunds")}
                         title="Open refunds"
                       >
-                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Refund Requests</div>
-                        <div style={{ fontSize: 24, fontWeight: 700 }}>{rangeRefunds.length}</div>
+                        <div style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Refund Requests</div>
+                        <div style={{ fontSize: 34, fontWeight: 800, color: "var(--text)", lineHeight: 1.1 }}>{rangeRefunds.length}</div>
                       </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
                       <button
                         type="button"
-                        className="btn p-0"
+                        className="w-100 text-start"
                         style={overviewCardStyle}
                         onClick={() => setActiveTab("orders")}
                         title="Open orders and revenue data"
                       >
-                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
-                        <div style={{ fontSize: 24, fontWeight: 700 }}>GBP {rangeRevenue.toFixed(2)}</div>
+                        <div style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Revenue</div>
+                        <div style={{ fontSize: 30, fontWeight: 800, color: "var(--text)", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                          GBP {rangeRevenue.toFixed(2)}
+                        </div>
                       </button>
                     </div>
                     <div className="col-lg-3 col-md-6">
                       <button
                         type="button"
-                        className="btn p-0"
+                        className="w-100 text-start"
                         style={overviewCardStyle}
                         onClick={() => setActiveTab("inventory")}
                         title="Open inventory stock flow context"
                       >
-                        <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stock Flow (7D)</div>
-                        <div style={{ fontSize: 15, fontWeight: 700 }}>
+                        <div style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>Stock Flow (7D)</div>
+                        <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text)", lineHeight: 1.1 }}>
                           +{Number(reports?.totalIncomingUnits7d || 0)} / -{Number(reports?.totalOutgoingUnits7d || 0)}
                         </div>
                       </button>
@@ -1466,6 +1652,71 @@ export default function AdminPage() {
                   </div>
                   <div className="mt-2" style={{ color: "var(--sub)", fontSize: 12 }}>
                     Contact messages in range: <strong>{rangeMessages.length}</strong>
+                  </div>
+                  <div
+                    className="mt-3"
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: "var(--radius)",
+                      padding: 12,
+                      background: "rgba(255,255,255,0.02)",
+                    }}
+                  >
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Stock Flow Graph (Top {DASHBOARD_FLOW_LIMIT}, 7D)
+                      </div>
+                      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--sub)", alignItems: "center", flexWrap: "wrap" }}>
+                        <span><span style={{ color: "#34d399" }}>■</span> Incoming</span>
+                        <span><span style={{ color: "#f87171" }}>■</span> Outgoing</span>
+                        {stockFlowChartRows.totalRows > stockFlowChartRows.rows.length ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary"
+                            style={{ padding: "2px 8px", fontSize: 11 }}
+                            onClick={() => setActiveTab("inventory")}
+                          >
+                            View full stock table
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {stockFlowChartRows.rows.length === 0 ? (
+                      <div style={{ color: "var(--sub)", fontSize: 13 }}>
+                        No stock movements recorded in the last 7 days.
+                      </div>
+                    ) : (
+                      <div className="d-flex flex-column gap-2">
+                        {stockFlowChartRows.rows.map((row) => (
+                          <div key={`flow-chart-${row.productLabel}`} style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "center" }}>
+                            <div style={{ color: "var(--sub)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {row.productLabel}
+                            </div>
+                            <div style={{ display: "grid", gap: 4 }}>
+                              <div
+                                style={{
+                                  height: 10,
+                                  width: `${Math.max(6, Math.round((row.incoming / stockFlowChartRows.maxUnits) * 100))}%`,
+                                  background: "#34d399",
+                                  borderRadius: 999,
+                                }}
+                                title={`Incoming: +${row.incoming}`}
+                              />
+                              <div
+                                style={{
+                                  height: 10,
+                                  width: `${Math.max(6, Math.round((row.outgoing / stockFlowChartRows.maxUnits) * 100))}%`,
+                                  background: "#f87171",
+                                  borderRadius: 999,
+                                }}
+                                title={`Outgoing: -${row.outgoing}`}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2075,6 +2326,7 @@ export default function AdminPage() {
           )}
 
           {activeTab === "inventory" && (
+            <>
             <div className="card border-0 shadow-sm">
               <div className="card-body">
                 <div className="osai-admin-tab-header">
@@ -2209,6 +2461,48 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+
+            <div className="card border-0 shadow-sm mt-3">
+              <div className="card-body">
+                <div className="osai-admin-tab-header">
+                  <h4 className="osai-admin-section-title">Stock Movement (Last 7 Days)</h4>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>
+                    +{Number(reports?.totalIncomingUnits7d || 0)} incoming / -{Number(reports?.totalOutgoingUnits7d || 0)} outgoing
+                  </span>
+                </div>
+                {stockFlow7d.length === 0 ? (
+                  <p className="mb-0" style={{ color: "var(--sub)", fontSize: 13 }}>
+                    No stock movements recorded yet.
+                  </p>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-sm align-middle">
+                      <thead className="table-light">
+                        <tr>
+                          <th>SKU</th>
+                          <th>Product</th>
+                          <th>Incoming</th>
+                          <th>Outgoing</th>
+                          <th>Net</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stockFlow7d.map((row) => (
+                          <tr key={`flow-${row.product_id}`}>
+                            <td>{row.sku || "-"}</td>
+                            <td>{row.name || `#${row.product_id}`}</td>
+                            <td style={{ color: "#34d399", fontWeight: 700 }}>+{Number(row.incoming_units || 0)}</td>
+                            <td style={{ color: "#f87171", fontWeight: 700 }}>-{Number(row.outgoing_units || 0)}</td>
+                            <td style={{ fontWeight: 700 }}>{Number(row.net_units || 0)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+            </>
           )}
 
           {activeTab === "stockAlerts" && (
@@ -2492,7 +2786,7 @@ export default function AdminPage() {
                     <option value="cancelled">Cancelled</option>
                   </select>
                   <button
-                    className="btn btn-sm btn-outline-light"
+                    className="btn btn-sm btn-outline-dark"
                     onClick={runBulkOrderStatus}
                     disabled={runningBulkOrderAction || selectedOrderIds.length === 0}
                   >
@@ -2567,7 +2861,7 @@ export default function AdminPage() {
                             {o.created_at ? new Date(o.created_at).toLocaleDateString() : "-"}
                           </td>
                           <td>
-                            <button className="btn btn-sm btn-outline-light" onClick={() => openOrderDetails(o.id)}>
+                            <button className="btn btn-sm btn-outline-dark" onClick={() => openOrderDetails(o.id)}>
                               View
                             </button>
                           </td>
@@ -2664,7 +2958,7 @@ export default function AdminPage() {
                             </td>
                             <td>
                               <button
-                                className="btn btn-sm btn-outline-light"
+                                className="btn btn-sm btn-outline-dark"
                                 onClick={() => toggleRefundExpanded(r.id)}
                               >
                                 {isOpen ? "Hide" : "View"}
@@ -2887,7 +3181,7 @@ export default function AdminPage() {
                           </td>
                           <td>
                             <div className="d-flex gap-2 flex-wrap">
-                              <button className="btn btn-sm btn-outline-light" onClick={() => openReviewModal(r)}>
+                              <button className="btn btn-sm btn-outline-dark" onClick={() => openReviewModal(r)}>
                                 View
                               </button>
                               <button className="btn btn-sm btn-outline-danger" onClick={() => deleteReview(r.id)}>
@@ -2973,7 +3267,7 @@ export default function AdminPage() {
                           </td>
                           <td>
                             <div className="d-flex gap-2 flex-wrap">
-                              <button className="btn btn-sm btn-outline-light" onClick={() => openFeedbackModal(f)}>
+                              <button className="btn btn-sm btn-outline-dark" onClick={() => openFeedbackModal(f)}>
                                 View
                               </button>
                               <button className="btn btn-sm btn-outline-danger" onClick={() => deleteFeedback(f.id)}>
@@ -3090,7 +3384,7 @@ export default function AdminPage() {
                           </td>
                           <td>
                             <div className="d-flex gap-2 flex-wrap">
-                              <button className="btn btn-sm btn-outline-light" onClick={() => openMessage(m)}>
+                              <button className="btn btn-sm btn-outline-dark" onClick={() => openMessage(m)}>
                                 View
                               </button>
                               {(m.status || "unread") !== "archived" ? (
@@ -3293,7 +3587,7 @@ export default function AdminPage() {
                     placeholder="Bulk reason (optional)"
                   />
                   <button
-                    className="btn btn-sm btn-outline-light"
+                    className="btn btn-sm btn-outline-dark"
                     onClick={runBulkUserAction}
                     disabled={runningBulkUsersAction || selectedUserIds.length === 0}
                   >
@@ -3362,7 +3656,7 @@ export default function AdminPage() {
                           <td>
                             <div className="d-flex gap-2 align-items-center">
                               <button
-                                className="btn btn-sm btn-outline-light"
+                                className="btn btn-sm btn-outline-dark"
                                 onClick={() => openUserSummary(u)}
                               >
                                 View
@@ -3393,7 +3687,7 @@ export default function AdminPage() {
                                     onMouseDown={(e) => e.stopPropagation()}
                                   >
                                     <button
-                                      className="btn btn-sm btn-outline-light w-100 mb-2"
+                                      className="btn btn-sm btn-outline-dark w-100 mb-2"
                                       onClick={() => {
                                         openUserEditor(u);
                                         setActionMenuUserId(null);
@@ -3685,7 +3979,7 @@ export default function AdminPage() {
                                 <td>{o.created_at ? new Date(o.created_at).toLocaleDateString() : "-"}</td>
                                 <td>
                                   <button
-                                    className="btn btn-sm btn-outline-light"
+                                    className="btn btn-sm btn-outline-dark"
                                     onClick={() => openOrderDetailsFromUserSummary(o.id)}
                                   >
                                     View
@@ -3812,51 +4106,10 @@ export default function AdminPage() {
                   {savingUserProfileId === editingUser.id ? "Saving..." : "Save"}
                 </button>
               </div>
-                </div>
-              </div>
-
-              <div className="card border-0 shadow-sm">
-                <div className="card-body">
-                  <div className="osai-admin-tab-header">
-                    <h4 className="osai-admin-section-title">Stock Movement (Last 7 Days)</h4>
-                    <span style={{ color: "var(--sub)", fontSize: 12 }}>
-                      +{Number(reports?.totalIncomingUnits7d || 0)} incoming / -{Number(reports?.totalOutgoingUnits7d || 0)} outgoing
-                    </span>
-                  </div>
-                  {stockFlow7d.length === 0 ? (
-                    <p className="mb-0" style={{ color: "var(--sub)", fontSize: 13 }}>
-                      No stock movements recorded yet.
-                    </p>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="table table-sm align-middle">
-                        <thead className="table-light">
-                          <tr>
-                            <th>SKU</th>
-                            <th>Product</th>
-                            <th>Incoming</th>
-                            <th>Outgoing</th>
-                            <th>Net</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stockFlow7d.map((row) => (
-                            <tr key={`flow-${row.product_id}`}>
-                              <td>{row.sku || "-"}</td>
-                              <td>{row.name || `#${row.product_id}`}</td>
-                              <td style={{ color: "#34d399", fontWeight: 700 }}>+{Number(row.incoming_units || 0)}</td>
-                              <td style={{ color: "#f87171", fontWeight: 700 }}>-{Number(row.outgoing_units || 0)}</td>
-                              <td style={{ fontWeight: 700 }}>{Number(row.net_units || 0)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
       {selectedReview && (
         <div
@@ -4029,6 +4282,136 @@ export default function AdminPage() {
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.65)", zIndex: 2100 }}
+          onClick={() => closeConfirmDialog(false)}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(520px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <h5 className="mb-2 osai-admin-section-title">{confirmDialog.title}</h5>
+              <p className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>{confirmDialog.message}</p>
+              <div className="d-flex justify-content-end gap-2">
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => closeConfirmDialog(false)}
+                >
+                  {confirmDialog.cancelLabel}
+                </button>
+                <button
+                  className={`btn btn-sm ${confirmDialog.danger ? "btn-outline-danger" : "btn-dark"}`}
+                  onClick={() => closeConfirmDialog(true)}
+                >
+                  {confirmDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptDialog && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,0.65)", zIndex: 2101 }}
+          onClick={() => closePromptDialog(null)}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{ width: "min(560px, 92vw)", background: "var(--bg-surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-body">
+              <h5 className="mb-2 osai-admin-section-title">{promptDialog.title}</h5>
+              <p className="mb-3" style={{ color: "var(--sub)", fontSize: 13 }}>{promptDialog.message}</p>
+              <input
+                autoFocus
+                className="form-control"
+                placeholder={promptDialog.placeholder}
+                value={promptValue}
+                onChange={(e) => setPromptValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    closePromptDialog(promptValue);
+                  }
+                }}
+              />
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => closePromptDialog(null)}
+                >
+                  {promptDialog.cancelLabel}
+                </button>
+                <button
+                  className="btn btn-sm btn-dark"
+                  onClick={() => closePromptDialog(promptValue)}
+                >
+                  {promptDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeToast && (
+        <div
+          className="position-fixed"
+          style={{ right: 20, bottom: 20, zIndex: 2200, maxWidth: 360 }}
+        >
+          <div
+            className="card border-0 shadow-sm"
+            style={{
+              background:
+                activeToast.type === "warning"
+                  ? "rgba(245, 158, 11, 0.16)"
+                  : activeToast.type === "success"
+                    ? "rgba(16, 185, 129, 0.16)"
+                    : activeToast.type === "info"
+                      ? "rgba(59, 130, 246, 0.16)"
+                      : "rgba(239, 68, 68, 0.16)",
+              border:
+                activeToast.type === "warning"
+                  ? "1px solid rgba(245, 158, 11, 0.45)"
+                  : activeToast.type === "success"
+                    ? "1px solid rgba(16, 185, 129, 0.45)"
+                    : activeToast.type === "info"
+                      ? "1px solid rgba(59, 130, 246, 0.45)"
+                      : "1px solid rgba(239, 68, 68, 0.45)",
+            }}
+          >
+            <div className="card-body py-2 px-3 d-flex align-items-start gap-2">
+              <i
+                className={`bi ${
+                  activeToast.type === "warning"
+                    ? "bi-exclamation-triangle"
+                    : activeToast.type === "success"
+                      ? "bi-check-circle"
+                      : activeToast.type === "info"
+                        ? "bi-info-circle"
+                      : "bi-x-octagon"
+                }`}
+                style={{ marginTop: 1 }}
+              />
+              <div style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.35 }}>{activeToast.message}</div>
+              <button
+                className="btn btn-sm btn-outline-secondary ms-auto"
+                style={{ padding: "0 6px", lineHeight: 1.2 }}
+                onClick={dismissActiveToast}
+              >
+                x
+              </button>
             </div>
           </div>
         </div>

@@ -20,6 +20,8 @@ const router = express.Router();
 const uploadsPath = path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 
+const ALLOWED_ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
+
 // Memory storage so we can process with sharp before writing to disk
 const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -304,8 +306,29 @@ router.delete("/users/:id", adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const targetId = Number(id);
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
     if (targetId === Number(req.session?.userId)) {
       return res.status(400).json({ message: "You cannot delete your own account." });
+    }
+
+    const [[targetUser]] = await db.query(
+      "SELECT id, is_admin FROM users WHERE id = ? LIMIT 1",
+      [targetId]
+    );
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (Number(targetUser.is_admin) === 1) {
+      const [[adminsCountRow]] = await db.query(
+        "SELECT COUNT(*) AS admins_count FROM users WHERE is_admin = 1"
+      );
+      const adminsCount = Number(adminsCountRow?.admins_count || 0);
+      if (adminsCount <= 1) {
+        return res.status(400).json({ message: "Cannot delete the last admin account." });
+      }
     }
 
     const [result] = await db.query(
@@ -339,7 +362,7 @@ router.get("/users/:id/summary", adminMiddleware, async (req, res) => {
     const [[userRow]] = await db.query(
       `SELECT id, name, email, phone, address_line1, address_line2, city, postcode,
               is_admin, is_suspended, suspended_at, suspension_reason, created_at
-       FROM users
+       FROM users  
        WHERE id = ?
        LIMIT 1`,
       [userId]
@@ -653,6 +676,21 @@ router.post("/users/bulk-action", adminMiddleware, async (req, res) => {
 
     let affectedRows = 0;
     if (action === "delete") {
+      const [[adminsCountRow]] = await db.query(
+        "SELECT COUNT(*) AS admins_count FROM users WHERE is_admin = 1"
+      );
+      const totalAdmins = Number(adminsCountRow?.admins_count || 0);
+
+      const [[targetAdminsRow]] = await db.query(
+        "SELECT COUNT(*) AS target_admins_count FROM users WHERE is_admin = 1 AND id IN (?)",
+        [filteredIds]
+      );
+      const targetAdmins = Number(targetAdminsRow?.target_admins_count || 0);
+
+      if (totalAdmins > 0 && targetAdmins >= totalAdmins) {
+        return res.status(400).json({ message: "Cannot delete all admin accounts." });
+      }
+
       const [result] = await db.query("DELETE FROM users WHERE id IN (?)", [filteredIds]);
       affectedRows = result.affectedRows || 0;
     } else if (action === "suspend") {
@@ -820,7 +858,7 @@ router.get("/orders/export.csv", adminMiddleware, async (req, res) => {
     const where = [];
     const params = [];
 
-    if (["pending", "processing", "shipped", "delivered", "cancelled"].includes(status)) {
+    if (ALLOWED_ORDER_STATUSES.includes(status)) {
       where.push("o.status = ?");
       params.push(status);
     }
@@ -889,10 +927,13 @@ router.get("/orders/export.csv", adminMiddleware, async (req, res) => {
 router.put("/orders/:id/status", adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const status = String(req.body?.status || "").trim().toLowerCase();
 
     if (!status) {
       return res.status(400).json({ message: "Status is required" });
+    }
+    if (!ALLOWED_ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
     }
 
     const [result] = await db.query(
@@ -917,7 +958,7 @@ router.post("/orders/bulk-status", adminMiddleware, async (req, res) => {
     if (!Array.isArray(orderIds) || !orderIds.length) {
       return res.status(400).json({ message: "orderIds is required" });
     }
-    if (!["pending", "processing", "shipped", "delivered", "cancelled"].includes(status)) {
+    if (!ALLOWED_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
     const ids = [...new Set(orderIds.map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0))];
