@@ -220,8 +220,8 @@ const cardVariants = {
 };
 
 export function FilteredProductPage({ cat = "all", pageTitle = "All Products", showCategory = true, showSale = true }) {
-  const { addToCart } = useContext(CartContext);
-  const { addToWishlist } = useContext(WishlistContext);
+  const { cart, addToCart, removeFromCart } = useContext(CartContext);
+  const { wishlist, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
 
   const stickyCenterOffsetByCategory = {
     all: 300,
@@ -367,12 +367,20 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
   const toggle = (setter, val) =>
     setter(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
 
-  const handleAddToCart = async (product) => {
-    const result = await addToCart(product);
-    if (result?.message) {
-      setCartMsg(result.message);
-      setCartMsgType(result.ok ? "success" : "danger");
-      setTimeout(() => setCartMsg(""), 3000);
+  const handleCartToggle = async (product) => {
+    const inCart = cart && cart.some(item => item.id === product.id);
+    if (inCart) {
+      await removeFromCart(product.id);
+      setCartMsg("Removed from basket.");
+      setCartMsgType("success");
+      setTimeout(() => setCartMsg(""), 2000);
+    } else {
+      const result = await addToCart(product);
+      if (result?.message) {
+        setCartMsg(result.message);
+        setCartMsgType(result.ok ? "success" : "danger");
+        setTimeout(() => setCartMsg(""), 3000);
+      }
     }
   };
 
@@ -923,7 +931,7 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                         <div className="d-grid gap-2 mt-auto">
                           <button
                             className="btn btn-dark btn-sm"
-                            onClick={() => handleAddToCart(product)}
+                            onClick={() => handleCartToggle(product)}
                             disabled={isSoldOut}
                             style={isLightTheme ? undefined : {
                               background: "transparent",
@@ -932,18 +940,29 @@ export function FilteredProductPage({ cat = "all", pageTitle = "All Products", s
                               letterSpacing: "0.08em",
                             }}
                           >
-                            {isSoldOut ? "Sold Out" : "Add to Basket"}
+                            {isSoldOut
+                              ? "Sold Out"
+                              : (cart && cart.some(item => item.id === product.id)
+                                  ? "Added to Basket"
+                                  : "Add to Basket")}
                           </button>
                           <button
                             className="btn btn-outline-danger btn-sm"
-                            onClick={() => addToWishlist(product)}
+                            onClick={() => {
+                              const inWishlist = wishlist.some(item => item.id === (product.id || product.sku || product.product_id));
+                              if (inWishlist) {
+                                removeFromWishlist(product.id || product.sku || product.product_id);
+                              } else {
+                                addToWishlist(product);
+                              }
+                            }}
                             style={isLightTheme ? undefined : {
                               background: "transparent",
                               color: "#dc2626",
                               border: "1px solid #dc2626",
                             }}
                           >
-                            ♡ Favourite
+                            {wishlist.some(item => item.id === (product.id || product.sku || product.product_id)) ? "Favourited" : "Favourite"}
                           </button>
                         </div>
                       </div>
