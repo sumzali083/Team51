@@ -1,3 +1,9 @@
+/* Make Add to Basket button text black on hover in light mode */
+[data-theme="light"] .btn-dark.btn-sm:hover,
+[data-theme="light"] .btn-dark:hover,
+[data-theme="light"] .btn.btn-dark:hover {
+  color: #111 !important;
+}
 /* ─── DESIGN TOKENS ─────────────────────────────────────────────────────── */
 :root{
   --bg:         #000000;
