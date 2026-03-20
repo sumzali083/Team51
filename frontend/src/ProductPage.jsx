@@ -10,7 +10,7 @@ import { PRODUCTS, Fallback } from "./data";
 export function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useContext(CartContext);
+  const { cart, addToCart, removeFromCart } = useContext(CartContext);
   const { wishlist, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
   const { user } = useContext(AuthContext);
 
@@ -114,22 +114,30 @@ export function ProductPage() {
     }
   };
 
-  const handleAddToCart = () => {
-    addToCart({
-      ...product,
-      size,
-      color,
-      image: images[activeImg] || product.image,
-    }).then((result) => {
-      if (result && result.message) {
-        setMsg(result.message);
-        setMsgType(result.ok ? "success" : "danger");
-      } else {
-        setMsg(`Added "${product.name}" to basket!`);
-        setMsgType("success");
-      }
-      setTimeout(() => setMsg(""), 3000);
-    });
+  const handleCartToggle = () => {
+    const inCart = cart && cart.some(item => item.id === product.id);
+    if (inCart) {
+      removeFromCart(product.id);
+      setMsg(`Removed \"${product.name}\" from basket.`);
+      setMsgType("success");
+      setTimeout(() => setMsg(""), 2000);
+    } else {
+      addToCart({
+        ...product,
+        size,
+        color,
+        image: images[activeImg] || product.image,
+      }).then((result) => {
+        if (result && result.message) {
+          setMsg(result.message);
+          setMsgType(result.ok ? "success" : "danger");
+        } else {
+          setMsg(`Added \"${product.name}\" to basket!`);
+          setMsgType("success");
+        }
+        setTimeout(() => setMsg(""), 3000);
+      });
+    }
   };
 
   const handleToggleWishlist = () => {
@@ -312,17 +320,21 @@ export function ProductPage() {
 
           <button
             className="btn btn-dark btn-lg w-100 mt-3"
-            onClick={handleAddToCart}
+            onClick={handleCartToggle}
             disabled={isSoldOut}
           >
-            {isSoldOut ? "Sold Out" : "Add to Basket"}
+            {isSoldOut
+              ? "Sold Out"
+              : (cart && cart.some(item => item.id === product.id)
+                  ? "Added to Basket"
+                  : "Add to Basket")}
           </button>
 
           <button
             className={`${isInWishlist ? "btn btn-danger" : "btn btn-outline-danger"} w-100 mt-2`}
             onClick={handleToggleWishlist}
           >
-            {isInWishlist ? "Remove from Favourites ❤️" : "Add to Favourites ♡"}
+            {isInWishlist ? "Favourited" : "Favourite"}
           </button>
 
           {msg && (
